@@ -10,10 +10,10 @@ import (
 const writekey = "cf80cea35c40752b299755ad23d2082e"
 
 func main() {
-	hi := honeycomb.NewInstrumenter(writekey)
+	honeycomb.NewHoneycombInstrumenter(writekey, "")
 	globalmux := http.NewServeMux()
 	globalmux.HandleFunc("/hello", hello)
-	http.ListenAndServe(":8000", hi.InstrumentMuxHandler(globalmux))
+	http.ListenAndServe(":8080", honeycomb.InstrumentMuxHandler(globalmux))
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {

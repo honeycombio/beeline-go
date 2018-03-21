@@ -11,9 +11,9 @@ import (
 const writekey = "cf80cea35c40752b299755ad23d2082e"
 
 func main() {
-	hi := honeycomb.NewInstrumenter(writekey)
-	http.HandleFunc("/hello", hi.InstrumentHandleFunc(HelloServer))
-	log.Fatal(http.ListenAndServe(":12345", nil))
+	honeycomb.NewHoneycombInstrumenter(writekey, "")
+	http.HandleFunc("/hello", honeycomb.InstrumentHandleFunc(HelloServer))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 // hello world, the web server
