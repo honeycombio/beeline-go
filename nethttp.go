@@ -20,7 +20,7 @@ func InstrumentHandleFunc(hf func(http.ResponseWriter, *http.Request)) func(http
 		ev := existingEventFromContext(r.Context())
 		if ev == nil {
 			ev = libhoney.NewEvent()
-			// put the event on the context for everybody downsteam to use
+			// put the event on the context for everybody downstream to use
 			r = r.WithContext(context.WithValue(r.Context(), honeyEventContextKey, ev))
 		}
 		// add some common fields from the request to our event
@@ -52,7 +52,7 @@ func InstrumentMuxHandler(mux *http.ServeMux) http.Handler {
 		ev := existingEventFromContext(r.Context())
 		if ev == nil {
 			ev = libhoney.NewEvent()
-			// put the event on the context for everybody downsteam to use
+			// put the event on the context for everybody downstream to use
 			r = r.WithContext(context.WithValue(r.Context(), honeyEventContextKey, ev))
 		}
 		// add some common fields from the request to our event
