@@ -11,6 +11,7 @@ import (
 )
 
 func InstrumentHandleFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	handlerFuncName := runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO find out if we're a sub-handler and don't stomp the parent
 		// event, or at least get parent/child IDs and intentionally send a
@@ -27,7 +28,7 @@ func InstrumentHandleFunc(hf func(http.ResponseWriter, *http.Request)) func(http
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := &hnyResponseWriter{ResponseWriter: w}
 		// add the name of the handler func we're about to invoke
-		ev.AddField("handler_func_name", runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name())
+		ev.AddField("handler_func_name", handlerFuncName)
 
 		hf(wrappedWriter, r)
 		if wrappedWriter.status == 0 {
@@ -40,6 +41,9 @@ func InstrumentHandleFunc(hf func(http.ResponseWriter, *http.Request)) func(http
 }
 
 func InstrumentMuxHandler(mux *http.ServeMux) http.Handler {
+	// get Handler type and name
+	hType := reflect.TypeOf(handler).String()
+	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		// TODO find out if we're a sub-handler and don't stomp the parent
 		// event, or at least get parent/child IDs and intentionally send a
@@ -56,11 +60,9 @@ func InstrumentMuxHandler(mux *http.ServeMux) http.Handler {
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := &hnyResponseWriter{ResponseWriter: w}
 		handler, pat := mux.Handler(r)
-		ev.AddField("handlerPattern", pat)
-		// get Handler type and name
-		hType := reflect.TypeOf(handler)
-		ev.AddField("handlerType", hType.String())
-		ev.AddField("handler_name", runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name())
+		ev.AddField("handler_pattern", pat)
+		ev.AddField("handler_type", hType)
+		ev.AddField("handler_name", handlerName)
 		handler.ServeHTTP(wrappedWriter, r)
 		if wrappedWriter.status == 0 {
 			wrappedWriter.status = 200
@@ -73,6 +75,7 @@ func InstrumentMuxHandler(mux *http.ServeMux) http.Handler {
 }
 
 func InstrumentHandler(handler http.Handler) http.Handler {
+	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		// TODO find out if we're a sub-handler and don't stomp the parent
@@ -89,7 +92,7 @@ func InstrumentHandler(handler http.Handler) http.Handler {
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := &hnyResponseWriter{ResponseWriter: w}
 		// add the name of the handler func we're about to invoke
-		ev.AddField("handler_name", runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name())
+		ev.AddField("handler_name", handlerName)
 		handler.ServeHTTP(wrappedWriter, r)
 		if wrappedWriter.status == 0 {
 			wrappedWriter.status = 200
