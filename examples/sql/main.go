@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 
 	_ "github.com/go-sql-driver/mysql"
 
@@ -22,10 +23,28 @@ func main() {
 		spew.Dump(err)
 	}
 	db.Exec("insert into flavors (flavor) values ('rose')")
-	// if err != nil {
-	// 	// fmt.Printf("whee got err %v\n", err)
-	// } else {
-	// 	// lii, _ := res.LastInsertId()
-	// 	// fmt.Printf("res last insert id was %d\n", lii)
-	// }
+	fv := "rose"
+	rows, err := db.Query("SELECT id FROM flavors WHERE flavor=?", fv)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%s is %d\n", name, fv)
+	}
+	if err := rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+	//
 }
+
+// if err != nil {
+// 	// fmt.Printf("whee got err %v\n", err)
+// } else {
+// 	// lii, _ := res.LastInsertId()
+// 	// fmt.Printf("res last insert id was %d\n", lii)
+// }

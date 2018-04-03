@@ -42,7 +42,7 @@ func HelloServer(w http.ResponseWriter, req *http.Request) {
 // this:
 // {
 // 	"Timestamp": "2018-03-07 21:42:02.271",
-// 	"duration_ms": 0.035626,
+// 	"durationMs": 0.035626,
 // 	"custom": "Wheee",
 // 	"handlerName": "main.HelloServer",
 // 	"request.content_length": 0,

@@ -45,7 +45,7 @@ func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 // {
 //   "data": {
 //     "chosenHandle_name": "main.Hello",
-//     "duration_ms": 1004.757279,
+//     "durationMs": 1004.757279,
 //     "handler_name": "",
 //     "host": "cobbler.local",
 //     "inHello": true,

@@ -54,21 +54,42 @@ type Timer struct {
 // hnyTimer.Finish()
 // In both cases, the timer will be created using the name (second field) and
 // have `_dur_ms` appended to the field name.
-func NewTimer(ctx context.Context, name string, t time.Time) *Timer {
+func NewNamedTimerC(ctx context.Context, name string, t time.Time) *Timer {
 	ev := existingEventFromContext(ctx)
-	timer := &Timer{
+	return &Timer{
 		start: t,
 		name:  name,
 		ev:    ev,
 	}
-	return timer
 }
 
-// Finish closes off a started timer and adds the duration to the Honeycomb event.
-func (t *Timer) Finish() {
-	ev := t.ev
-	if ev != nil {
-		dur := float64(time.Since(t.start)) / float64(time.Millisecond)
-		t.ev.AddField(t.name+"_dur_ms", dur)
+func NewNamedTimer(name string, t time.Time) *Timer {
+	return &Timer{
+		start: t,
+		name:  name,
 	}
+}
+
+func NewTimer(t time.Time) *Timer {
+	return &Timer{
+		start: t,
+	}
+}
+
+func StartTimer() *Timer {
+	return &Timer{
+		start: time.Now(),
+	}
+}
+
+// Finish closes off a started timer and adds the duration to the Honeycomb
+// event. Also returns the duration timed in milliseconds
+func (t *Timer) Finish() float64 {
+	dur := float64(time.Since(t.start)) / float64(time.Millisecond)
+	if t.ev != nil {
+		if t.name != "" {
+			t.ev.AddField(t.name+"_dur_ms", dur)
+		}
+	}
+	return dur
 }

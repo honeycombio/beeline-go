@@ -66,7 +66,7 @@ func HelloHandler(w http.ResponseWriter, r *http.Request) {
 // {
 //   "data": {
 //     "chosenHandler_name": "main.YourHandler",
-//     "duration_ms": 0.034328,
+//     "durationMs": 0.034328,
 //     "gorilla.routeMatched": "/",
 //     "host": "cobbler.local",
 //     "request.content_length": 0,

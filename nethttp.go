@@ -35,7 +35,7 @@ func InstrumentHandleFunc(hf func(http.ResponseWriter, *http.Request)) func(http
 			wrappedWriter.status = 200
 		}
 		ev.AddField("response.status_code", wrappedWriter.status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
+		ev.AddField("durationMs", float64(time.Since(start))/float64(time.Millisecond))
 		ev.Send()
 	}
 }
@@ -67,7 +67,7 @@ func InstrumentMuxHandler(mux *http.ServeMux) http.Handler {
 			wrappedWriter.status = 200
 		}
 		ev.AddField("response.status_code", wrappedWriter.status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
+		ev.AddField("durationMs", float64(time.Since(start))/float64(time.Millisecond))
 		ev.Send()
 	}
 	return http.HandlerFunc(wrappedHandler)
@@ -97,7 +97,7 @@ func InstrumentHandler(handler http.Handler) http.Handler {
 			wrappedWriter.status = 200
 		}
 		ev.AddField("response.status_code", wrappedWriter.status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
+		ev.AddField("durationMs", float64(time.Since(start))/float64(time.Millisecond))
 		ev.Send()
 	}
 	return http.HandlerFunc(wrappedHandler)

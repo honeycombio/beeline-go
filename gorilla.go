@@ -18,6 +18,7 @@ func AddGorillaMiddleware(handler http.Handler) http.Handler {
 		// event, or at least get parent/child IDs and intentionally send a
 		// subevent or something
 		ev := libhoney.NewEvent()
+		defer ev.Send()
 		// put the event on the context for everybody downsteam to use
 		r = r.WithContext(context.WithValue(r.Context(), honeyEventContextKey, ev))
 		// add some common fields from the request to our event
@@ -43,8 +44,7 @@ func AddGorillaMiddleware(handler http.Handler) http.Handler {
 			wrappedWriter.status = 200
 		}
 		ev.AddField("response.status_code", wrappedWriter.status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
-		ev.Send()
+		ev.AddField("durationMs", float64(time.Since(start))/float64(time.Millisecond))
 	}
 	return http.HandlerFunc(wrappedHandler)
 }

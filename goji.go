@@ -64,7 +64,7 @@ func InstrumentGojiMiddleware(handler http.Handler) http.Handler {
 			wrappedWriter.status = 200
 		}
 		ev.AddField("response.status_code", wrappedWriter.status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
+		ev.AddField("durationMs", float64(time.Since(start))/float64(time.Millisecond))
 		ev.Send()
 	}
 	return http.HandlerFunc(wrappedHandler)

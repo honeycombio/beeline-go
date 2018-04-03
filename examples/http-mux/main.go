@@ -24,7 +24,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 // Example events created:
 // {
 //   "data": {
-//     "duration_ms": 0.045241,
+//     "durationMs": 0.045241,
 //     "handlerName": "main.hello",
 //     "handlerPattern": "/hello",
 //     "handlerType": "http.HandlerFunc",
@@ -41,7 +41,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 // }
 // {
 //   "data": {
-//     "duration_ms": 0.077218,
+//     "durationMs": 0.077218,
 //     "handlerName": "net/http.NotFound",
 //     "handlerPattern": "",
 //     "handlerType": "http.HandlerFunc",
