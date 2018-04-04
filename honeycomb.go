@@ -20,7 +20,7 @@ func NewHoneycombInstrumenter(writekey string, dataset string) {
 	libhoney.Init(config)
 
 	if hostname, err := os.Hostname(); err == nil {
-		libhoney.AddField("host", hostname)
+		libhoney.AddField("meta.localhostname", hostname)
 	}
 	return
 }
@@ -36,6 +36,17 @@ func AddField(ctx context.Context, key string, val interface{}) {
 		return
 	}
 	ev.AddField(key, val)
+}
+
+// ContextWithEvent returns a new context created from the passed context with a
+// Honeycomb event added to it
+func ContextWithEvent(ctx context.Context, ev *libhoney.Event) context.Context {
+	return context.WithValue(ctx, honeyEventContextKey, ev)
+}
+
+// ContextEvent retrieves the Honeycomb event from a context
+func ContextEvent(ctx context.Context) *libhoney.Event {
+	return existingEventFromContext(ctx)
 }
 
 type Timer struct {

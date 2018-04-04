@@ -2,15 +2,15 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/davecgh/go-spew/spew"
 	honeycomb "github.com/honeycombio/honeycomb-go-magic"
-	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnysql"
+	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnysqlx"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
@@ -19,8 +19,8 @@ const honeyEventContextKey = "honeycombEventContextKey"
 
 func main() {
 	honeycomb.NewHoneycombInstrumenter(writekey, "")
-	odb, err := sql.Open("mysql", "root:@tcp(127.0.0.1)/donut")
-	db := hnysql.WrapDB(libhoney.NewBuilder(), odb)
+	odb, err := sqlx.Open("mysql", "root:@tcp(127.0.0.1)/donut")
+	db := hnysqlx.WrapDB(libhoney.NewBuilder(), odb)
 	if err != nil {
 		fmt.Println("connection err")
 		spew.Dump(err)
@@ -28,9 +28,9 @@ func main() {
 	ev := libhoney.NewEvent()
 	ev.AddField("traceId", "trace-me")
 	ctx := context.WithValue(context.Background(), honeyEventContextKey, ev)
-	db.ExecContext(ctx, "insert into flavors (flavor) values ('rose')")
+	db.MustExecContext(ctx, "insert into flavors (flavor) values ('rose')")
 	fv := "rose"
-	rows, err := db.QueryContext(ctx, "SELECT id FROM flavors WHERE flavor=?", fv)
+	rows, err := db.QueryxContext(ctx, "SELECT id FROM flavors WHERE flavor=?", fv)
 	if err != nil {
 		log.Fatal(err)
 	}

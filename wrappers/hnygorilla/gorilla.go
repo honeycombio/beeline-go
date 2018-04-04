@@ -1,7 +1,6 @@
 package honeycomb
 
 import (
-	"context"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -20,7 +19,8 @@ func AddGorillaMiddleware(handler http.Handler) http.Handler {
 		ev := libhoney.NewEvent()
 		defer ev.Send()
 		// put the event on the context for everybody downsteam to use
-		r = r.WithContext(context.WithValue(r.Context(), honeyEventContextKey, ev))
+		ctx := honeycomb.ContextWithEvent(r.Context(), ev)
+		r = r.WithContext(ctx)
 		// add some common fields from the request to our event
 		addRequestProps(r, ev)
 		// replace the writer with our wrapper to catch the status code

@@ -1,63 +1,38 @@
-package honeycomb
+package hnysqlx
 
 import (
 	"context"
 	"database/sql"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/satori/go.uuid"
 
+	honeycomb "github.com/honeycombio/honeycomb-go-magic"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
 type DB struct {
-	*sql.DB
+	*sqlx.DB
 	builder *libhoney.Builder
 	// events will be a map of in-flight events for transactions, but that's not implemented yet.
 	// events  map[int]*libhoney.Event
 }
 
-func WrapDB(b *libhoney.Builder, s *sql.DB) *DB {
+func WrapDB(b *libhoney.Builder, s *sqlx.DB) *DB {
 	db := &DB{
 		DB:      s,
 		builder: b,
 	}
 	addConns := func() interface{} {
-		stats := s.Stats()
+		stats := s.DB.Stats()
 		return stats.OpenConnections
 	}
 	b.AddDynamicField("open_conns", addConns)
+	b.AddField("meta.type", "sqlx")
 	return db
 }
 
-// TODO trace ID propagation. only with context? other tags you want to apply to a DB?
-// TODO sqlx
-
-func (db *DB) Begin() (*Tx, error) {
-	ev := db.builder.NewEvent()
-	defer ev.Send()
-	bld := db.builder.Clone()
-	txid := uuid.NewV4().String()
-	wrapTx := &Tx{
-		builder: bld,
-		txid:    txid,
-	}
-	ev.AddField("txId", txid)
-	ev.AddField("call", "Begin")
-
-	// do DB call
-	timer := StartTimer()
-	tx, err := db.DB.Begin()
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
-
-	wrapTx.Tx = tx
-
-	return wrapTx, err
-}
-
-func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
-	// TODO if ctx.Cancel is called, the transaction is rolled back. We should
-	// submit an event indicating the rollback.
+func (db *DB) BeginTxx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	ev := db.builder.NewEvent()
 	defer ev.Send()
 	addTraceID(ctx, ev)
@@ -70,14 +45,14 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	}
 	bld.AddField("txId", txid)
 	ev.AddField("txId", txid)
-	ev.AddField("call", "BeginTx")
+	ev.AddField("call", "BeginTxx")
 
 	ev.AddField("options", opts)
 	bld.AddField("options", opts)
 
 	// do DB call
-	timer := StartTimer()
-	tx, err := db.DB.BeginTx(ctx, opts)
+	timer := honeycomb.StartTimer()
+	tx, err := db.DB.BeginTxx(ctx, opts)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 
@@ -86,73 +61,183 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	return wrapTx, err
 }
 
-func (db *DB) Conn(ctx context.Context) (*Conn, error) {
+func (db *DB) Beginx() (*Tx, error) {
 	ev := db.builder.NewEvent()
 	defer ev.Send()
-	addTraceID(ctx, ev)
 	bld := db.builder.Clone()
-	addTraceIDBuilder(ctx, bld)
-	connid := uuid.NewV4().String()
-	wrapConn := &Conn{
+	txid := uuid.NewV4().String()
+	wrapTx := &Tx{
 		builder: bld,
-		connid:  connid,
+		txid:    txid,
 	}
-	bld.AddField("connId", connid)
-	ev.AddField("connId", connid)
-	ev.AddField("call", "Conn")
+	ev.AddField("txId", txid)
+	ev.AddField("call", "Beginx")
 
 	// do DB call
-	timer := StartTimer()
-	conn, err := db.DB.Conn(ctx)
+	timer := honeycomb.StartTimer()
+	tx, err := db.DB.Beginx()
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 
-	wrapConn.Conn = conn
+	wrapTx.Tx = tx
 
-	return wrapConn, err
-
+	return wrapTx, err
 }
-
-func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
+func (db *DB) Get(dest interface{}, query string, args ...interface{}) error {
 	ev := db.builder.NewEvent()
 	defer ev.Send()
-	ev.AddField("call", "Exec")
+	ev.AddField("call", "Get")
 	ev.AddField("query", query)
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
-	res, err := db.DB.Exec(query, args...)
+	timer := honeycomb.StartTimer()
+	err := db.DB.Get(dest, query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 
 	// capture results
 	if err != nil {
 		ev.AddField("error", err)
-	} else {
-		id, lierr := res.LastInsertId()
-		if lierr == nil {
-			ev.AddField("last_insert_id", id)
-		}
-		numrows, nrerr := res.RowsAffected()
-		if nrerr == nil {
-			ev.AddField("rows_affected", numrows)
-		}
 	}
-	return res, err
+	return err
 }
-
-func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+func (db *DB) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	ev := db.builder.NewEvent()
 	defer ev.Send()
 	addTraceID(ctx, ev)
-	ev.AddField("call", "ExecContext")
+	ev.AddField("call", "GetContext")
 	ev.AddField("query", query)
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
-	res, err := db.DB.ExecContext(ctx, query, args...)
+	timer := honeycomb.StartTimer()
+	err := db.DB.GetContext(ctx, dest, query, args...)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	// capture results
+	if err != nil {
+		ev.AddField("error", err)
+	}
+	return err
+}
+func (db *DB) MustBegin() *Tx {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	bld := db.builder.Clone()
+	txid := uuid.NewV4().String()
+	wrapTx := &Tx{
+		builder: bld,
+		txid:    txid,
+	}
+	ev.AddField("txId", txid)
+	ev.AddField("call", "MustBegin")
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	tx, err := db.DB.Beginx()
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	wrapTx.Tx = tx
+
+	if err != nil {
+		ev.AddField("panic", err)
+		panic(err)
+	}
+	return wrapTx
+}
+
+func (db *DB) MustBeginTx(ctx context.Context, opts *sql.TxOptions) *Tx {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	bld := db.builder.Clone()
+	txid := uuid.NewV4().String()
+	wrapTx := &Tx{
+		builder: bld,
+		txid:    txid,
+	}
+	ev.AddField("txId", txid)
+	ev.AddField("call", "MustBegin")
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	tx, err := db.DB.BeginTxx(ctx, opts)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	wrapTx.Tx = tx
+
+	if err != nil {
+		ev.AddField("panic", err)
+		panic(err)
+	}
+	return wrapTx
+}
+
+func (db *DB) MustExec(query string, args ...interface{}) sql.Result {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	ev.AddField("call", "MustExec")
+	ev.AddField("query", query)
+	ev.AddField("query_args", args)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	res := db.DB.MustExec(query, args...)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	// capture results
+	id, lierr := res.LastInsertId()
+	if lierr == nil {
+		ev.AddField("last_insert_id", id)
+	}
+	numrows, nrerr := res.RowsAffected()
+	if nrerr == nil {
+		ev.AddField("rows_affected", numrows)
+	}
+
+	return res
+}
+
+func (db *DB) MustExecContext(ctx context.Context, query string, args ...interface{}) sql.Result {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	addTraceID(ctx, ev)
+	ev.AddField("call", "MustExecContext")
+	ev.AddField("query", query)
+	ev.AddField("query_args", args)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	res := db.DB.MustExecContext(ctx, query, args...)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	id, lierr := res.LastInsertId()
+	if lierr == nil {
+		ev.AddField("last_insert_id", id)
+	}
+	numrows, nrerr := res.RowsAffected()
+	if nrerr == nil {
+		ev.AddField("rows_affected", numrows)
+	}
+
+	return res
+
+}
+func (db *DB) NamedExec(query string, arg interface{}) (sql.Result, error) {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	ev.AddField("call", "NamedExec")
+	ev.AddField("query", query)
+	ev.AddField("query_arg", arg)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	res, err := db.DB.NamedExec(query, arg)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 
@@ -170,7 +255,64 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}
 		}
 	}
 	return res, err
+}
+func (db *DB) NamedExecContext(ctx context.Context, query string, arg interface{}) (sql.Result, error) {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	ev.AddField("call", "NamedExecContext")
+	ev.AddField("query", query)
+	ev.AddField("query_arg", arg)
 
+	// do DB call
+	timer := honeycomb.StartTimer()
+	res, err := db.DB.NamedExecContext(ctx, query, arg)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	// capture results
+	if err != nil {
+		ev.AddField("error", err)
+	} else {
+		id, lierr := res.LastInsertId()
+		if lierr == nil {
+			ev.AddField("last_insert_id", id)
+		}
+		numrows, nrerr := res.RowsAffected()
+		if nrerr == nil {
+			ev.AddField("rows_affected", numrows)
+		}
+	}
+	return res, err
+}
+func (db *DB) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	ev.AddField("call", "NamedQuery")
+	ev.AddField("query", query)
+	ev.AddField("query_arg", arg)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	rows, err := db.DB.NamedQuery(query, arg)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	return rows, err
+}
+func (db *DB) NamedQueryContext(ctx context.Context, query string, arg interface{}) (*sqlx.Rows, error) {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	ev.AddField("call", "NamedQueryContext")
+	ev.AddField("query", query)
+	ev.AddField("query_arg", arg)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	rows, err := db.DB.NamedQueryContext(ctx, query, arg)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	return rows, err
 }
 
 func (db *DB) Ping() error {
@@ -178,7 +320,7 @@ func (db *DB) Ping() error {
 	defer ev.Send()
 	ev.AddField("call", "Ping")
 
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	err := db.DB.Ping()
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -192,7 +334,7 @@ func (db *DB) PingContext(ctx context.Context) error {
 	addTraceID(ctx, ev)
 	ev.AddField("call", "Ping")
 
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	err := db.DB.Ping()
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -200,7 +342,54 @@ func (db *DB) PingContext(ctx context.Context) error {
 	return err
 }
 
-func (db *DB) Prepare(query string) (*Stmt, error) {
+func (db *DB) PrepareNamed(query string) (*NamedStmt, error) {
+	bld := db.builder.Clone()
+	stmtid := uuid.NewV4().String()
+	wrapStmt := &NamedStmt{
+		builder: bld,
+	}
+	bld.AddField("stmtId", stmtid)
+	bld.AddField("query", query)
+	ev := bld.NewEvent()
+	defer ev.Send()
+	ev.AddField("call", "PrepareNamed")
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	stmt, err := db.DB.PrepareNamed(query)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	wrapStmt.NamedStmt = stmt
+
+	return wrapStmt, err
+}
+
+func (db *DB) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt, error) {
+	bld := db.builder.Clone()
+	stmtid := uuid.NewV4().String()
+	wrapStmt := &NamedStmt{
+		builder: bld,
+	}
+	bld.AddField("stmtId", stmtid)
+	bld.AddField("query", query)
+	ev := bld.NewEvent()
+	defer ev.Send()
+	addTraceID(ctx, ev)
+	ev.AddField("call", "PrepareNamedContext")
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	stmt, err := db.DB.PrepareNamedContext(ctx, query)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	wrapStmt.NamedStmt = stmt
+
+	return wrapStmt, err
+}
+
+func (db *DB) Preparex(query string) (*Stmt, error) {
 	bld := db.builder.Clone()
 	stmtid := uuid.NewV4().String()
 	wrapStmt := &Stmt{
@@ -210,11 +399,11 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 	bld.AddField("query", query)
 	ev := bld.NewEvent()
 	defer ev.Send()
-	ev.AddField("call", "Prepare")
+	ev.AddField("call", "Preparex")
 
 	// do DB call
-	timer := StartTimer()
-	stmt, err := db.DB.Prepare(query)
+	timer := honeycomb.StartTimer()
+	stmt, err := db.DB.Preparex(query)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 
@@ -223,7 +412,7 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 	return wrapStmt, err
 }
 
-func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
+func (db *DB) PreparexContext(ctx context.Context, query string) (*Stmt, error) {
 	bld := db.builder.Clone()
 	stmtid := uuid.NewV4().String()
 	wrapStmt := &Stmt{
@@ -234,11 +423,11 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	ev := bld.NewEvent()
 	defer ev.Send()
 	addTraceID(ctx, ev)
-	ev.AddField("call", "PrepareContext")
+	ev.AddField("call", "PreparexContext")
 
 	// do DB call
-	timer := StartTimer()
-	stmt, err := db.DB.PrepareContext(ctx, query)
+	timer := honeycomb.StartTimer()
+	stmt, err := db.DB.PreparexContext(ctx, query)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 
@@ -255,7 +444,7 @@ func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	rows, err := db.DB.Query(query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -270,7 +459,7 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	rows, err := db.DB.QueryContext(ctx, query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -285,7 +474,7 @@ func (db *DB) QueryRow(query string, args ...interface{}) *sql.Row {
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	row := db.DB.QueryRow(query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -300,11 +489,99 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	row := db.DB.QueryRowContext(ctx, query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 	return row
+}
+func (db *DB) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	ev.AddField("call", "Queryx")
+	ev.AddField("query", query)
+	ev.AddField("query_args", args)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	rows, err := db.DB.Queryx(query, args...)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+	return rows, err
+}
+func (db *DB) QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error) {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	addTraceID(ctx, ev)
+	ev.AddField("call", "QueryxContext")
+	ev.AddField("query", query)
+	ev.AddField("query_args", args)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	rows, err := db.DB.QueryxContext(ctx, query, args...)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+	return rows, err
+
+}
+func (db *DB) QueryRowx(query string, args ...interface{}) *sqlx.Row {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	ev.AddField("call", "QueryRowx")
+	ev.AddField("query", query)
+	ev.AddField("query_args", args)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	row := db.DB.QueryRowx(query, args...)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+	return row
+}
+func (db *DB) QueryRowxContext(ctx context.Context, query string, args ...interface{}) *sqlx.Row {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	addTraceID(ctx, ev)
+	ev.AddField("call", "QueryRowxContext")
+	ev.AddField("query", query)
+	ev.AddField("query_args", args)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	row := db.DB.QueryRowxContext(ctx, query, args...)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+	return row
+}
+func (db *DB) Select(dest interface{}, query string, args ...interface{}) error {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	ev.AddField("call", "Select")
+	ev.AddField("query", query)
+	ev.AddField("query_args", args)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	err := db.DB.Select(dest, query, args...)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+	return err
+}
+func (db *DB) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	ev := db.builder.NewEvent()
+	defer ev.Send()
+	addTraceID(ctx, ev)
+	ev.AddField("call", "SelectContext")
+	ev.AddField("query", query)
+	ev.AddField("query_args", args)
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	err := db.DB.SelectContext(ctx, dest, query, args...)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+	return err
 }
 
 // not implemented in the wrapper - should just fall through to the superclass
@@ -315,154 +592,13 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 // func (db *DB) SetMaxOpenConns(n int)               {}
 // func (db *DB) Stats() DBStats                      {}
 
-type Conn struct {
-	*sql.Conn
+type NamedStmt struct {
+	*sqlx.NamedStmt
 	builder *libhoney.Builder
-	connid  string
-}
-
-func (c *Conn) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
-	// TODO if ctx.Cancel is called, the transaction is rolled back. We should
-	// submit an event indicating the rollback.
-	ev := c.builder.NewEvent()
-	defer ev.Send()
-	bld := c.builder.Clone()
-	txid := uuid.NewV4().String()
-	wrapTx := &Tx{
-		builder: bld,
-		txid:    txid,
-	}
-	bld.AddField("txId", txid)
-	ev.AddField("txId", txid)
-	ev.AddField("call", "BeginTx")
-
-	ev.AddField("options", opts)
-	bld.AddField("options", opts)
-
-	// do DB call
-	timer := StartTimer()
-	tx, err := c.Conn.BeginTx(ctx, opts)
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
-
-	wrapTx.Tx = tx
-
-	return wrapTx, err
-}
-
-func (c *Conn) Close() error {
-	ev := c.builder.NewEvent()
-	defer ev.Send()
-	ev.AddField("call", "Close")
-
-	// do DB call
-	timer := StartTimer()
-	err := c.Conn.Close()
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
-	if err != nil {
-		ev.AddField("error", err)
-	}
-	return err
-}
-
-func (c *Conn) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	ev := c.builder.NewEvent()
-	defer ev.Send()
-	ev.AddField("call", "ExecContext")
-	ev.AddField("query", query)
-	ev.AddField("query_args", args)
-
-	// do DB call
-	timer := StartTimer()
-	res, err := c.Conn.ExecContext(ctx, query, args...)
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
-
-	// capture results
-	if err != nil {
-		ev.AddField("error", err)
-	} else {
-		id, lierr := res.LastInsertId()
-		if lierr == nil {
-			ev.AddField("last_insert_id", id)
-		}
-		numrows, nrerr := res.RowsAffected()
-		if nrerr == nil {
-			ev.AddField("rows_affected", numrows)
-		}
-	}
-	return res, err
-}
-
-func (c *Conn) PingContext(ctx context.Context) error {
-	ev := c.builder.NewEvent()
-	defer ev.Send()
-	ev.AddField("call", "Ping")
-
-	timer := StartTimer()
-	err := c.Conn.PingContext(ctx)
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
-
-	return err
-}
-
-func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
-	bld := c.builder.Clone()
-	stmtid := uuid.NewV4().String()
-	wrapStmt := &Stmt{
-		builder: bld,
-	}
-	bld.AddField("stmtId", stmtid)
-	bld.AddField("query", query)
-	ev := bld.NewEvent()
-	defer ev.Send()
-	ev.AddField("call", "PrepareContext")
-
-	// do DB call
-	timer := StartTimer()
-	stmt, err := c.Conn.PrepareContext(ctx, query)
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
-
-	wrapStmt.Stmt = stmt
-
-	return wrapStmt, err
-}
-
-func (c *Conn) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	ev := c.builder.NewEvent()
-	defer ev.Send()
-	ev.AddField("call", "QueryContext")
-	ev.AddField("query", query)
-	ev.AddField("query_args", args)
-
-	// do DB call
-	timer := StartTimer()
-	rows, err := c.Conn.QueryContext(ctx, query, args...)
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
-	return rows, err
-}
-
-func (c *Conn) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	ev := c.builder.NewEvent()
-	defer ev.Send()
-	ev.AddField("call", "QueryRowContext")
-	ev.AddField("query", query)
-	ev.AddField("query_args", args)
-
-	// do DB call
-	timer := StartTimer()
-	row := c.Conn.QueryRowContext(ctx, query, args...)
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
-	return row
 }
 
 type Stmt struct {
-	*sql.Stmt
+	*sqlx.Stmt
 	builder *libhoney.Builder
 }
 
@@ -472,7 +608,7 @@ func (s *Stmt) Close() error {
 	ev.AddField("call", "Close")
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	err := s.Stmt.Close()
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -488,7 +624,7 @@ func (s *Stmt) Exec(args ...interface{}) (sql.Result, error) {
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	res, err := s.Stmt.Exec(args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -516,7 +652,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	res, err := s.Stmt.ExecContext(ctx, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -543,7 +679,7 @@ func (s *Stmt) Query(args ...interface{}) (*sql.Rows, error) {
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	rows, err := s.Stmt.Query(args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -557,7 +693,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*sql.Rows
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	rows, err := s.Stmt.QueryContext(ctx, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -570,7 +706,7 @@ func (s *Stmt) QueryRow(args ...interface{}) *sql.Row {
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	row := s.Stmt.QueryRow(args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -584,7 +720,7 @@ func (s *Stmt) QueryRowContext(ctx context.Context, args ...interface{}) *sql.Ro
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	row := s.Stmt.QueryRowContext(ctx, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -592,7 +728,7 @@ func (s *Stmt) QueryRowContext(ctx context.Context, args ...interface{}) *sql.Ro
 }
 
 type Tx struct {
-	*sql.Tx
+	*sqlx.Tx
 	builder *libhoney.Builder
 	txid    string
 }
@@ -603,7 +739,7 @@ func (tx *Tx) Commit() error {
 	ev.AddField("call", "Commit")
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	err := tx.Tx.Commit()
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -620,7 +756,7 @@ func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	res, err := tx.Tx.Exec(query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -648,7 +784,7 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	res, err := tx.Tx.ExecContext(ctx, query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -668,7 +804,7 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 	}
 	return res, err
 }
-func (tx *Tx) Prepare(query string) (*Stmt, error) {
+func (tx *Tx) Preparex(query string) (*Stmt, error) {
 	bld := tx.builder.Clone()
 	stmtid := uuid.NewV4().String()
 	wrapStmt := &Stmt{
@@ -678,11 +814,11 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	bld.AddField("query", query)
 	ev := bld.NewEvent()
 	defer ev.Send()
-	ev.AddField("call", "Prepare")
+	ev.AddField("call", "Preparex")
 
 	// do DB call
-	timer := StartTimer()
-	stmt, err := tx.Tx.Prepare(query)
+	timer := honeycomb.StartTimer()
+	stmt, err := tx.Tx.Preparex(query)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 
@@ -690,7 +826,7 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 
 	return wrapStmt, err
 }
-func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
+func (tx *Tx) PreparexContext(ctx context.Context, query string) (*Stmt, error) {
 	bld := tx.builder.Clone()
 	stmtid := uuid.NewV4().String()
 	wrapStmt := &Stmt{
@@ -700,11 +836,11 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	bld.AddField("query", query)
 	ev := bld.NewEvent()
 	defer ev.Send()
-	ev.AddField("call", "PrepareContext")
+	ev.AddField("call", "PreparexContext")
 
 	// do DB call
-	timer := StartTimer()
-	stmt, err := tx.Tx.PrepareContext(ctx, query)
+	timer := honeycomb.StartTimer()
+	stmt, err := tx.Tx.PreparexContext(ctx, query)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 
@@ -720,7 +856,7 @@ func (tx *Tx) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	rows, err := tx.Tx.Query(query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -734,7 +870,7 @@ func (tx *Tx) QueryContext(ctx context.Context, query string, args ...interface{
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	rows, err := tx.Tx.QueryContext(ctx, query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -748,7 +884,7 @@ func (tx *Tx) QueryRow(query string, args ...interface{}) *sql.Row {
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	row := tx.Tx.QueryRow(query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -762,7 +898,7 @@ func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...interfa
 	ev.AddField("query_args", args)
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	row := tx.Tx.QueryRowContext(ctx, query, args...)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -774,7 +910,7 @@ func (tx *Tx) Rollback() error {
 	ev.AddField("call", "Rollback")
 
 	// do DB call
-	timer := StartTimer()
+	timer := honeycomb.StartTimer()
 	err := tx.Tx.Rollback()
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
@@ -783,7 +919,7 @@ func (tx *Tx) Rollback() error {
 	}
 	return err
 }
-func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
+func (tx *Tx) Stmtx(stmt *Stmt) *Stmt {
 	bld := tx.builder.Clone()
 	stmtid := uuid.NewV4().String()
 	wrapStmt := &Stmt{
@@ -792,11 +928,11 @@ func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 	bld.AddField("stmtId", stmtid)
 	ev := bld.NewEvent()
 	defer ev.Send()
-	ev.AddField("call", "Stmt")
+	ev.AddField("call", "Stmtx")
 
 	// do DB call
-	timer := StartTimer()
-	newStmt := tx.Tx.Stmt(stmt.Stmt)
+	timer := honeycomb.StartTimer()
+	newStmt := tx.Tx.Stmtx(stmt.Stmt)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 
@@ -804,7 +940,7 @@ func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 
 	return wrapStmt
 }
-func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
+func (tx *Tx) StmtxContext(ctx context.Context, stmt *Stmt) *Stmt {
 	bld := tx.builder.Clone()
 	stmtid := uuid.NewV4().String()
 	wrapStmt := &Stmt{
@@ -813,11 +949,11 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 	bld.AddField("stmtId", stmtid)
 	ev := bld.NewEvent()
 	defer ev.Send()
-	ev.AddField("call", "StmtContext")
+	ev.AddField("call", "StmtxContext")
 
 	// do DB call
-	timer := StartTimer()
-	newStmt := tx.Tx.StmtContext(ctx, stmt.Stmt)
+	timer := honeycomb.StartTimer()
+	newStmt := tx.Tx.StmtxContext(ctx, stmt.Stmt)
 	duration := timer.Finish()
 	ev.AddField("durationMs", duration)
 
@@ -830,7 +966,7 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 
 func addTraceID(ctx context.Context, ev *libhoney.Event) {
 	// get a transaction ID from the request's event, if it's sitting in context
-	if parentEv := existingEventFromContext(ctx); parentEv != nil {
+	if parentEv := honeycomb.ContextEvent(ctx); parentEv != nil {
 		if id, ok := parentEv.Fields()["traceId"]; ok {
 			ev.AddField("traceId", id)
 		}
@@ -838,7 +974,7 @@ func addTraceID(ctx context.Context, ev *libhoney.Event) {
 }
 func addTraceIDBuilder(ctx context.Context, bld *libhoney.Builder) {
 	// get a transaction ID from the request's event, if it's sitting in context
-	if parentEv := existingEventFromContext(ctx); parentEv != nil {
+	if parentEv := honeycomb.ContextEvent(ctx); parentEv != nil {
 		if id, ok := parentEv.Fields()["traceId"]; ok {
 			bld.AddField("traceId", id)
 		}

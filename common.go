@@ -22,6 +22,8 @@ func (h *hnyResponseWriter) WriteHeader(statusCode int) {
 }
 
 func addRequestProps(req *http.Request, ev *libhoney.Event) {
+	// identify the type of event
+	ev.AddField("meta.type", "http request")
 	// Add a variety of details about the HTTP request, such as user agent
 	// and method, to any created libhoney event.
 	ev.AddField("request.method", req.Method)
