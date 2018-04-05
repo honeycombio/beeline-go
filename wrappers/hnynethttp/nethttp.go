@@ -10,12 +10,9 @@ import (
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
-func InstrumentHandleFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+func WrapHF(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
 	handlerFuncName := runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO find out if we're a sub-handler and don't stomp the parent
-		// event, or at least get parent/child IDs and intentionally send a
-		// subevent or something
 		start := time.Now()
 		ev := existingEventFromContext(r.Context())
 		if ev == nil {

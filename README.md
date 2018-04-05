@@ -31,8 +31,8 @@ tell it where to send events.
 
 ```golang
 func main() {
-	honeycomb.NewHoneycombInstrumenter(&honeycomb.Config{
-			Writekey: "abcabc123123defdef456456",
+	honeycomb.Init(&honeycomb.Config{
+			WriteKey: "abcabc123123defdef456456",
 			Dataset: "myapp",
 		})
 	...
@@ -57,3 +57,5 @@ Available DB wrappers:
 
 # TODO
 * write more docs
+* add additional http routers and frameworks, eg https://github.com/go-chi/chi
+* pull in httpsnoop instead of the existing responseWriter

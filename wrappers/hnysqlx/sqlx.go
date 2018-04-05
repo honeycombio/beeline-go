@@ -848,6 +848,54 @@ func (tx *Tx) PreparexContext(ctx context.Context, query string) (*Stmt, error) 
 
 	return wrapStmt, err
 }
+
+func (tx *Tx) PrepareNamed(query string) (*NamedStmt, error) {
+	bld := tx.builder.Clone()
+	stmtid := uuid.NewV4().String()
+	wrapStmt := &NamedStmt{
+		builder: bld,
+	}
+	bld.AddField("stmtId", stmtid)
+	bld.AddField("query", query)
+	ev := bld.NewEvent()
+	defer ev.Send()
+	ev.AddField("call", "PrepareNamed")
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	stmt, err := tx.Tx.PrepareNamed(query)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	wrapStmt.NamedStmt = stmt
+
+	return wrapStmt, err
+}
+
+func (tx *Tx) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt, error) {
+	bld := tx.builder.Clone()
+	stmtid := uuid.NewV4().String()
+	wrapStmt := &NamedStmt{
+		builder: bld,
+	}
+	bld.AddField("stmtId", stmtid)
+	bld.AddField("query", query)
+	ev := bld.NewEvent()
+	defer ev.Send()
+	addTraceID(ctx, ev)
+	ev.AddField("call", "PrepareNamedContext")
+
+	// do DB call
+	timer := honeycomb.StartTimer()
+	stmt, err := tx.Tx.PrepareNamedContext(ctx, query)
+	duration := timer.Finish()
+	ev.AddField("durationMs", duration)
+
+	wrapStmt.NamedStmt = stmt
+
+	return wrapStmt, err
+}
+
 func (tx *Tx) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	ev := tx.builder.NewEvent()
 	defer ev.Send()
@@ -967,16 +1015,16 @@ func (tx *Tx) StmtxContext(ctx context.Context, stmt *Stmt) *Stmt {
 func addTraceID(ctx context.Context, ev *libhoney.Event) {
 	// get a transaction ID from the request's event, if it's sitting in context
 	if parentEv := honeycomb.ContextEvent(ctx); parentEv != nil {
-		if id, ok := parentEv.Fields()["traceId"]; ok {
-			ev.AddField("traceId", id)
+		if id, ok := parentEv.Fields()["Trace.TraceId"]; ok {
+			ev.AddField("Trace.TraceId", id)
 		}
 	}
 }
 func addTraceIDBuilder(ctx context.Context, bld *libhoney.Builder) {
 	// get a transaction ID from the request's event, if it's sitting in context
 	if parentEv := honeycomb.ContextEvent(ctx); parentEv != nil {
-		if id, ok := parentEv.Fields()["traceId"]; ok {
-			bld.AddField("traceId", id)
+		if id, ok := parentEv.Fields()["Trace.TraceId"]; ok {
+			bld.AddField("Trace.TraceId", id)
 		}
 	}
 }

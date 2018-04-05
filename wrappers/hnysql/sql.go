@@ -830,16 +830,17 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 func addTraceID(ctx context.Context, ev *libhoney.Event) {
 	// get a transaction ID from the request's event, if it's sitting in context
 	if parentEv := honeycomb.ContextEvent(ctx); parentEv != nil {
-		if id, ok := parentEv.Fields()["traceId"]; ok {
-			ev.AddField("traceId", id)
+		if id, ok := parentEv.Fields()["Trace.TraceId"]; ok {
+			ev.AddField("Trace.TraceId", id)
 		}
 	}
 }
+
 func addTraceIDBuilder(ctx context.Context, bld *libhoney.Builder) {
 	// get a transaction ID from the request's event, if it's sitting in context
 	if parentEv := honeycomb.ContextEvent(ctx); parentEv != nil {
-		if id, ok := parentEv.Fields()["traceId"]; ok {
-			bld.AddField("traceId", id)
+		if id, ok := parentEv.Fields()["Trace.TraceId"]; ok {
+			bld.AddField("Trace.TraceId", id)
 		}
 	}
 }
