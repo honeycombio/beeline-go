@@ -13,6 +13,9 @@ const (
 	defaultWriteKey   = "writekey-placeholder"
 	defaultDataset    = "go-http"
 	defaultSampleRate = 1
+
+	honeyBuilderContextKey = "honeycombBuilderContextKey"
+	honeyEventContextKey   = "honeycombEventContextKey"
 )
 
 type Config struct {
@@ -24,7 +27,7 @@ type Config struct {
 	Dataset string
 	// SamplRate is a positive integer indicating the rate at which to sample
 	// events. default: 1
-	SampleRate int
+	SampleRate uint
 	// APIHost is the hostname for the Honeycomb API server to which to send
 	// this event. default: https://api.honeycomb.io/
 	APIHost string
@@ -52,7 +55,7 @@ func Init(config Config) {
 		output = &libhoney.WriterOutput{}
 	}
 	if config.Mute == true {
-		output = &libhoney.Discard{}
+		output = &libhoney.DiscardOutput{}
 	}
 	libhoney.Init(libhoney.Config{
 		WriteKey:   config.WriteKey,
@@ -74,7 +77,7 @@ func Init(config Config) {
 // context from the request (`r.Context()`) and the key and value you wish to
 // add.
 func AddField(ctx context.Context, key string, val interface{}) {
-	ev := existingEventFromContext(ctx)
+	ev := ContextEvent(ctx)
 	if ev == nil {
 		return
 	}
@@ -94,10 +97,25 @@ func ContextWithEvent(ctx context.Context, ev *libhoney.Event) context.Context {
 // event; the wrapper that inserted the event into the Context is responsible
 // for sending it to Hnoeycomb
 func ContextEvent(ctx context.Context) *libhoney.Event {
-	return existingEventFromContext(ctx)
+	if evt, ok := ctx.Value(honeyEventContextKey).(*libhoney.Event); ok {
+		return evt
+	}
+	return nil
 }
 
-// Timer is a convenience object to make recording how long a section of code takes to run a little cleaner.
+// contextBuilder isn't used yet but matches ContextEvent. When it's useful,
+// export it, but until then it's just confusing.
+func contextBuilder(ctx context.Context) *libhoney.Builder {
+	if bldr, ok := ctx.Value(honeyBuilderContextKey).(*libhoney.Builder); ok {
+		return bldr
+	}
+	return nil
+}
+
+// TODO move Timer to its own package; no reason it needs to be in this one.
+
+// Timer is a convenience object to make recording how long a section of code
+// takes to run a little cleaner.
 type Timer struct {
 	start time.Time
 	name  string
@@ -119,7 +137,7 @@ type Timer struct {
 // In both cases, the timer will be created using the name (second field) and
 // have `_dur_ms` appended to the field name.
 func NewNamedTimerC(ctx context.Context, name string, t time.Time) *Timer {
-	ev := existingEventFromContext(ctx)
+	ev := ContextEvent(ctx)
 	return &Timer{
 		start: t,
 		name:  name,

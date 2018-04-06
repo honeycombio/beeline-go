@@ -1,7 +1,6 @@
-package honeycomb
+package internal
 
 import (
-	"context"
 	"net/http"
 	"strings"
 
@@ -9,20 +8,17 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-const honeyBuilderContextKey = "honeycombBuilderContextKey"
-const honeyEventContextKey = "honeycombEventContextKey"
-
-type hnyResponseWriter struct {
+type ResponseWriter struct {
 	http.ResponseWriter
-	status int
+	Status int
 }
 
-func (h *hnyResponseWriter) WriteHeader(statusCode int) {
-	h.status = statusCode
+func (h *ResponseWriter) WriteHeader(statusCode int) {
+	h.Status = statusCode
 	h.ResponseWriter.WriteHeader(statusCode)
 }
 
-func addRequestProps(req *http.Request, ev *libhoney.Event) {
+func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 	// identify the type of event
 	ev.AddField("meta.type", "http request")
 	// Add a variety of details about the HTTP request, such as user agent
@@ -74,20 +70,4 @@ func parseTraceHeader(req *http.Request, ev *libhoney.Event) string {
 		traceID = uuid.NewV4().String()
 	}
 	return traceID
-}
-
-// might return a thing or nil if there wasn't one there already
-func existingEventFromContext(ctx context.Context) *libhoney.Event {
-	if evt, ok := ctx.Value(honeyEventContextKey).(*libhoney.Event); ok {
-		return evt
-	}
-	return nil
-}
-
-// might return a thing or nil if there wasn't one there already
-func existingBuilderFromContext(ctx context.Context) *libhoney.Builder {
-	if bldr, ok := ctx.Value(honeyBuilderContextKey).(*libhoney.Builder); ok {
-		return bldr
-	}
-	return nil
 }
