@@ -6,13 +6,20 @@ import (
 	"net/http"
 
 	honeycomb "github.com/honeycombio/honeycomb-go-magic"
+	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp"
 )
 
-const writekey = "cf80cea35c40752b299755ad23d2082e"
-
 func main() {
-	honeycomb.NewHoneycombInstrumenter(writekey, "")
-	http.HandleFunc("/hello", honeycomb.InstrumentHandleFunc(HelloServer))
+	// Initialize honeycomb. The only required field is WriteKey.
+	honeycomb.Init(honeycomb.Config{
+		WriteKey: "abcabc123123",
+		Dataset:  "http-vanilla",
+		// for demonstration, send the event to STDOUT intead of Honeycomb.
+		// Remove the STDOUT setting when filling in a real write key.
+		STDOUT: true,
+	})
+
+	http.HandleFunc("/hello", hnynethttp.WrapHandlerFunc(HelloServer))
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -22,34 +29,25 @@ func HelloServer(w http.ResponseWriter, req *http.Request) {
 	io.WriteString(w, "hello, world!\n")
 }
 
-// Original example:
-// package main
-// import (
-// 	"io"
-// 	"log"
-// 	"net/http"
-// )
-// func main() {
-// 	http.HandleFunc("/hello", HelloServer)
-// 	log.Fatal(http.ListenAndServe(":12345", nil))
-// }
-// // hello world, the web server
-// func HelloServer(w http.ResponseWriter, req *http.Request) {
-// 	io.WriteString(w, "hello, world!\n")
-// }
-
-// Adding lines 8,11,14,21, and modifying 15 yield an event that looks like
-// this:
+// Example event created:
+// $ go run main.go | jq
+// $ curl localhost:8080/hello
 // {
-// 	"Timestamp": "2018-03-07 21:42:02.271",
-// 	"durationMs": 0.035626,
-// 	"custom": "Wheee",
-// 	"handlerName": "main.HelloServer",
-// 	"request.content_length": 0,
-// 	"request.method": "GET",
-// 	"request.path": "/hello",
-// 	"request.proto": "HTTP/1.1",
-// 	"request.remote_addr": "[::1]:62202",
-// 	"request.user_agent": "curl/7.54.0",
-// 	"response.status_code": 200,
+//   "data": {
+//     "Trace.TraceId": "e18a5d0f-9116-4756-b4bb-4d5e4db1477a",
+//     "custom": "Wheee",
+//     "durationMs": 0.352607,
+//     "handler_func_name": "main.HelloServer",
+//     "meta.localhostname": "cobbler.local",
+//     "meta.type": "http request",
+//     "request.content_length": 0,
+//     "request.header.user_agent": "curl/7.54.0",
+//     "request.host": "",
+//     "request.method": "GET",
+//     "request.path": "/hello",
+//     "request.proto": "HTTP/1.1",
+//     "request.remote_addr": "[::1]:64794",
+//     "response.status_code": 200
+//   },
+//   "time": "2018-04-06T09:48:36.289114189-07:00"
 // }

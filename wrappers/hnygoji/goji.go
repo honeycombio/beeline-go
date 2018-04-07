@@ -1,43 +1,48 @@
-package honeycomb
+package hnygoji
 
 import (
-	"context"
 	"net/http"
 	"reflect"
 	"runtime"
 	"strings"
 	"time"
 
+	honeycomb "github.com/honeycombio/honeycomb-go-magic"
+	"github.com/honeycombio/honeycomb-go-magic/internal"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"goji.io/middleware"
 	"goji.io/pat"
 )
 
-// InstrumentGojiMiddleware is specifically to use with goji's router.Use()
+// Middleware is specifically to use with goji's router.Use()
 // function for inserting middleware
-func InstrumentGojiMiddleware(handler http.Handler) http.Handler {
+func Middleware(handler http.Handler) http.Handler {
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 		// TODO find out if we're a sub-handler and don't stomp the parent
 		// event, or at least get parent/child IDs and intentionally send a
 		// subevent or something
 		start := time.Now()
-		ev := libhoney.NewEvent()
-		// put the event on the context for everybody downsteam to use
-		r = r.WithContext(context.WithValue(r.Context(), honeyEventContextKey, ev))
-		ctx := r.Context()
+		ev := honeycomb.ContextEvent(ctx)
+		if ev == nil {
+			ev = libhoney.NewEvent()
+			defer ev.Send()
+			// put the event on the context for everybody downsteam to use
+			r = r.WithContext(honeycomb.ContextWithEvent(ctx, ev))
+		}
 		// add some common fields from the request to our event
-		addRequestProps(r, ev)
+		internal.AddRequestProps(r, ev)
 		// replace the writer with our wrapper to catch the status code
-		wrappedWriter := &hnyResponseWriter{ResponseWriter: w}
+		wrappedWriter := &internal.ResponseWriter{ResponseWriter: w}
 		// get bits about the handler
 		handler := middleware.Handler(ctx)
 		if handler == nil {
-			ev.AddField("handler_name", "http.NotFound")
+			ev.AddField("handler.name", "http.NotFound")
 			handler = http.NotFoundHandler()
 		} else {
 			hType := reflect.TypeOf(handler)
-			ev.AddField("handlerType", hType.String())
-			ev.AddField("handler_name", runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name())
+			ev.AddField("handler.type", hType.String())
+			ev.AddField("handler.name", runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name())
 		}
 		// find any matched patterns
 		pm := middleware.Pattern(ctx)
@@ -46,13 +51,11 @@ func InstrumentGojiMiddleware(handler http.Handler) http.Handler {
 			// use those instead of trying to pull them out of the pattern some
 			// other way
 			if p, ok := pm.(*pat.Pattern); ok {
-				ev.AddField("pat", "is a pat.Pattern")
-				ev.AddField("goji_pat", p.String())
-				ev.AddField("goji_methods", p.HTTPMethods())
-				ev.AddField("goji_path_prefix", p.PathPrefix())
+				ev.AddField("goji.pat", p.String())
+				ev.AddField("goji.methods", p.HTTPMethods())
+				ev.AddField("goji.path_prefix", p.PathPrefix())
 				patvar := strings.TrimPrefix(p.String(), p.PathPrefix()+":")
-				ev.AddField("patvar", patvar)
-				// ev.AddField("patval", pat.Param(r, patvar))
+				ev.AddField("goji.pat."+patvar, pat.Param(r, patvar))
 			} else {
 				ev.AddField("pat", "NOT pat.Pattern")
 
@@ -60,12 +63,11 @@ func InstrumentGojiMiddleware(handler http.Handler) http.Handler {
 		}
 		// TODO get all the parameters and their values
 		handler.ServeHTTP(wrappedWriter, r)
-		if wrappedWriter.status == 0 {
-			wrappedWriter.status = 200
+		if wrappedWriter.Status == 0 {
+			wrappedWriter.Status = 200
 		}
-		ev.AddField("response.status_code", wrappedWriter.status)
+		ev.AddField("response.status_code", wrappedWriter.Status)
 		ev.AddField("durationMs", float64(time.Since(start))/float64(time.Millisecond))
-		ev.Send()
 	}
 	return http.HandlerFunc(wrappedHandler)
 }
