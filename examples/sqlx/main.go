@@ -8,26 +8,31 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/davecgh/go-spew/spew"
 	honeycomb "github.com/honeycombio/honeycomb-go-magic"
 	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnysqlx"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
-const writekey = "cf80cea35c40752b299755ad23d2082e"
-const honeyEventContextKey = "honeycombEventContextKey"
-
 func main() {
-	honeycomb.NewHoneycombInstrumenter(writekey, "")
+	// Initialize honeycomb. The only required field is WriteKey.
+	honeycomb.Init(honeycomb.Config{
+		WriteKey: "abcabc123123",
+		Dataset:  "sql",
+		// for demonstration, send the event to STDOUT intead of Honeycomb.
+		// Remove the STDOUT setting when filling in a real write key.
+		STDOUT: true,
+	})
+
+	// open a regular sqlx connection
 	odb, err := sqlx.Open("mysql", "root:@tcp(127.0.0.1)/donut")
-	db := hnysqlx.WrapDB(libhoney.NewBuilder(), odb)
 	if err != nil {
 		fmt.Println("connection err")
-		spew.Dump(err)
 	}
-	ev := libhoney.NewEvent()
-	ev.AddField("traceId", "trace-me")
-	ctx := context.WithValue(context.Background(), honeyEventContextKey, ev)
+
+	// replace it with a wrapped hnysqlx.DB
+	db := hnysqlx.WrapDB(libhoney.NewBuilder(), odb)
+
+	ctx := context.Background()
 	db.MustExecContext(ctx, "insert into flavors (flavor) values ('rose')")
 	fv := "rose"
 	rows, err := db.QueryxContext(ctx, "SELECT id FROM flavors WHERE flavor=?", fv)
@@ -36,21 +41,13 @@ func main() {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var id int
+		if err := rows.Scan(&id); err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("%s is %d\n", name, fv)
+		fmt.Printf("%d is %s\n", id, fv)
 	}
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
 	}
-	//
 }
-
-// if err != nil {
-// 	// fmt.Printf("whee got err %v\n", err)
-// } else {
-// 	// lii, _ := res.LastInsertId()
-// 	// fmt.Printf("res last insert id was %d\n", lii)
-// }

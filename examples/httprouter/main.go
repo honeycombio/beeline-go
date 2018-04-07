@@ -4,82 +4,62 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	honeycomb "github.com/honeycombio/honeycomb-go-magic"
+	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnyhttprouter"
+	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp"
 	"github.com/julienschmidt/httprouter"
 )
 
-const writekey = "cf80cea35c40752b299755ad23d2082e"
-
 func main() {
-	// initialize Honeycomb instrumentation
-	honeycomb.NewHoneycombInstrumenter(writekey, "")
+	// Initialize honeycomb. The only required field is WriteKey.
+	honeycomb.Init(honeycomb.Config{
+		WriteKey: "abcabc123123",
+		Dataset:  "sql",
+		// for demonstration, send the event to STDOUT intead of Honeycomb.
+		// Remove the STDOUT setting when filling in a real write key.
+		STDOUT: true,
+	})
 
 	router := httprouter.New()
 
 	// call regular httprouter Handles with wrappers to extract parameters
-	router.GET("/hello/:name", honeycomb.InstrumentHTTPRouterMiddleware(Hello))
+	router.GET("/hello/:name", hnyhttprouter.Middleware(Hello))
 	// though the wrapper also works on routes that don't have parameters
-	router.GET("/", honeycomb.InstrumentHTTPRouterMiddleware(Index))
+	router.GET("/", hnyhttprouter.Middleware(Index))
 
 	// wrap the main router to set everything up for instrumenting
-	log.Fatal(http.ListenAndServe(":8080", honeycomb.InstrumentHandler(router)))
+	log.Fatal(http.ListenAndServe(":8080", hnynethttp.WrapHandler(router)))
 }
 
 func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	defer honeycomb.NewTimer(r.Context(), "Index", time.Now()).Finish()
 	fmt.Fprint(w, "Welcome!\n")
 }
 
 func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	honeycomb.AddField(r.Context(), "inHello", true)
 	fmt.Fprintf(w, "hello, %s!\n", ps.ByName("name"))
-	hnyTimer := honeycomb.NewTimer(r.Context(), "long_hello_job", time.Now())
-	time.Sleep(1 * time.Second)
-	hnyTimer.Finish()
 }
 
 // produces an event like this:
 //
 // {
 //   "data": {
-//     "chosenHandle_name": "main.Hello",
-//     "durationMs": 1004.757279,
-//     "handler_name": "",
-//     "host": "cobbler.local",
+//     "Trace.TraceId": "91be396a-41a1-44aa-9f0a-25bf779448cc",
+//     "durationMs": 0.63284,
+//     "handler.name": "main.Hello",
+//     "handler.vars.name": "foo",
 //     "inHello": true,
-//     "long_hello_job_dur_ms": 1004.501785,
+//     "meta.localhostname": "cobbler",
+//     "meta.type": "http request",
 //     "request.content_length": 0,
+//     "request.header.user_agent": "curl/7.54.0",
 //     "request.host": "",
 //     "request.method": "GET",
 //     "request.path": "/hello/foo",
 //     "request.proto": "HTTP/1.1",
-//     "request.remote_addr": "[::1]:58005",
-//     "request.user_agent": "curl/7.54.0",
-//     "response.status_code": 200,
-//     "vars.name": "foo"
+//     "request.remote_addr": "[::1]:52539",
+//     "response.status_code": 200
 //   },
-//   "time": "2018-03-21T14:28:08.57577932-07:00"
-// }
-// original
-// package main
-//
-// import (
-//     "fmt"
-//     "github.com/julienschmidt/httprouter"
-//     "net/http"
-//     "log"
-// )
-// func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-//     fmt.Fprint(w, "Welcome!\n")
-// }
-// func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-//     fmt.Fprintf(w, "hello, %s!\n", ps.ByName("name"))
-// }
-// func main() {
-//     router := httprouter.New()
-//     router.GET("/", Index)
-//     router.GET("/hello/:name", Hello)
-//     log.Fatal(http.ListenAndServe(":8080", router))
+//   "time": "2018-04-06T22:55:05.040951984-07:00"
 // }
