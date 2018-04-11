@@ -32,6 +32,8 @@ identify a dataset name to authorize your code to send events to Honeycomb and
 tell it where to send events.
 
 ```golang
+import "github.com/honeycombio/honeycomb-go-magic"
+...
 func main() {
 	honeycomb.Init(honeycomb.Config{
 			WriteKey: "abcabc123123defdef456456",
@@ -43,10 +45,12 @@ func main() {
 # Use
 
 After initialization, the next step is to find the `http.ListenAndServe` call
-and add in the `hnynethttp` wrapper. This establishes the most basic
+and add in the [`hnynethttp`](wrappers/hnynethttp) wrapper. This establishes the most basic
 instrumentation at the outermost layer of the call stack on a per-request basis.
 
 ```golang
+	import "github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp"
+	...
 	http.ListenAndServe(":8080", hnynethttp.WrapHandler(muxer))
 ```
 
