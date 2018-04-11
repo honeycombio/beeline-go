@@ -57,12 +57,16 @@ func Init(config Config) {
 	if config.Mute == true {
 		output = &libhoney.DiscardOutput{}
 	}
-	libhoney.Init(libhoney.Config{
+	libhconfig := libhoney.Config{
 		WriteKey:   config.WriteKey,
 		Dataset:    config.Dataset,
 		SampleRate: config.SampleRate,
 		Output:     output,
-	})
+	}
+	if config.APIHost != "" {
+		libhconfig.APIHost = config.APIHost
+	}
+	libhoney.Init(libhconfig)
 	libhoney.UserAgentAddition = fmt.Sprintf("go-magic/%s", version)
 
 	if hostname, err := os.Hostname(); err == nil {
