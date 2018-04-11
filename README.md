@@ -6,14 +6,16 @@ This package and its subpackages contain bits of code to use to make your life
 easier when instrumenting a Go app to send events to Honeycomb. The wrappers
 here will collect a handful of useful fields about HTTP requests and SQL calls
 in addition to establishing easy patterns to augment this data as your
-application runs. They are useful for applications handling HTTP requests or
-using the `sql` and `sqlx` packages.
+application runs.
 
-Sign up for a [Honeycomb trial](https://ui.honeycomb.io/signup) to obtain a Write Key before starting.
+Sign up for a [Honeycomb trial](https://ui.honeycomb.io/signup) to obtain a write key before starting.
 
 # Examples
 
-See the `examples` directory for working examples showing how each of the different wrappers is used.
+For each of the wrappers, there is more detailed documentation in that
+[wrapper](wrappers/)'s package, and fully functional examples in the
+[`examples`](examples/) directory for working examples showing how each of the
+different wrappers is used.
 
 # Installation
 
@@ -31,7 +33,7 @@ tell it where to send events.
 
 ```golang
 func main() {
-	honeycomb.Init(&honeycomb.Config{
+	honeycomb.Init(honeycomb.Config{
 			WriteKey: "abcabc123123defdef456456",
 			Dataset: "myapp",
 		})
@@ -44,15 +46,15 @@ Subpackages are available for some common HTTP routers and two SQL packages. The
 
 Available HTTP wrappers:
 
-* `net/http` contains a wrapper that conforms to the `http.Handler` pattern, so is useful when a more specific match is missing
-* `goji/mux`
-* `gorilla/mux`
-* `httprouter`
+* [`net/http`](wrappers/hnynethttp) contains a wrapper that conforms to the `http.Handler` pattern, so is useful when a more specific match is missing
+* [`goji/mux`](wrappers/hnygoji)
+* [`gorilla/mux`](wrappers/hnygorilla)
+* [`httprouter`](wrappers/hnyhttprouter)
 
 Available DB wrappers:
 
-* `database/sql`
-* `github.com/jmoiron/sqlx`
+* [`database/sql`](wrappers/hnysql)
+* [`github.com/jmoiron/sqlx`](wrappers/hnysqlx)
 
 
 # TODO
