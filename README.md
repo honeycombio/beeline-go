@@ -63,15 +63,15 @@ subpackages below.
 
 Available HTTP wrappers:
 
-* [`net/http`](wrappers/hnynethttp)
-* [`goji/mux`](wrappers/hnygoji)
-* [`gorilla/mux`](wrappers/hnygorilla)
-* [`httprouter`](wrappers/hnyhttprouter)
+* [`hnynethttp`](wrappers/hnynethttp) (for `net/http`)
+* [`hnygoji`](wrappers/hnygoji) (for `goji/mux`)
+* [`hnygorilla`](wrappers/hnygorilla) (for `gorilla/mux`)
+* [`hnyhttprouter`](wrappers/hnyhttprouter) (for `httprouter`)
 
 Available DB wrappers:
 
-* [`database/sql`](wrappers/hnysql)
-* [`github.com/jmoiron/sqlx`](wrappers/hnysqlx)
+* [`hnysql`](wrappers/hnysql) (for `database/sql`)
+* [`hnysqlx`](wrappers/hnysqlx) (for `github.com/jmoiron/sqlx`)
 
 ## Other HTTP frameworks
 
