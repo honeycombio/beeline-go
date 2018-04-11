@@ -38,7 +38,8 @@ func (db *DB) BeginTxx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	addTraceID(ctx, ev)
 	bld := db.builder.Clone()
 	addTraceIDBuilder(ctx, bld)
-	txid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	txid := newid.String()
 	wrapTx := &Tx{
 		builder: bld,
 		txid:    txid,
@@ -65,7 +66,8 @@ func (db *DB) Beginx() (*Tx, error) {
 	ev := db.builder.NewEvent()
 	defer ev.Send()
 	bld := db.builder.Clone()
-	txid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	txid := newid.String()
 	wrapTx := &Tx{
 		builder: bld,
 		txid:    txid,
@@ -126,7 +128,8 @@ func (db *DB) MustBegin() *Tx {
 	ev := db.builder.NewEvent()
 	defer ev.Send()
 	bld := db.builder.Clone()
-	txid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	txid := newid.String()
 	wrapTx := &Tx{
 		builder: bld,
 		txid:    txid,
@@ -153,7 +156,8 @@ func (db *DB) MustBeginTx(ctx context.Context, opts *sql.TxOptions) *Tx {
 	ev := db.builder.NewEvent()
 	defer ev.Send()
 	bld := db.builder.Clone()
-	txid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	txid := newid.String()
 	wrapTx := &Tx{
 		builder: bld,
 		txid:    txid,
@@ -344,7 +348,8 @@ func (db *DB) PingContext(ctx context.Context) error {
 
 func (db *DB) PrepareNamed(query string) (*NamedStmt, error) {
 	bld := db.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	stmtid := newid.String()
 	wrapStmt := &NamedStmt{
 		builder: bld,
 	}
@@ -367,7 +372,8 @@ func (db *DB) PrepareNamed(query string) (*NamedStmt, error) {
 
 func (db *DB) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt, error) {
 	bld := db.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	stmtid := newid.String()
 	wrapStmt := &NamedStmt{
 		builder: bld,
 	}
@@ -391,7 +397,8 @@ func (db *DB) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt
 
 func (db *DB) Preparex(query string) (*Stmt, error) {
 	bld := db.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	stmtid := newid.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -414,7 +421,8 @@ func (db *DB) Preparex(query string) (*Stmt, error) {
 
 func (db *DB) PreparexContext(ctx context.Context, query string) (*Stmt, error) {
 	bld := db.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	stmtid := newid.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -806,7 +814,8 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 }
 func (tx *Tx) Preparex(query string) (*Stmt, error) {
 	bld := tx.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	stmtid := newid.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -828,7 +837,8 @@ func (tx *Tx) Preparex(query string) (*Stmt, error) {
 }
 func (tx *Tx) PreparexContext(ctx context.Context, query string) (*Stmt, error) {
 	bld := tx.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	stmtid := newid.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -851,7 +861,8 @@ func (tx *Tx) PreparexContext(ctx context.Context, query string) (*Stmt, error) 
 
 func (tx *Tx) PrepareNamed(query string) (*NamedStmt, error) {
 	bld := tx.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	stmtid := newid.String()
 	wrapStmt := &NamedStmt{
 		builder: bld,
 	}
@@ -874,7 +885,8 @@ func (tx *Tx) PrepareNamed(query string) (*NamedStmt, error) {
 
 func (tx *Tx) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt, error) {
 	bld := tx.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	stmtid := newid.String()
 	wrapStmt := &NamedStmt{
 		builder: bld,
 	}
@@ -969,7 +981,8 @@ func (tx *Tx) Rollback() error {
 }
 func (tx *Tx) Stmtx(stmt *Stmt) *Stmt {
 	bld := tx.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	stmtid := newid.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -990,7 +1003,8 @@ func (tx *Tx) Stmtx(stmt *Stmt) *Stmt {
 }
 func (tx *Tx) StmtxContext(ctx context.Context, stmt *Stmt) *Stmt {
 	bld := tx.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	newid, _ := uuid.NewV4()
+	stmtid := newid.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}

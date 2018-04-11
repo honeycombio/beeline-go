@@ -67,7 +67,8 @@ func parseTraceHeader(req *http.Request, ev *libhoney.Event) string {
 		traceID = requestID
 	}
 	if traceID == "" {
-		traceID = uuid.NewV4().String()
+		id, _ := uuid.NewV4()
+		traceID = id.String()
 	}
 	return traceID
 }

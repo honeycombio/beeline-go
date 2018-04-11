@@ -35,7 +35,8 @@ func (db *DB) Begin() (*Tx, error) {
 	ev := db.builder.NewEvent()
 	defer ev.Send()
 	bld := db.builder.Clone()
-	txid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	txid := id.String()
 	wrapTx := &Tx{
 		builder: bld,
 		txid:    txid,
@@ -62,7 +63,8 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	addTraceID(ctx, ev)
 	bld := db.builder.Clone()
 	addTraceIDBuilder(ctx, bld)
-	txid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	txid := id.String()
 	wrapTx := &Tx{
 		builder: bld,
 		txid:    txid,
@@ -91,7 +93,8 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 	addTraceID(ctx, ev)
 	bld := db.builder.Clone()
 	addTraceIDBuilder(ctx, bld)
-	connid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	connid := id.String()
 	wrapConn := &Conn{
 		builder: bld,
 		connid:  connid,
@@ -201,7 +204,8 @@ func (db *DB) PingContext(ctx context.Context) error {
 
 func (db *DB) Prepare(query string) (*Stmt, error) {
 	bld := db.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	stmtid := id.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -224,7 +228,8 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 
 func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	bld := db.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	stmtid := id.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -326,7 +331,8 @@ func (c *Conn) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	ev := c.builder.NewEvent()
 	defer ev.Send()
 	bld := c.builder.Clone()
-	txid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	txid := id.String()
 	wrapTx := &Tx{
 		builder: bld,
 		txid:    txid,
@@ -409,7 +415,8 @@ func (c *Conn) PingContext(ctx context.Context) error {
 
 func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	bld := c.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	stmtid := id.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -669,7 +676,8 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 }
 func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	bld := tx.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	stmtid := id.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -691,7 +699,8 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 }
 func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	bld := tx.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	stmtid := id.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -784,7 +793,8 @@ func (tx *Tx) Rollback() error {
 }
 func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 	bld := tx.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	stmtid := id.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
@@ -805,7 +815,8 @@ func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 }
 func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 	bld := tx.builder.Clone()
-	stmtid := uuid.NewV4().String()
+	id, _ := uuid.NewV4()
+	stmtid := id.String()
 	wrapStmt := &Stmt{
 		builder: bld,
 	}
