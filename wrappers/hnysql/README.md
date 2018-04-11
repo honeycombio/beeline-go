@@ -3,6 +3,7 @@
 ```
 import (
   gosql "database/sql"
+  "log"
   
   sql "github.com/honeycombio/honeycomb-go-magic/wrappers/hnysql"
   "github.com/honeycombio/libhoney-go"
