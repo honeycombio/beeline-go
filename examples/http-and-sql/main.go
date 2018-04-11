@@ -86,25 +86,8 @@ func (a *app) hello(w http.ResponseWriter, r *http.Request) {
 // {
 //   "data": {
 //     "Trace.TraceId": "a0eca504-a652-46da-b968-07dd076e2d0c",
-//     "call": "QueryContext",
-//     "durationMs": 1.75518,
-//     "meta.localhostname": "cobbler",
-//     "meta.type": "sql",
-//     "open_conns": 0,
-//     "query": "SELECT flavor FROM flavors GROUP BY flavor"
-//   },
-//   "time": "2018-04-06T22:42:18.449620729-07:00"
-// }
-// {
-//   "data": {
-//     "Trace.TraceId": "a0eca504-a652-46da-b968-07dd076e2d0c",
 //     "durationMs": 2.735045,
-//     "flavors": [
-//       "chocolate",
-//       "mint",
-//       "rose",
-//       "vanilla"
-//     ],
+//     "flavors": ["chocolate","mint","rose","vanilla"],
 //     "flavors_count": 4,
 //     "meta.localhostname": "cobbler",
 //     "meta.type": "http request",
@@ -121,4 +104,16 @@ func (a *app) hello(w http.ResponseWriter, r *http.Request) {
 //     "response.status_code": 200
 //   },
 //   "time": "2018-04-06T22:42:18.449138413-07:00"
+// }
+// {
+//   "data": {
+//     "Trace.TraceId": "a0eca504-a652-46da-b968-07dd076e2d0c",
+//     "call": "QueryContext",
+//     "durationMs": 1.75518,
+//     "meta.localhostname": "cobbler",
+//     "meta.type": "sql",
+//     "open_conns": 0,
+//     "query": "SELECT flavor FROM flavors GROUP BY flavor"
+//   },
+//   "time": "2018-04-06T22:42:18.449620729-07:00"
 // }
