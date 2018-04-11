@@ -73,9 +73,21 @@ Available DB wrappers:
 * [`database/sql`](wrappers/hnysql)
 * [`github.com/jmoiron/sqlx`](wrappers/hnysqlx)
 
+## Other HTTP frameworks
+
+If your favorite framework isn't listed here, but supports middleware, look at
+the [`hnynethttp`](wrappers/hnynethttp) wrapper. Chances are, a phrase like
+["any middleware in the ecosystem that is also compatible with net/http can be
+used"](https://github.com/go-chi/chi#middlewares) means that it expects a
+function that takes a `http.Handler` and returns a `http.Handler`, which is
+exactly what the `WrapHandler` function in `hnynethttp` does.
+
+Try that out and see how far you can get with it and appropriate custom fields.
+
 # Custom Fields
 
-At any time (once the `*http.Request` is decorated with a Honeycomb event) you can add additional custom fields to the event associated with this request.
+At any time (once the `*http.Request` is decorated with a Honeycomb event) you
+can add additional custom fields to the event associated with this request.
 
 ```golang
 	honeycomb.AddField(req.Context(), "field_name", value)
