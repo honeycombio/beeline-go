@@ -54,9 +54,37 @@ instrumentation at the outermost layer of the call stack on a per-request basis.
 	http.ListenAndServe(":8080", hnynethttp.WrapHandler(muxer))
 ```
 
-Once this wrapper is in place, there is a Honeycomb event in the request context
-available for use throughout the request's lifecycle.  You could stop here and
+Now make a few requests in your web app and open up [Honeycomb](https://ui.honeycomb.io/).
+You should see your new dataset! Open it to see the events you just sent.
+
+Once this middleware wrapper is in place, there is a Honeycomb event in the request
+context available for use throughout the request's lifecycle.  You could stop here and
 have very basic instrumentation, or continue to get additional context.
+
+## Custom Fields
+
+At any time (once the `*http.Request` is decorated with a Honeycomb event) you
+can add additional custom fields to the event associated with this request.
+
+```golang
+	honeycomb.AddField(req.Context(), "field_name", value)
+```
+
+These additional fields are your opportunity to add important and detailed
+context to your instrumentation. Put a timer around a section of code, add per-
+user information, include details about what it took to craft a response, and so
+on. It is expected that some fields will only be present on some requests. Error
+handlers are a great example of this; they will obviously only exist when an
+error has occurred.
+
+It is common practice to add in these fields along the way as they are processed
+in different levels of middleware.  For example, if you have an authentication
+middleware, it would add a field with the authenticated user's ID and name as
+soon as it resolves them. Later on in the call stack, you might add additional
+fields describing what the user is trying to achieve with this specific HTTP
+request.
+
+## Other middleware wrappers
 
 After the router has parsed the request, more fields specific to that router are
 available, such as the specific handler matched or any request parameters that
@@ -87,29 +115,6 @@ function that takes a `http.Handler` and returns a `http.Handler`, which is
 exactly what the `WrapHandler` function in `hnynethttp` does.
 
 Try that out and see how far you can get with it and appropriate custom fields.
-
-# Custom Fields
-
-At any time (once the `*http.Request` is decorated with a Honeycomb event) you
-can add additional custom fields to the event associated with this request.
-
-```golang
-	honeycomb.AddField(req.Context(), "field_name", value)
-```
-
-These additional fields are your opportunity to add important and detailed
-context to your instrumentation. Put a timer around a section of code, add per-
-user information, include details about what it took to craft a response, and so
-on. It is expected that some fields will only be present on some requests. Error
-handlers are a great example of this; they will obviously only exist when an
-error has occurred.
-
-It is common practice to add in these fields along the way as they are processed
-in different levels of middleware.  For example, if you have an authentication
-middleware, it would add a field with the authenticated user's ID and name as
-soon as it resolves them. Later on in the call stack, you might add additional
-fields describing what the user is trying to achieve with this specific HTTP
-request.
 
 # TODO
 * write more docs
