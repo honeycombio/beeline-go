@@ -110,7 +110,7 @@ Available DB wrappers:
 If your favorite framework isn't listed here, but supports middleware, look at
 the [`hnynethttp`](wrappers/hnynethttp) wrapper. Chances are, a phrase like
 "any middleware in the ecosystem that is also compatible with net/http can be
-used"[*]](https://github.com/go-chi/chi#middlewares) means that it expects a
+used"[*](https://github.com/go-chi/chi#middlewares) means that it expects a
 function that takes a `http.Handler` and returns a `http.Handler`, which is
 exactly what the `WrapHandler` function in `hnynethttp` does.
 
