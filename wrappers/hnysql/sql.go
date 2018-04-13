@@ -6,8 +6,9 @@ import (
 
 	"github.com/satori/go.uuid"
 
-	honeycomb "github.com/honeycombio/honeycomb-go-magic"
-	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/honeycombio/honeycomb-go-magic"
+	"github.com/honeycombio/honeycomb-go-magic/internal"
+	"github.com/honeycombio/libhoney-go"
 )
 
 type DB struct {
@@ -116,17 +117,11 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 }
 
 func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
-	ev := db.builder.NewEvent()
-	defer ev.Send()
-	ev.AddField("call", "Exec")
-	ev.AddField("query", query)
-	ev.AddField("query_args", args)
+	ev, sender := internal.BuildDBEvent(context.Background(), db.builder, query, args...)
+	defer sender()
 
 	// do DB call
-	timer := honeycomb.StartTimer()
 	res, err := db.DB.Exec(query, args...)
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
 
 	// capture results
 	if err != nil {
@@ -145,18 +140,11 @@ func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
 }
 
 func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	ev := db.builder.NewEvent()
-	defer ev.Send()
-	addTraceID(ctx, ev)
-	ev.AddField("call", "ExecContext")
-	ev.AddField("query", query)
-	ev.AddField("query_args", args)
+	ev, sender := internal.BuildDBEvent(ctx, db.builder, query, args...)
+	defer sender()
 
 	// do DB call
-	timer := honeycomb.StartTimer()
 	res, err := db.DB.ExecContext(ctx, query, args...)
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
 
 	// capture results
 	if err != nil {
@@ -172,19 +160,12 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}
 		}
 	}
 	return res, err
-
 }
 
 func (db *DB) Ping() error {
-	ev := db.builder.NewEvent()
-	defer ev.Send()
-	ev.AddField("call", "Ping")
-
-	timer := honeycomb.StartTimer()
+	_, sender := internal.BuildDBEvent(context.Background(), db.builder, "")
+	defer sender()
 	err := db.DB.Ping()
-	duration := timer.Finish()
-	ev.AddField("durationMs", duration)
-
 	return err
 }
 

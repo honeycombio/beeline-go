@@ -101,8 +101,10 @@ func ContextWithEvent(ctx context.Context, ev *libhoney.Event) context.Context {
 // event; the wrapper that inserted the event into the Context is responsible
 // for sending it to Hnoeycomb
 func ContextEvent(ctx context.Context) *libhoney.Event {
-	if evt, ok := ctx.Value(honeyEventContextKey).(*libhoney.Event); ok {
-		return evt
+	if ctx != nil {
+		if evt, ok := ctx.Value(honeyEventContextKey).(*libhoney.Event); ok {
+			return evt
+		}
 	}
 	return nil
 }

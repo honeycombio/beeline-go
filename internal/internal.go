@@ -1,9 +1,12 @@
 package internal
 
 import (
+	"context"
 	"net/http"
+	"runtime"
 	"strings"
 
+	honeycomb "github.com/honeycombio/honeycomb-go-magic"
 	libhoney "github.com/honeycombio/libhoney-go"
 	uuid "github.com/satori/go.uuid"
 )
@@ -71,4 +74,39 @@ func parseTraceHeader(req *http.Request, ev *libhoney.Event) string {
 		traceID = id.String()
 	}
 	return traceID
+}
+
+// BuildDBEvent tries to bring together most of the things that need to happen
+// for an event to wrap a DB call in bot the sql and sqlx packages. It returns a
+// function which, when called, dispatches the event that it created. This lets
+// it finish a timer around the call automatically.
+func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func()) {
+	ev := bld.NewEvent()
+	timer := honeycomb.StartTimer()
+	fn := func() {
+		duration := timer.Finish()
+		ev.AddField("duration_ms", duration)
+		ev.Send()
+	}
+	addTraceID(ctx, ev)
+	// get the name of the function that called this one
+	pc, _, _, _ := runtime.Caller(1)
+	callName := runtime.FuncForPC(pc).Name()
+	ev.AddField("db.call", callName)
+	if query != "" {
+		ev.AddField("db.query", query)
+	}
+	if args != nil {
+		ev.AddField("db.query_args", args)
+	}
+	return ev, fn
+}
+
+func addTraceID(ctx context.Context, ev *libhoney.Event) {
+	// get a transaction ID from the request's event, if it's sitting in context
+	if parentEv := honeycomb.ContextEvent(ctx); parentEv != nil {
+		if id, ok := parentEv.Fields()["trace.trace_id"]; ok {
+			ev.AddField("trace.trace_id", id)
+		}
+	}
 }
