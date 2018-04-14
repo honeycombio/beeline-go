@@ -80,12 +80,15 @@ func parseTraceHeader(req *http.Request, ev *libhoney.Event) string {
 // for an event to wrap a DB call in bot the sql and sqlx packages. It returns a
 // function which, when called, dispatches the event that it created. This lets
 // it finish a timer around the call automatically.
-func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func()) {
+func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
 	ev := bld.NewEvent()
 	timer := honeycomb.StartTimer()
-	fn := func() {
+	fn := func(err error) {
 		duration := timer.Finish()
 		ev.AddField("duration_ms", duration)
+		if err != nil {
+			ev.AddField("error", err)
+		}
 		ev.Send()
 	}
 	addTraceID(ctx, ev)

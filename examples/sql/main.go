@@ -10,7 +10,6 @@ import (
 
 	honeycomb "github.com/honeycombio/honeycomb-go-magic"
 	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnysql"
-	libhoney "github.com/honeycombio/libhoney-go"
 )
 
 func main() {
@@ -31,7 +30,7 @@ func main() {
 	}
 
 	// replace it with a wrapped hnysql.DB
-	db := hnysql.WrapDB(libhoney.NewBuilder(), odb)
+	db := hnysql.WrapDB(odb)
 
 	// from here on, all SQL calls will emit events.
 

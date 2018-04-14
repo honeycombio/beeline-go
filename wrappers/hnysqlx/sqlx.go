@@ -12,22 +12,31 @@ import (
 )
 
 type DB struct {
-	*sqlx.DB
-	builder *libhoney.Builder
-	// events will be a map of in-flight events for transactions, but that's not implemented yet.
-	// events  map[int]*libhoney.Event
+	// db is the wrapped sql db. It is not embedded because it's better to fail
+	// compilation if some methods are missing than it is to silently not
+	// instrument those methods. If you believe that this wraps all methods, it
+	// would be reasonable to think that calls that don't show up in Honeycomb
+	// aren't happening when they are - they just fell through to the underlying
+	// *sql.DB. So all methods present on *sql.DB are recreated here, but as the
+	// wrapped package changes, we will fail to compile against apps using those
+	// new features and need a patch.
+	db *sqlx.DB
+	// Builder is available in case you wish to add fields to every SQL event
+	// that will be created.
+	Builder *libhoney.Builder
 }
 
-func WrapDB(b *libhoney.Builder, s *sqlx.DB) *DB {
+func WrapDB(s *sqlx.DB) *DB {
+	b := libhoney.NewBuilder()
 	db := &DB{
-		DB:      s,
+		db:      s,
 		builder: b,
 	}
 	addConns := func() interface{} {
 		stats := s.DB.Stats()
 		return stats.OpenConnections
 	}
-	b.AddDynamicField("open_conns", addConns)
+	b.AddDynamicField("db.open_conns", addConns)
 	b.AddField("meta.type", "sqlx")
 	return db
 }
