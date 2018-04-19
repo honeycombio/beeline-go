@@ -1,4 +1,4 @@
-package main
+package hnysqlx_test
 
 import (
 	"context"
@@ -51,3 +51,5 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+func Example() {} // This tells godocs that this file is an example.

@@ -8,6 +8,4 @@
 // while also decorating the most interesting paths (the hantdlers that you
 // wrap) with additional fields from the Goji patterns.
 //
-// See the examples/gorilla for an example of how these two work together
-//
 package hnygorilla

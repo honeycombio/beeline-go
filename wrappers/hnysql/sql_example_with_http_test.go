@@ -1,4 +1,4 @@
-package main
+package hnysql_test
 
 import (
 	"database/sql"
@@ -117,3 +117,7 @@ func (a *app) hello(w http.ResponseWriter, r *http.Request) {
 //   },
 //   "time": "2018-04-06T22:42:18.449620729-07:00"
 // }
+
+// An example that sends both http and sql events. Run and visit the '/hello/'
+// endpoint to create an event.
+func Example() {} // This tells godocs that this file is an example.

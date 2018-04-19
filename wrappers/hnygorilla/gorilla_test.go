@@ -1,4 +1,4 @@
-package main
+package hnygorilla_test
 
 import (
 	"fmt"
@@ -69,3 +69,5 @@ func HelloHandler(w http.ResponseWriter, r *http.Request) {
 //   },
 //   "time": "2018-04-06T22:12:53.440369114-07:00"
 // }
+
+func Example() {} // This tells godocs that this file is an example.

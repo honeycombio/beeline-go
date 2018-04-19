@@ -1,4 +1,4 @@
-package main
+package hnygoji_test
 
 import (
 	"fmt"
@@ -47,3 +47,5 @@ func bye(w http.ResponseWriter, r *http.Request) {
 	name := pat.Param(r, "name") // pat is automatically added to the event
 	fmt.Fprintf(w, "goodbye, %s!", name)
 }
+
+func Example() {} // This tells godocs that this file is an example.

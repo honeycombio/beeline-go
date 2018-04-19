@@ -10,7 +10,4 @@
 // event to allow easy identification of what HTTP call triggers which SQL
 // calls.
 //
-// See the exmaples directory for a complete example of how to use the hnysql DB
-// wrapper.
-//
 package hnysql

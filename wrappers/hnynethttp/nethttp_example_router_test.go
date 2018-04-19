@@ -1,4 +1,4 @@
-package main
+package hnynethttp_test
 
 import (
 	"fmt"
@@ -41,8 +41,7 @@ func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	fmt.Fprintf(w, "hello, %s!\n", ps.ByName("name"))
 }
 
-// produces an event like this:
-//
+// Produces an event like this:
 // {
 //   "data": {
 //     "Trace.TraceId": "91be396a-41a1-44aa-9f0a-25bf779448cc",
@@ -63,3 +62,6 @@ func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 //   },
 //   "time": "2018-04-06T22:55:05.040951984-07:00"
 // }
+
+// Example http router setup. Run and visit the instrumented routes to generate events.
+func Example() {} // This tells godocs that this file is an example.

@@ -6,9 +6,6 @@ Summary
 hnynethttp provides wrappers for all the standard `net/http` types: Handler,
 HandlerFunc, and ServeMux
 
-See the examples/http-mux/ and examples/http-vanilla folders at the top level of
-this repository for sample programs that demonstrate how to use these wrappers.
-
 For best results, wrap the mux passed to http.ListenAndServe - this will get you
 an event for every HTTP request handled by the server. The `http-mux` example
 demonstrates this approach.

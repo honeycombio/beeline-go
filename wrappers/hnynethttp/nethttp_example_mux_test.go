@@ -1,4 +1,4 @@
-package main
+package hnynethttp_test
 
 import (
 	"io"
@@ -100,3 +100,6 @@ func hello(w http.ResponseWriter, r *http.Request) {
 //   },
 //   "time": "2018-04-06T07:24:16.40206391-07:00"
 // }
+
+// Mux wrapper example. Try `curl localhost:8080/hello/` to create an event.
+func Example() {} // This tells godocs that this file is an example.

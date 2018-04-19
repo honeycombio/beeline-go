@@ -1,4 +1,4 @@
-package main
+package hnynethttp_test
 
 import (
 	"io"
@@ -51,3 +51,7 @@ func HelloServer(w http.ResponseWriter, req *http.Request) {
 //   },
 //   "time": "2018-04-06T09:48:36.289114189-07:00"
 // }
+
+// Simple server example demonstrating how to use `hnynethttp.WrapHandlerFunc(...)`.
+// Try `curl localhost:8080/hello` to create an event.
+func Example() {} // This tells godocs that this file is an example.
