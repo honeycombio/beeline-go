@@ -12,10 +12,7 @@ Sign up for a [Honeycomb trial](https://ui.honeycomb.io/signup) to obtain a writ
 
 # Examples
 
-For each of the wrappers, there is more detailed documentation in that
-[wrapper](wrappers/)'s package, and fully functional examples in the
-[`examples`](examples/) directory for working examples showing how each of the
-different wrappers is used.
+For each of the [wrappers](wrappers/), documentation is found in godoc rather than the github README files. Each package has a fully functional example in the godoc as well, to show all the pieces fit together.
 
 # Installation
 
@@ -45,8 +42,9 @@ func main() {
 # Use
 
 After initialization, the next step is to find the `http.ListenAndServe` call
-and add in the [`hnynethttp`](wrappers/hnynethttp) wrapper. This establishes the most basic
-instrumentation at the outermost layer of the call stack on a per-request basis.
+and add in the [`hnynethttp`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp) wrapper. This establishes the most
+basic instrumentation at the outermost layer of the call stack on a per-request
+basis.
 
 ```golang
 	import "github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp"
@@ -95,24 +93,24 @@ subpackages below.
 
 Available HTTP wrappers:
 
-* [`hnynethttp`](wrappers/hnynethttp) (for `net/http`)
-* [`hnygoji`](wrappers/hnygoji) (for `goji/mux`)
-* [`hnygorilla`](wrappers/hnygorilla) (for `gorilla/mux`)
-* [`hnyhttprouter`](wrappers/hnyhttprouter) (for `httprouter`)
+* [`hnynethttp`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp) (for `net/http`)
+* [`hnygoji`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnygoji) (for `goji/mux`)
+* [`hnygorilla`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnygorilla) (for `gorilla/mux`)
+* [`hnyhttprouter`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnyhttprouter) (for `httprouter`)
 
 Available DB wrappers:
 
-* [`hnysql`](wrappers/hnysql) (for `database/sql`)
-* [`hnysqlx`](wrappers/hnysqlx) (for `github.com/jmoiron/sqlx`)
+* [`hnysql`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnysql) (for `database/sql`)
+* [`hnysqlx`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnysqlx) (for `github.com/jmoiron/sqlx`)
 
 ## Other HTTP frameworks
 
 If your favorite framework isn't listed here, but supports middleware, look at
-the [`hnynethttp`](wrappers/hnynethttp) wrapper. Chances are, a phrase like
-"any middleware in the ecosystem that is also compatible with net/http can be
-used"[*](https://github.com/go-chi/chi#middlewares) means that it expects a
-function that takes a `http.Handler` and returns a `http.Handler`, which is
-exactly what the `WrapHandler` function in `hnynethttp` does.
+the [`hnynethttp`](wrappers/hnynethttp) wrapper. Chances are, a phrase like "any
+middleware in the ecosystem that is also compatible with net/http can be
+used"([from `go-chi`](https://github.com/go-chi/chi#middlewares)) means that it
+expects a function that takes a `http.Handler` and returns a `http.Handler`,
+which is exactly what the `WrapHandler` function in `hnynethttp` does.
 
 Try that out and see how far you can get with it and appropriate custom fields.
 
