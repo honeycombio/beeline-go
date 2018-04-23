@@ -12,6 +12,8 @@ import (
 	"github.com/honeycombio/libhoney-go"
 )
 
+// Middleware is a gorilla middleware to add Honeycomb instrumentation to the
+// gorilla muxer
 func Middleware(handler http.Handler) http.Handler {
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

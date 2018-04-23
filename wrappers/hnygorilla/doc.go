@@ -1,4 +1,4 @@
-// package hnygorilla has Middleware to use with the Goji muxer
+// Package hnygorilla has Middleware to use with the Goji muxer
 //
 // Summary
 //

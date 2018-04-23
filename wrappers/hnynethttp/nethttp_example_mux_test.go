@@ -102,4 +102,4 @@ func hello(w http.ResponseWriter, r *http.Request) {
 // }
 
 // Mux wrapper example. Try `curl localhost:8080/hello/` to create an event.
-func Example() {} // This tells godocs that this file is an example.
+func ExampleMux() {} // This tells godocs that this file is an example.

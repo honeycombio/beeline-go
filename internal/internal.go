@@ -35,7 +35,7 @@ func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 	ev.AddField("request.header.user_agent", req.UserAgent())
 	// add any AWS trace headers that might be present
 	traceID := parseTraceHeader(req, ev)
-	ev.AddField("Trace.TraceId", traceID)
+	ev.AddField("trace.trace_id", traceID)
 }
 
 // parseTraceHeader parses tracing headers if they exist
