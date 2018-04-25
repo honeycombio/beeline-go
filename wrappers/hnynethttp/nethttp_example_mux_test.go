@@ -37,9 +37,8 @@ func hello(w http.ResponseWriter, r *http.Request) {
 // $ curl localhost:8080/hello/foo/bar
 // {
 //   "data": {
-//     "Trace.TraceId": "5279bdc7-fedc-483b-8e4f-a03b4dbb7f27",
 //     "custom": "Wheee",
-//     "durationMs": 0.809993,
+//     "duration_ms": 0.809993,
 //     "meta.localhostname": "cobbler.local",
 //     "meta.type": "http request",
 //     "mux.handler.name": "main.hello",
@@ -53,6 +52,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 //     "request.proto": "HTTP/1.1",
 //     "request.remote_addr": "[::1]:62874",
 //     "response.status_code": 200
+//     "trace.trace_id": "5279bdc7-fedc-483b-8e4f-a03b4dbb7f27",
 //   },
 //   "time": "2018-04-06T07:23:31.733501961-07:00"
 // }
@@ -60,8 +60,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 // $ curl localhost:8080/hello
 // {
 //   "data": {
-//     "Trace.TraceId": "0344fd2d-a8d0-47c5-9cbd-2b1170e98699",
-//     "durationMs": 0.116998,
+//     "duration_ms": 0.116998,
 //     "meta.localhostname": "cobbler.local",
 //     "meta.type": "http request",
 //     "mux.handler.name": "",
@@ -75,6 +74,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 //     "request.proto": "HTTP/1.1",
 //     "request.remote_addr": "[::1]:62878",
 //     "response.status_code": 301
+//     "trace.trace_id": "0344fd2d-a8d0-47c5-9cbd-2b1170e98699",
 //   },
 //   "time": "2018-04-06T07:23:44.520335853-07:00"
 // }
@@ -82,8 +82,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 // $ curl localhost:8080/hel
 // {
 //   "data": {
-//     "Trace.TraceId": "cf457c21-cfd1-4714-8ced-65f9668f900e",
-//     "durationMs": 0.030252,
+//     "duration_ms": 0.030252,
 //     "meta.localhostname": "cobbler.local",
 //     "meta.type": "http request",
 //     "mux.handler.name": "net/http.NotFound",
@@ -97,6 +96,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 //     "request.proto": "HTTP/1.1",
 //     "request.remote_addr": "[::1]:62883",
 //     "response.status_code": 404
+//     "trace.trace_id": "cf457c21-cfd1-4714-8ced-65f9668f900e",
 //   },
 //   "time": "2018-04-06T07:24:16.40206391-07:00"
 // }

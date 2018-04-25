@@ -44,8 +44,7 @@ func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 // Produces an event like this:
 // {
 //   "data": {
-//     "Trace.TraceId": "91be396a-41a1-44aa-9f0a-25bf779448cc",
-//     "durationMs": 0.63284,
+//     "duration_ms": 0.63284,
 //     "handler.name": "main.Hello",
 //     "handler.vars.name": "foo",
 //     "inHello": true,
@@ -59,6 +58,7 @@ func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 //     "request.proto": "HTTP/1.1",
 //     "request.remote_addr": "[::1]:52539",
 //     "response.status_code": 200
+//     "trace.trace_id": "91be396a-41a1-44aa-9f0a-25bf779448cc",
 //   },
 //   "time": "2018-04-06T22:55:05.040951984-07:00"
 // }

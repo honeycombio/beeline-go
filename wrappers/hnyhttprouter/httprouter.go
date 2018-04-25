@@ -42,6 +42,6 @@ func Middleware(handle httprouter.Handle) httprouter.Handle {
 			wrappedWriter.Status = 200
 		}
 		ev.AddField("response.status_code", wrappedWriter.Status)
-		ev.AddField("durationMs", float64(time.Since(start))/float64(time.Millisecond))
+		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
 	}
 }

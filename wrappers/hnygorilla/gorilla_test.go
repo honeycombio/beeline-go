@@ -49,8 +49,7 @@ func HelloHandler(w http.ResponseWriter, r *http.Request) {
 // $ curl localhost:8080/hello/foo
 // {
 //   "data": {
-//     "Trace.TraceId": "a2ae3280-3b4d-4bb8-828e-b3707e1416f9",
-//     "durationMs": 0.092819,
+//     "duration_ms": 0.092819,
 //     "gorilla.vars.person": "foo",
 //     "handler.fnname": "main.HelloHandler",
 //     "handler.name": "",
@@ -66,6 +65,7 @@ func HelloHandler(w http.ResponseWriter, r *http.Request) {
 //     "request.proto": "HTTP/1.1",
 //     "request.remote_addr": "[::1]:51830",
 //     "response.status_code": 200
+//     "trace.trace_id": "a2ae3280-3b4d-4bb8-828e-b3707e1416f9",
 //   },
 //   "time": "2018-04-06T22:12:53.440369114-07:00"
 // }

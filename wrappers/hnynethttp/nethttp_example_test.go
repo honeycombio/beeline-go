@@ -34,9 +34,8 @@ func HelloServer(w http.ResponseWriter, req *http.Request) {
 // $ curl localhost:8080/hello
 // {
 //   "data": {
-//     "Trace.TraceId": "e18a5d0f-9116-4756-b4bb-4d5e4db1477a",
 //     "custom": "Wheee",
-//     "durationMs": 0.352607,
+//     "duration_ms": 0.352607,
 //     "handler_func_name": "main.HelloServer",
 //     "meta.localhostname": "cobbler.local",
 //     "meta.type": "http request",
@@ -48,6 +47,7 @@ func HelloServer(w http.ResponseWriter, req *http.Request) {
 //     "request.proto": "HTTP/1.1",
 //     "request.remote_addr": "[::1]:64794",
 //     "response.status_code": 200
+//     "trace.trace_id": "e18a5d0f-9116-4756-b4bb-4d5e4db1477a",
 //   },
 //   "time": "2018-04-06T09:48:36.289114189-07:00"
 // }

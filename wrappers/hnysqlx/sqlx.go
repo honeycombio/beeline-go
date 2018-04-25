@@ -1752,8 +1752,8 @@ func (tx *Tx) Unsafe() *Tx {
 func addTraceIDBuilder(ctx context.Context, bld *libhoney.Builder) {
 	// get a transaction ID from the request's event, if it's sitting in context
 	if parentEv := honeycomb.ContextEvent(ctx); parentEv != nil {
-		if id, ok := parentEv.Fields()["Trace.TraceId"]; ok {
-			bld.AddField("db.Trace.TraceId", id)
+		if id, ok := parentEv.Fields()["trace.trace_id"]; ok {
+			bld.AddField("db.trace.trace_id", id)
 		}
 	}
 }
