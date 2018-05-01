@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/timer"
 	libhoney "github.com/honeycombio/libhoney-go"
 	uuid "github.com/satori/go.uuid"
 )
@@ -36,6 +37,10 @@ func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 	// add any AWS trace headers that might be present
 	traceID := parseTraceHeader(req, ev)
 	ev.AddField("trace.trace_id", traceID)
+
+	// add a span ID
+	id, _ := uuid.NewV4()
+	ev.AddField("trace.span_id", id.String())
 }
 
 // parseTraceHeader parses tracing headers if they exist
@@ -82,7 +87,7 @@ func parseTraceHeader(req *http.Request, ev *libhoney.Event) string {
 // it finish a timer around the call automatically.
 func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
 	ev := bld.NewEvent()
-	timer := beeline.StartTimer()
+	timer := timer.Start()
 	fn := func(err error) {
 		duration := timer.Finish()
 		ev.AddField("duration_ms", duration)

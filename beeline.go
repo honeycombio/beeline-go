@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	libhoney "github.com/honeycombio/libhoney-go"
 )
@@ -121,67 +120,4 @@ func contextBuilder(ctx context.Context) *libhoney.Builder {
 		return bldr
 	}
 	return nil
-}
-
-// TODO move Timer to its own package; no reason it needs to be in this one.
-
-// Timer is a convenience object to make recording how long a section of code
-// takes to run a little cleaner.
-type Timer struct {
-	start time.Time
-	name  string
-	ev    *libhoney.Event
-}
-
-// NewNamedTimerC is intended to be used one of two ways. To time an entire
-// function, put this as the first line of the function call:
-//
-// defer beeline.NewNamedTimerC(ctx, "foo", time.Now()).Finish()`
-//
-// To time a portion of code, save the return value from creating the timer and
-// then call `.Finish()` on it when the timer should be stopped. For example,
-//
-// hnyTimer := beeline.NewNamedTimerC(ctx, "codeFragment", time.Now())
-// <do stuff>
-// hnyTimer.Finish()
-//
-// In both cases, the timer will be created using the name (second field) and
-// have `_dur_ms` appended to the field name.
-func NewNamedTimerC(ctx context.Context, name string, t time.Time) *Timer {
-	ev := ContextEvent(ctx)
-	return &Timer{
-		start: t,
-		name:  name,
-		ev:    ev,
-	}
-}
-
-// NewTimer will not add the results of the timing to an event from the context,
-// but at least will start a timer you can use. The time passed in is used as
-// the starting time, for when the thing you're timing may not be anchored on
-// the current time.
-func NewTimer(t time.Time) *Timer {
-	return &Timer{
-		start: t,
-	}
-}
-
-// StartTimer records the current time for use in code.
-func StartTimer() *Timer {
-	return &Timer{
-		start: time.Now(),
-	}
-}
-
-// Finish closes off a started timer and adds the duration to the Honeycomb
-// event if one is available in the stored context. Also returns the duration
-// timed in milliseconds, for use when an event is not available.
-func (t *Timer) Finish() float64 {
-	dur := float64(time.Since(t.start)) / float64(time.Millisecond)
-	if t.ev != nil {
-		if t.name != "" {
-			t.ev.AddField(t.name+"_dur_ms", dur)
-		}
-	}
-	return dur
 }
