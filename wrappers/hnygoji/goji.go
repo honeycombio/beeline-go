@@ -14,8 +14,8 @@ import (
 	"goji.io/pat"
 )
 
-// Middleware is specifically to use with goji's router.Use()
-// function for inserting middleware
+// Middleware is specifically to use with goji's router.Use() function for
+// inserting middleware
 func Middleware(handler http.Handler) http.Handler {
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

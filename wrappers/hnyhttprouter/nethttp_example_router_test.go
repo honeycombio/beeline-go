@@ -11,7 +11,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func main() {
+func ExampleMiddleware() {
 	// Initialize beeline. The only required field is WriteKey.
 	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
@@ -62,6 +62,3 @@ func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 //   },
 //   "time": "2018-04-06T22:55:05.040951984-07:00"
 // }
-
-// Example http router setup. Run and visit the instrumented routes to generate events.
-func Example() {} // This tells godocs that this file is an example.

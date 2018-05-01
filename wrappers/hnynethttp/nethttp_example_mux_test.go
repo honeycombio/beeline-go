@@ -8,7 +8,8 @@ import (
 	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 )
 
-func main() {
+// Mux wrapper example. Try `curl localhost:8080/hello/` to create an event.
+func ExampleWrapHandler() {
 	// Initialize beeline. The only required field is WriteKey.
 	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
@@ -23,7 +24,7 @@ func main() {
 
 	// wrap the globalmux with the honeycomb middleware to send one event per
 	// request
-	http.ListenAndServe(":8080", hnynethttp.WrapMuxHandler(globalmux))
+	http.ListenAndServe(":8080", hnynethttp.WrapHandler(globalmux))
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
@@ -100,6 +101,3 @@ func hello(w http.ResponseWriter, r *http.Request) {
 //   },
 //   "time": "2018-04-06T07:24:16.40206391-07:00"
 // }
-
-// Mux wrapper example. Try `curl localhost:8080/hello/` to create an event.
-func ExampleMux() {} // This tells godocs that this file is an example.

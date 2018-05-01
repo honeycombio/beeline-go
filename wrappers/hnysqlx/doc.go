@@ -1,4 +1,4 @@
-// package hnysqlx wraps `jmoiron/sqlx` to emit one Honeycomb event per DB call
+// Package hnysqlx wraps `jmoiron/sqlx` to emit one Honeycomb event per DB call.
 //
 // After opening a DB connection, replace the *sqlx.DB object with a *hnysqlx.DB
 // object. The *hnysqlx.DB struct implements all the same functions as the

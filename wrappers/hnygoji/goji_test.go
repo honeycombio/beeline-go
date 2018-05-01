@@ -12,7 +12,7 @@ import (
 	"goji.io/pat"
 )
 
-func main() {
+func ExampleMiddleware() {
 	// Initialize beeline. The only required field is WriteKey.
 	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
@@ -47,5 +47,3 @@ func bye(w http.ResponseWriter, r *http.Request) {
 	name := pat.Param(r, "name") // pat is automatically added to the event
 	fmt.Fprintf(w, "goodbye, %s!", name)
 }
-
-func Example() {} // This tells godocs that this file is an example.

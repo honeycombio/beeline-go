@@ -1,4 +1,4 @@
-// package hnysql wraps `database.sql` to emit one Honeycomb event per DB call
+// Package hnysql wraps `database.sql` to emit one Honeycomb event per DB call.
 //
 // After opening a DB connection, replace the *sql.DB object with a *hnysql.DB
 // object. The *hnysql.DB struct implements all the same functions as the normal

@@ -12,10 +12,9 @@ import (
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 	"github.com/honeycombio/beeline-go/wrappers/hnysql"
-	libhoney "github.com/honeycombio/libhoney-go"
 )
 
-func main() {
+func Example_combinedHttpSql() {
 	// Initialize beeline. The only required field is WriteKey.
 	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
@@ -31,7 +30,7 @@ func main() {
 		fmt.Printf("connection err: %s\n", err)
 		return
 	}
-	db := hnysql.WrapDB(libhoney.NewBuilder(), odb)
+	db := hnysql.WrapDB(odb)
 
 	// hand it to the app for use in the handler
 	a := &app{}
@@ -42,7 +41,7 @@ func main() {
 
 	// wrap the globalmux with the honeycomb middleware to send one event per
 	// request
-	http.ListenAndServe(":8080", hnynethttp.WrapMuxHandler(globalmux))
+	http.ListenAndServe(":8080", hnynethttp.WrapHandler(globalmux))
 }
 
 type app struct {
@@ -117,7 +116,3 @@ func (a *app) hello(w http.ResponseWriter, r *http.Request) {
 //   },
 //   "time": "2018-04-06T22:42:18.449620729-07:00"
 // }
-
-// An example that sends both http and sql events. Run and visit the '/hello/'
-// endpoint to create an event.
-func Example() {} // This tells godocs that this file is an example.

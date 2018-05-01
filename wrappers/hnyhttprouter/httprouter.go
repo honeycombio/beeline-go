@@ -12,6 +12,8 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// Middleware wraps httprouter handlers. Since it wraps handlers with explicit
+// parameters, it can add those values to the event it generates.
 func Middleware(handle httprouter.Handle) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		ctx := r.Context()

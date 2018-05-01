@@ -11,9 +11,7 @@ import (
 	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 )
 
-const writekey = "cf80cea35c40752b299755ad23d2082e"
-
-func main() {
+func ExampleMiddleware() {
 	// Initialize beeline. The only required field is WriteKey.
 	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
@@ -69,5 +67,3 @@ func HelloHandler(w http.ResponseWriter, r *http.Request) {
 //   },
 //   "time": "2018-04-06T22:12:53.440369114-07:00"
 // }
-
-func Example() {} // This tells godocs that this file is an example.

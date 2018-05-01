@@ -1,4 +1,4 @@
-// package hnygoji has Middleware to use with the Goji muxer
+// Package hnygoji has Middleware to use with the Goji muxer.
 //
 // Summary
 //

@@ -9,7 +9,10 @@ import (
 	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 )
 
-func main() {
+// Simple server example demonstrating how to use `hnynethttp.WrapHandlerFunc(...)`.
+// Try `curl localhost:8080/hello` to create an event.
+func ExampleWrapHandlerFunc() {
+
 	// Initialize beeline. The only required field is WriteKey.
 	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
@@ -21,6 +24,7 @@ func main() {
 
 	http.HandleFunc("/hello", hnynethttp.WrapHandlerFunc(HelloServer))
 	log.Fatal(http.ListenAndServe(":8080", nil))
+
 }
 
 // hello world, the web server
@@ -51,7 +55,3 @@ func HelloServer(w http.ResponseWriter, req *http.Request) {
 //   },
 //   "time": "2018-04-06T09:48:36.289114189-07:00"
 // }
-
-// Simple server example demonstrating how to use `hnynethttp.WrapHandlerFunc(...)`.
-// Try `curl localhost:8080/hello` to create an event.
-func Example() {} // This tells godocs that this file is an example.

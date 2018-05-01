@@ -51,6 +51,10 @@ func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 // adds all trace IDs to the passed in event, and returns a trace ID if it finds
 // one. Request-ID is preferred over the Amazon trace ID. Will generate a UUID
 // if it doesn't find any trace IDs.
+//
+// NOTE that Amazon actually only means for the latter part of the header to be
+// the ID - format is version-timestamp-id. For now though (TODO) we treat it as
+// the entire string
 func parseTraceHeader(req *http.Request, ev *libhoney.Event) string {
 	var traceID string
 	awsHeader := req.Header.Get("X-Amzn-Trace-Id")
