@@ -1,4 +1,4 @@
-// package beeline aids adding isntrumentation to go apps using Honeycomb.
+// Package beeline aids adding isntrumentation to go apps using Honeycomb.
 //
 // Summary
 //
@@ -25,5 +25,4 @@
 // Once configured, use one of the subpackages to wrap HTTP handlers and SQL db
 // objects.
 //
-// More detail will land here eventually.
 package beeline
