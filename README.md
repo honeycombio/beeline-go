@@ -1,6 +1,6 @@
-# Honeycomb Go Magic
+# Honeycomb Beeline for Go
 
-[![Build Status](https://travis-ci.org/honeycombio/honeycomb-go-magic.svg?branch=master)](https://travis-ci.org/honeycombio/honeycomb-go-magic)
+[![Build Status](https://travis-ci.org/honeycombio/beeline-go.svg?branch=master)](https://travis-ci.org/honeycombio/beeline-go)
 
 This package and its subpackages contain bits of code to use to make your life
 easier when instrumenting a Go app to send events to Honeycomb. The wrappers
