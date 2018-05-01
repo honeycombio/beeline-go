@@ -12,7 +12,7 @@ import (
 	"github.com/honeycombio/beeline-go/wrappers/hnysqlx"
 )
 
-func main() {
+func Example() {
 	// Initialize beeline. The only required field is WriteKey.
 	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
@@ -50,5 +50,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-
-func Example() {} // This tells godocs that this file is an example.
