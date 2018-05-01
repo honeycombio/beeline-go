@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	honeycomb "github.com/honeycombio/honeycomb-go-magic"
-	"github.com/honeycombio/honeycomb-go-magic/internal"
+	"github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/internal"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"goji.io/middleware"
 	"goji.io/pat"
@@ -23,12 +23,12 @@ func Middleware(handler http.Handler) http.Handler {
 		// event, or at least get parent/child IDs and intentionally send a
 		// subevent or something
 		start := time.Now()
-		ev := honeycomb.ContextEvent(ctx)
+		ev := beeline.ContextEvent(ctx)
 		if ev == nil {
 			ev = libhoney.NewEvent()
 			defer ev.Send()
 			// put the event on the context for everybody downsteam to use
-			r = r.WithContext(honeycomb.ContextWithEvent(ctx, ev))
+			r = r.WithContext(beeline.ContextWithEvent(ctx, ev))
 		}
 		// add some common fields from the request to our event
 		internal.AddRequestProps(r, ev)

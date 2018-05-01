@@ -9,15 +9,15 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	honeycomb "github.com/honeycombio/honeycomb-go-magic"
-	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp"
-	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnysql"
+	"github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
+	"github.com/honeycombio/beeline-go/wrappers/hnysql"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
 func main() {
-	// Initialize honeycomb. The only required field is WriteKey.
-	honeycomb.Init(honeycomb.Config{
+	// Initialize beeline. The only required field is WriteKey.
+	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
 		Dataset:  "http+sql",
 		// for demonstration, send the event to STDOUT intead of Honeycomb.
@@ -69,8 +69,8 @@ func (a *app) hello(w http.ResponseWriter, r *http.Request) {
 		flavors = append(flavors, flavor)
 	}
 	// add some custom fields to the Honeycomb event
-	honeycomb.AddField(ctx, "flavors_count", len(flavors))
-	honeycomb.AddField(ctx, "flavors", flavors)
+	beeline.AddField(ctx, "flavors_count", len(flavors))
+	beeline.AddField(ctx, "flavors", flavors)
 
 	// send our response to the caller
 	io.WriteString(w,

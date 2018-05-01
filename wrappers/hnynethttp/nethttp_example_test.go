@@ -5,13 +5,13 @@ import (
 	"log"
 	"net/http"
 
-	honeycomb "github.com/honeycombio/honeycomb-go-magic"
-	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp"
+	"github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 )
 
 func main() {
-	// Initialize honeycomb. The only required field is WriteKey.
-	honeycomb.Init(honeycomb.Config{
+	// Initialize beeline. The only required field is WriteKey.
+	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
 		Dataset:  "http-vanilla",
 		// for demonstration, send the event to STDOUT intead of Honeycomb.
@@ -25,7 +25,7 @@ func main() {
 
 // hello world, the web server
 func HelloServer(w http.ResponseWriter, req *http.Request) {
-	honeycomb.AddField(req.Context(), "custom", "Wheee")
+	beeline.AddField(req.Context(), "custom", "Wheee")
 	io.WriteString(w, "hello, world!\n")
 }
 

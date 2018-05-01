@@ -1,19 +1,19 @@
-package hnynethttp_test
+package hnyhttprouter_test
 
 import (
 	"fmt"
 	"log"
 	"net/http"
 
-	honeycomb "github.com/honeycombio/honeycomb-go-magic"
-	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnyhttprouter"
-	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp"
+	"github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/wrappers/hnyhttprouter"
+	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 	"github.com/julienschmidt/httprouter"
 )
 
 func main() {
-	// Initialize honeycomb. The only required field is WriteKey.
-	honeycomb.Init(honeycomb.Config{
+	// Initialize beeline. The only required field is WriteKey.
+	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
 		Dataset:  "sql",
 		// for demonstration, send the event to STDOUT intead of Honeycomb.
@@ -37,7 +37,7 @@ func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func Hello(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	honeycomb.AddField(r.Context(), "inHello", true)
+	beeline.AddField(r.Context(), "inHello", true)
 	fmt.Fprintf(w, "hello, %s!\n", ps.ByName("name"))
 }
 

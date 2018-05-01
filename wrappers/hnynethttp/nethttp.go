@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/honeycombio/honeycomb-go-magic"
-	"github.com/honeycombio/honeycomb-go-magic/internal"
+	"github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/internal"
 	"github.com/honeycombio/libhoney-go"
 )
 
@@ -22,11 +22,11 @@ func WrapHandler(handler http.Handler) http.Handler {
 		start := time.Now()
 		// TODO find out if we're a sub-handler and don't stomp the parent event
 		// - get parent/child IDs and intentionally send a subevent
-		ev := honeycomb.ContextEvent(r.Context())
+		ev := beeline.ContextEvent(r.Context())
 		if ev == nil {
 			ev = libhoney.NewEvent()
 			// put the event on the context for everybody downsteam to use
-			r = r.WithContext(honeycomb.ContextWithEvent(r.Context(), ev))
+			r = r.WithContext(beeline.ContextWithEvent(r.Context(), ev))
 		}
 		// add some common fields from the request to our event
 		internal.AddRequestProps(r, ev)
@@ -67,11 +67,11 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 	handlerFuncName := runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		ev := honeycomb.ContextEvent(r.Context())
+		ev := beeline.ContextEvent(r.Context())
 		if ev == nil {
 			ev = libhoney.NewEvent()
 			// put the event on the context for everybody downstream to use
-			r = r.WithContext(honeycomb.ContextWithEvent(r.Context(), ev))
+			r = r.WithContext(beeline.ContextWithEvent(r.Context(), ev))
 		}
 		// add some common fields from the request to our event
 		internal.AddRequestProps(r, ev)

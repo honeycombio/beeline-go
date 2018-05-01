@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"strings"
 
-	honeycomb "github.com/honeycombio/honeycomb-go-magic"
+	"github.com/honeycombio/beeline-go"
 	libhoney "github.com/honeycombio/libhoney-go"
 	uuid "github.com/satori/go.uuid"
 )
@@ -82,7 +82,7 @@ func parseTraceHeader(req *http.Request, ev *libhoney.Event) string {
 // it finish a timer around the call automatically.
 func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
 	ev := bld.NewEvent()
-	timer := honeycomb.StartTimer()
+	timer := beeline.StartTimer()
 	fn := func(err error) {
 		duration := timer.Finish()
 		ev.AddField("duration_ms", duration)
@@ -110,7 +110,7 @@ func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args
 
 func addTraceID(ctx context.Context, ev *libhoney.Event) {
 	// get a transaction ID from the request's event, if it's sitting in context
-	if parentEv := honeycomb.ContextEvent(ctx); parentEv != nil {
+	if parentEv := beeline.ContextEvent(ctx); parentEv != nil {
 		if id, ok := parentEv.Fields()["trace.trace_id"]; ok {
 			ev.AddField("trace.trace_id", id)
 		}

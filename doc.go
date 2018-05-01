@@ -1,4 +1,4 @@
-// package honeycomb aids adding isntrumentation to go apps using Honeycomb.
+// package beeline aids adding isntrumentation to go apps using Honeycomb.
 //
 // Summary
 //
@@ -16,7 +16,7 @@
 // events.
 //
 //   func main() {
-//     honeycomb.Init(&honeycomb.Config{
+//     beeline.Init(&beeline.Config{
 //       WriteKey: "abcabc123123defdef456456",
 //       Dataset: "myapp",
 //     })
@@ -26,4 +26,4 @@
 // objects.
 //
 // More detail will land here eventually.
-package honeycomb
+package beeline

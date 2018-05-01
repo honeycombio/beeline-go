@@ -6,16 +6,16 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	honeycomb "github.com/honeycombio/honeycomb-go-magic"
-	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnygorilla"
-	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp"
+	"github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/wrappers/hnygorilla"
+	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 )
 
 const writekey = "cf80cea35c40752b299755ad23d2082e"
 
 func main() {
-	// Initialize honeycomb. The only required field is WriteKey.
-	honeycomb.Init(honeycomb.Config{
+	// Initialize beeline. The only required field is WriteKey.
+	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
 		Dataset:  "http-gorilla",
 		// for demonstration, send the event to STDOUT intead of Honeycomb.
@@ -40,7 +40,7 @@ func YourHandler(w http.ResponseWriter, r *http.Request) {
 func HelloHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	person := vars["person"]
-	honeycomb.AddField(r.Context(), "inHello", true)
+	beeline.AddField(r.Context(), "inHello", true)
 	w.Write([]byte(fmt.Sprintf("Gorilla! Gorilla! %s\n", person)))
 }
 

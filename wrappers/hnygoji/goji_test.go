@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"net/http"
 
-	honeycomb "github.com/honeycombio/honeycomb-go-magic"
-	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnygoji"
-	"github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp"
+	"github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/wrappers/hnygoji"
+	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 
 	"goji.io"
 	"goji.io/pat"
 )
 
 func main() {
-	// Initialize honeycomb. The only required field is WriteKey.
-	honeycomb.Init(honeycomb.Config{
+	// Initialize beeline. The only required field is WriteKey.
+	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",
 		Dataset:  "http-goji",
 		// for demonstration, send the event to STDOUT intead of Honeycomb.
@@ -37,13 +37,13 @@ func main() {
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
-	honeycomb.AddField(r.Context(), "custom", "in hello")
+	beeline.AddField(r.Context(), "custom", "in hello")
 	name := pat.Param(r, "name") // pat is automatically added to the event
 	fmt.Fprintf(w, "Hello, %s!\n", name)
 }
 
 func bye(w http.ResponseWriter, r *http.Request) {
-	honeycomb.AddField(r.Context(), "custom", "in bye")
+	beeline.AddField(r.Context(), "custom", "in bye")
 	name := pat.Param(r, "name") // pat is automatically added to the event
 	fmt.Fprintf(w, "goodbye, %s!", name)
 }

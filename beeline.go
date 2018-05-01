@@ -1,4 +1,4 @@
-package honeycomb
+package beeline
 
 import (
 	"context"
@@ -18,6 +18,9 @@ const (
 	honeyEventContextKey   = "honeycombEventContextKey"
 )
 
+// Config is the place where you configure your Honeycomb write key and dataset
+// name. WriteKey is the only required field in order to acutally send events to
+// Honeycomb.
 type Config struct {
 	// Writekey is your Honeycomb authentication token, available from
 	// https://ui.honeycomb.io/account. default: writekey-placeholder
@@ -37,6 +40,8 @@ type Config struct {
 	// Mute when set to true will disable Honeycomb entirely; useful for tests
 	// and CI. default: false
 	Mute bool
+	// DisableTracing when set to true will suppress emitting trace.* fields
+	DisableTracing bool
 }
 
 // Init intializes the honeycomb instrumentation library.
@@ -67,7 +72,7 @@ func Init(config Config) {
 		libhconfig.APIHost = config.APIHost
 	}
 	libhoney.Init(libhconfig)
-	libhoney.UserAgentAddition = fmt.Sprintf("go-magic/%s", version)
+	libhoney.UserAgentAddition = fmt.Sprintf("beeline/%s", version)
 
 	if hostname, err := os.Hostname(); err == nil {
 		libhoney.AddField("meta.localhostname", hostname)
@@ -131,12 +136,12 @@ type Timer struct {
 // NewNamedTimerC is intended to be used one of two ways. To time an entire
 // function, put this as the first line of the function call:
 //
-// defer honeycomb.NewNamedTimerC(ctx, "foo", time.Now()).Finish()`
+// defer beeline.NewNamedTimerC(ctx, "foo", time.Now()).Finish()`
 //
 // To time a portion of code, save the return value from creating the timer and
 // then call `.Finish()` on it when the timer should be stopped. For example,
 //
-// hnyTimer := honeycomb.NewNamedTimerC(ctx, "codeFragment", time.Now())
+// hnyTimer := beeline.NewNamedTimerC(ctx, "codeFragment", time.Now())
 // <do stuff>
 // hnyTimer.Finish()
 //

@@ -17,7 +17,7 @@ For each of the [wrappers](wrappers/), documentation is found in godoc rather th
 # Installation
 
 Add the main package to your `$GOPATH` in the normal way: `go get
-github.com/honeycombio/honeycomb-go-magic`. You'll add additional subpackages
+github.com/honeycombio/beeline-go`. You'll add additional subpackages
 depending on the specifics of your application.
 
 # Setup
@@ -29,10 +29,10 @@ identify a dataset name to authorize your code to send events to Honeycomb and
 tell it where to send events.
 
 ```golang
-import "github.com/honeycombio/honeycomb-go-magic"
+import "github.com/honeycombio/beeline-go"
 ...
 func main() {
-	honeycomb.Init(honeycomb.Config{
+	beeline.Init(beeline.Config{
 			WriteKey: "abcabc123123defdef456456",
 			Dataset: "myapp",
 		})
@@ -42,12 +42,12 @@ func main() {
 # Use
 
 After initialization, the next step is to find the `http.ListenAndServe` call
-and add in the [`hnynethttp`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp) wrapper. This establishes the most
+and add in the [`hnynethttp`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnynethttp) wrapper. This establishes the most
 basic instrumentation at the outermost layer of the call stack on a per-request
 basis.
 
 ```golang
-	import "github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp"
+	import "github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 	...
 	http.ListenAndServe(":8080", hnynethttp.WrapHandler(muxer))
 ```
@@ -65,7 +65,7 @@ At any time (once the `*http.Request` is decorated with a Honeycomb event) you
 can add additional custom fields to the event associated with this request.
 
 ```golang
-	honeycomb.AddField(req.Context(), "field_name", value)
+	beeline.AddField(req.Context(), "field_name", value)
 ```
 
 These additional fields are your opportunity to add important and detailed
@@ -93,15 +93,15 @@ subpackages below.
 
 Available HTTP wrappers:
 
-* [`hnynethttp`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnynethttp) (for `net/http`)
-* [`hnygoji`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnygoji) (for `goji/mux`)
-* [`hnygorilla`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnygorilla) (for `gorilla/mux`)
-* [`hnyhttprouter`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnyhttprouter) (for `httprouter`)
+* [`hnynethttp`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnynethttp) (for `net/http`)
+* [`hnygoji`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnygoji) (for `goji/mux`)
+* [`hnygorilla`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnygorilla) (for `gorilla/mux`)
+* [`hnyhttprouter`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnyhttprouter) (for `httprouter`)
 
 Available DB wrappers:
 
-* [`hnysql`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnysql) (for `database/sql`)
-* [`hnysqlx`](https://godoc.org/github.com/honeycombio/honeycomb-go-magic/wrappers/hnysqlx) (for `github.com/jmoiron/sqlx`)
+* [`hnysql`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnysql) (for `database/sql`)
+* [`hnysqlx`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnysqlx) (for `github.com/jmoiron/sqlx`)
 
 ## Other HTTP frameworks
 

@@ -11,8 +11,8 @@ import (
 	"github.com/jmoiron/sqlx/reflectx"
 	"github.com/satori/go.uuid"
 
-	"github.com/honeycombio/honeycomb-go-magic"
-	"github.com/honeycombio/honeycomb-go-magic/internal"
+	"github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/internal"
 	"github.com/honeycombio/libhoney-go"
 )
 
@@ -1751,7 +1751,7 @@ func (tx *Tx) Unsafe() *Tx {
 
 func addTraceIDBuilder(ctx context.Context, bld *libhoney.Builder) {
 	// get a transaction ID from the request's event, if it's sitting in context
-	if parentEv := honeycomb.ContextEvent(ctx); parentEv != nil {
+	if parentEv := beeline.ContextEvent(ctx); parentEv != nil {
 		if id, ok := parentEv.Fields()["trace.trace_id"]; ok {
 			bld.AddField("db.trace.trace_id", id)
 		}
