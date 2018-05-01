@@ -131,42 +131,50 @@ func rollup(ctx context.Context, ev *libhoney.Event, dur float64) {
 	// meta.type and the specific db call
 	evFields := ev.Fields()
 	pvFields := parentEv.Fields()
-	metaType, _ := evFields["meta.type"]
-	dbCall, _ := evFields["db.call"]
-	totalMetaCountKey := fmt.Sprintf("totals.%s_count", metaType)
-	totalMetaDurKey := fmt.Sprintf("totals.%s_duration_ms", metaType)
-	totalCallCountKey := fmt.Sprintf("totals.%s_%s_count", metaType, dbCall)
-	totalCallDurKey := fmt.Sprintf("totals.%s_%s_duration_ms", metaType, dbCall)
 
-	// cast everything appropriately and set to zero if it didn't already exist
-	totalTypeCount, _ := pvFields[totalMetaCountKey]
-	totalTypeCountVal, ok := totalTypeCount.(int)
-	if !ok {
-		totalTypeCountVal = 0
-	}
+	// only roll up if we have a meta type
+	metaType, ok := evFields["meta.type"]
+	if ok {
+		// make our field names
+		totalMetaCountKey := fmt.Sprintf("totals.%s_count", metaType)
+		totalMetaDurKey := fmt.Sprintf("totals.%s_duration_ms", metaType)
+		// get the existing values or zero if they're missing
+		totalTypeCount, _ := pvFields[totalMetaCountKey]
+		totalTypeCountVal, ok := totalTypeCount.(int)
+		if !ok {
+			totalTypeCountVal = 0
+		}
+		totalTypeDur, _ := pvFields[totalMetaDurKey]
+		totalTypeDurVal, ok := totalTypeDur.(float64)
+		if !ok {
+			totalTypeDurVal = 0
+		}
+		// add them to the parent event
+		parentEv.AddField(totalMetaCountKey, totalTypeCountVal+1)
+		parentEv.AddField(totalMetaDurKey, totalTypeDurVal+dur)
 
-	totalTypeDur, _ := pvFields[totalMetaDurKey]
-	totalTypeDurVal, ok := totalTypeDur.(float64)
-	if !ok {
-		totalTypeDurVal = 0
+		// if we're a db call, let's roll up the specific call too.
+		dbCall, ok := evFields["db.call"]
+		if ok {
+			// make our field names
+			totalCallCountKey := fmt.Sprintf("totals.%s_%s_count", metaType, dbCall)
+			totalCallDurKey := fmt.Sprintf("totals.%s_%s_duration_ms", metaType, dbCall)
+			// get the existing values or zero if they're missing
+			totalCallCount, _ := pvFields[totalCallCountKey]
+			totalCallCountVal, ok := totalCallCount.(int)
+			if !ok {
+				totalCallCountVal = 0
+			}
+			totalCallDur, _ := pvFields[totalCallDurKey]
+			totalCallDurVal, ok := totalCallDur.(float64)
+			if !ok {
+				totalCallDurVal = 0
+			}
+			// add them to the parent event
+			parentEv.AddField(totalCallCountKey, totalCallCountVal+1)
+			parentEv.AddField(totalCallDurKey, totalCallDurVal+dur)
+		}
 	}
-	totalCallCount, _ := pvFields[totalCallCountKey]
-	totalCallCountVal, ok := totalCallCount.(int)
-	if !ok {
-		totalCallCountVal = 0
-	}
-	totalCallDur, _ := pvFields[totalCallDurKey]
-	totalCallDurVal, ok := totalCallDur.(float64)
-	if !ok {
-		totalCallDurVal = 0
-	}
-
-	// ok, set new values with the current stuff added. Note that this is racy
-	// and will stomp each other. Not sure what to do about it just yet
-	parentEv.AddField(totalMetaCountKey, totalTypeCountVal+1)
-	parentEv.AddField(totalMetaDurKey, totalTypeDurVal+dur)
-	parentEv.AddField(totalCallCountKey, totalCallCountVal+1)
-	parentEv.AddField(totalCallDurKey, totalCallDurVal+dur)
 }
 
 func addTraceID(ctx context.Context, ev *libhoney.Event) {
