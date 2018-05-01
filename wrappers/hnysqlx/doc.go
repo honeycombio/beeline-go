@@ -10,10 +10,15 @@
 // using.
 //
 // Additionally, if hnysqlx is used in conjunction with one of the Honeycomb
-// HTTP wrappers, make sure you're using the context-aware versions of the SQL
-// calls so that the trace ID picked up in the HTTP event will appear in the SQL
-// event. This will ensure you can track any SQL call back to the HTTP event
-// that triggered it.
+// HTTP wrappers *and* you're using the context-aware versions of the SQL calls,
+// the trace ID picked up in the HTTP event will appear in the SQL event. This
+// will ensure you can track any SQL call back to the HTTP event that triggered
+// it.
+//
+// It is strongly suggested that you use the context-aware version of all calls
+// whenever possible; doing so not only lets you cancel your database calls, but
+// dramatically increases the value of the SQL isntrumentation by letting you
+// tie it back to individual HTTP requests.
 //
 // If you need to differentiate multiple DB connections, there is a
 // *libhoney.Builder associated with the *hnysqlx.DB (as well as with

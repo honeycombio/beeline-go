@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"runtime"
 	"strings"
@@ -90,10 +91,11 @@ func parseTraceHeader(req *http.Request, ev *libhoney.Event) string {
 // function which, when called, dispatches the event that it created. This lets
 // it finish a timer around the call automatically.
 func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
-	ev := bld.NewEvent()
 	timer := timer.Start()
+	ev := bld.NewEvent()
 	fn := func(err error) {
 		duration := timer.Finish()
+		rollup(ctx, ev, duration)
 		ev.AddField("duration_ms", duration)
 		if err != nil {
 			ev.AddField("error", err)
@@ -117,11 +119,66 @@ func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args
 	return ev, fn
 }
 
+// rollup takes a context that might contain a parent event, the current event,
+// and a duration. It pulls some attributes from the current event in order to
+// add the duration to a summed timer in the parent event.
+func rollup(ctx context.Context, ev *libhoney.Event, dur float64) {
+	parentEv := beeline.ContextEvent(ctx)
+	if parentEv == nil {
+		return
+	}
+	// ok now parentEv exists. lets add this to a total duration for the
+	// meta.type and the specific db call
+	evFields := ev.Fields()
+	pvFields := parentEv.Fields()
+	metaType, _ := evFields["meta.type"]
+	dbCall, _ := evFields["db.call"]
+	totalMetaCountKey := fmt.Sprintf("totals.%s_count", metaType)
+	totalMetaDurKey := fmt.Sprintf("totals.%s_duration_ms", metaType)
+	totalCallCountKey := fmt.Sprintf("totals.%s_%s_count", metaType, dbCall)
+	totalCallDurKey := fmt.Sprintf("totals.%s_%s_duration_ms", metaType, dbCall)
+
+	// cast everything appropriately and set to zero if it didn't already exist
+	totalTypeCount, _ := pvFields[totalMetaCountKey]
+	totalTypeCountVal, ok := totalTypeCount.(int)
+	if !ok {
+		totalTypeCountVal = 0
+	}
+
+	totalTypeDur, _ := pvFields[totalMetaDurKey]
+	totalTypeDurVal, ok := totalTypeDur.(float64)
+	if !ok {
+		totalTypeDurVal = 0
+	}
+	totalCallCount, _ := pvFields[totalCallCountKey]
+	totalCallCountVal, ok := totalCallCount.(int)
+	if !ok {
+		totalCallCountVal = 0
+	}
+	totalCallDur, _ := pvFields[totalCallDurKey]
+	totalCallDurVal, ok := totalCallDur.(float64)
+	if !ok {
+		totalCallDurVal = 0
+	}
+
+	// ok, set new values with the current stuff added. Note that this is racy
+	// and will stomp each other. Not sure what to do about it just yet
+	parentEv.AddField(totalMetaCountKey, totalTypeCountVal+1)
+	parentEv.AddField(totalMetaDurKey, totalTypeDurVal+dur)
+	parentEv.AddField(totalCallCountKey, totalCallCountVal+1)
+	parentEv.AddField(totalCallDurKey, totalCallDurVal+dur)
+}
+
 func addTraceID(ctx context.Context, ev *libhoney.Event) {
 	// get a transaction ID from the request's event, if it's sitting in context
 	if parentEv := beeline.ContextEvent(ctx); parentEv != nil {
 		if id, ok := parentEv.Fields()["trace.trace_id"]; ok {
 			ev.AddField("trace.trace_id", id)
 		}
+		if id, ok := parentEv.Fields()["trace.span_id"]; ok {
+			ev.AddField("trace.parent_id", id)
+		}
+		id, _ := uuid.NewV4()
+		ev.AddField("trace.span_id", id.String())
 	}
 }
