@@ -619,6 +619,18 @@ func (db *DB) QueryRowxContext(ctx context.Context, query string, args ...interf
 	return row
 }
 
+func (db *DB) Rebind(query string) string {
+	var err error
+	_, sender := internal.BuildDBEvent(context.Background(), db.Builder, query)
+	defer sender(err)
+
+	// ensure any changes to the Mapper get passed along
+	db.wdb.Mapper = db.Mapper
+
+	str := db.wdb.Rebind(query)
+	return str
+}
+
 func (db *DB) Select(dest interface{}, query string, args ...interface{}) error {
 	var err error
 	ev, sender := internal.BuildDBEvent(context.Background(), db.Builder, query, args...)
