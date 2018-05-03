@@ -54,7 +54,9 @@ func (db *DB) Beginx() (*Tx, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	bld := db.Builder.Clone()
 	newid, _ := uuid.NewV4()
@@ -77,7 +79,9 @@ func (db *DB) BeginTxx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	bld := db.Builder.Clone()
 	wrapTx := &Tx{
@@ -104,7 +108,9 @@ func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	res, err := db.wdb.Exec(query, args...)
@@ -129,7 +135,9 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	res, err := db.wdb.ExecContext(ctx, query, args...)
@@ -154,7 +162,9 @@ func (db *DB) Get(dest interface{}, query string, args ...interface{}) error {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// add the type of the objec being populated
 	ev.AddField("db.dest_type", typeof(dest))
@@ -170,7 +180,9 @@ func (db *DB) GetContext(ctx context.Context, dest interface{}, query string, ar
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// add the type of the objec being populated
 	ev.AddField("db.dest_type", typeof(dest))
@@ -186,12 +198,16 @@ func (db *DB) MapperFunc(mf func(string) string) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// update the wrapped DB's Mapper
 	db.wdb.MapperFunc(mf)
 	// and copy it back here
-	db.Mapper = db.wdb.Mapper
+	if db.wdb.Mapper != nil {
+		db.Mapper = db.wdb.Mapper
+	}
 }
 
 func (db *DB) MustBegin() *Tx {
@@ -200,7 +216,9 @@ func (db *DB) MustBegin() *Tx {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	bld := db.Builder.Clone()
 	wrapTx := &Tx{
@@ -229,7 +247,9 @@ func (db *DB) MustBeginTx(ctx context.Context, opts *sql.TxOptions) *Tx {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	bld := db.Builder.Clone()
 	wrapTx := &Tx{
@@ -263,7 +283,9 @@ func (db *DB) MustExec(query string, args ...interface{}) sql.Result {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	res, err := db.wdb.Exec(query, args...)
@@ -293,7 +315,9 @@ func (db *DB) MustExecContext(ctx context.Context, query string, args ...interfa
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	res, err := db.wdb.ExecContext(ctx, query, args...)
@@ -322,7 +346,9 @@ func (db *DB) NamedExec(query string, arg interface{}) (sql.Result, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	res, err := db.wdb.NamedExec(query, arg)
@@ -347,7 +373,9 @@ func (db *DB) NamedExecContext(ctx context.Context, query string, arg interface{
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	res, err := db.wdb.NamedExecContext(ctx, query, arg)
@@ -372,7 +400,9 @@ func (db *DB) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	rows, err := db.wdb.NamedQuery(query, arg)
@@ -385,7 +415,9 @@ func (db *DB) NamedQueryContext(ctx context.Context, query string, arg interface
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	rows, err := db.wdb.NamedQueryContext(ctx, query, arg)
@@ -398,7 +430,9 @@ func (db *DB) Ping() error {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	err = db.wdb.Ping()
 	return err
@@ -410,7 +444,9 @@ func (db *DB) PingContext(ctx context.Context) error {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	err = db.wdb.Ping()
 	return err
@@ -422,7 +458,9 @@ func (db *DB) PrepareNamed(query string) (*NamedStmt, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	bld := db.Builder.Clone()
 	wrapStmt := &NamedStmt{
@@ -449,7 +487,9 @@ func (db *DB) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	bld := db.Builder.Clone()
 	wrapStmt := &NamedStmt{
@@ -473,7 +513,9 @@ func (db *DB) Preparex(query string) (*Stmt, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	bld := db.Builder.Clone()
 	wrapStmt := &Stmt{
@@ -496,7 +538,9 @@ func (db *DB) PreparexContext(ctx context.Context, query string) (*Stmt, error) 
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	bld := db.Builder.Clone()
 	wrapStmt := &Stmt{
@@ -520,7 +564,9 @@ func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	rows, err := db.wdb.Query(query, args...)
@@ -533,7 +579,9 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	rows, err := db.wdb.QueryContext(ctx, query, args...)
@@ -547,7 +595,9 @@ func (db *DB) QueryRow(query string, args ...interface{}) *sql.Row {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	row := db.wdb.QueryRow(query, args...)
@@ -560,7 +610,9 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	row := db.wdb.QueryRowContext(ctx, query, args...)
@@ -573,7 +625,9 @@ func (db *DB) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	rows, err := db.wdb.Queryx(query, args...)
@@ -586,7 +640,9 @@ func (db *DB) QueryxContext(ctx context.Context, query string, args ...interface
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	rows, err := db.wdb.QueryxContext(ctx, query, args...)
@@ -599,7 +655,9 @@ func (db *DB) QueryRowx(query string, args ...interface{}) *sqlx.Row {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	row := db.wdb.QueryRowx(query, args...)
@@ -612,7 +670,9 @@ func (db *DB) QueryRowxContext(ctx context.Context, query string, args ...interf
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	// do DB call
 	row := db.wdb.QueryRowxContext(ctx, query, args...)
@@ -625,7 +685,9 @@ func (db *DB) Rebind(query string) string {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	str := db.wdb.Rebind(query)
 	return str
@@ -637,7 +699,9 @@ func (db *DB) Select(dest interface{}, query string, args ...interface{}) error 
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	ev.AddField("db.dest_type", typeof(dest))
 
@@ -652,7 +716,9 @@ func (db *DB) SelectContext(ctx context.Context, dest interface{}, query string,
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	ev.AddField("db.dest_type", typeof(dest))
 
@@ -668,7 +734,9 @@ func (db *DB) Close() error {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	err = db.wdb.Close()
 	return err
@@ -681,7 +749,9 @@ func (db *DB) Driver() driver.Driver {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	return db.wdb.Driver()
 }
@@ -692,7 +762,9 @@ func (db *DB) SetConnMaxLifetime(d time.Duration) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	db.wdb.SetConnMaxLifetime(d)
 }
@@ -703,7 +775,9 @@ func (db *DB) SetMaxIdleConns(n int) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	db.wdb.SetMaxIdleConns(n)
 }
@@ -714,7 +788,9 @@ func (db *DB) SetMaxOpenConns(n int) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	db.wdb.SetMaxOpenConns(n)
 }
@@ -725,7 +801,9 @@ func (db *DB) Stats() sql.DBStats {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	db.wdb.Mapper = db.Mapper
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
 
 	return db.wdb.Stats()
 }
@@ -988,7 +1066,9 @@ func (s *Stmt) Get(dest interface{}, args ...interface{}) error {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	// add the type of the objec being populated
 	ev.AddField("db.dest_type", typeof(dest))
@@ -1003,7 +1083,9 @@ func (s *Stmt) GetContext(ctx context.Context, dest interface{}, args ...interfa
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	// add the type of the objec being populated
 	ev.AddField("db.dest_type", typeof(dest))
@@ -1018,7 +1100,9 @@ func (s *Stmt) MustExec(args ...interface{}) sql.Result {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	// do DB call
 	res, err := s.wstmt.Exec(args...)
@@ -1047,7 +1131,9 @@ func (s *Stmt) MustExecContext(ctx context.Context, args ...interface{}) sql.Res
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	// do DB call
 	res, err := s.wstmt.ExecContext(ctx, args...)
@@ -1076,7 +1162,9 @@ func (s *Stmt) QueryRowx(args ...interface{}) *sqlx.Row {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	// do DB call
 	row := s.wstmt.QueryRowx(args...)
@@ -1089,7 +1177,9 @@ func (s *Stmt) QueryRowxContext(ctx context.Context, args ...interface{}) *sqlx.
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	// do DB call
 	row := s.wstmt.QueryRowxContext(ctx, args...)
@@ -1102,7 +1192,9 @@ func (s *Stmt) Queryx(args ...interface{}) (*sqlx.Rows, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	// do DB call
 	rows, err := s.wstmt.Queryx(args...)
@@ -1115,7 +1207,9 @@ func (s *Stmt) QueryxContext(ctx context.Context, args ...interface{}) (*sqlx.Ro
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	// do DB call
 	rows, err := s.wstmt.QueryxContext(ctx, args...)
@@ -1128,7 +1222,9 @@ func (s *Stmt) Select(dest interface{}, args ...interface{}) error {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	ev.AddField("db.dest_type", typeof(dest))
 
@@ -1143,7 +1239,9 @@ func (s *Stmt) SelectContext(ctx context.Context, dest interface{}, args ...inte
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	ev.AddField("db.dest_type", typeof(dest))
 
@@ -1158,7 +1256,9 @@ func (s *Stmt) Unsafe() *Stmt {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	s.wstmt.Mapper = s.Mapper
+	if s.Mapper != nil {
+		s.wstmt.Mapper = s.Mapper
+	}
 
 	newws := s.wstmt.Unsafe()
 	s.wstmt = newws
@@ -1177,7 +1277,9 @@ func (tx *Tx) BindNamed(query string, arg interface{}) (string, []interface{}, e
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	str, i, err := tx.wtx.BindNamed(query, arg)
 	return str, i, err
@@ -1189,7 +1291,9 @@ func (tx *Tx) Commit() error {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	err = tx.wtx.Commit()
@@ -1201,7 +1305,9 @@ func (tx *Tx) DriverName() string {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	name := tx.wtx.DriverName()
 	return name
@@ -1213,7 +1319,9 @@ func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	res, err := tx.wtx.Exec(query, args...)
@@ -1238,7 +1346,9 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	res, err := tx.wtx.ExecContext(ctx, query, args...)
@@ -1263,7 +1373,9 @@ func (tx *Tx) Get(dest interface{}, query string, args ...interface{}) error {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// add the type of the objec being populated
 	ev.AddField("db.dest_type", typeof(dest))
@@ -1277,7 +1389,9 @@ func (tx *Tx) GetContext(ctx context.Context, dest interface{}, query string, ar
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// add the type of the objec being populated
 	ev.AddField("db.dest_type", typeof(dest))
@@ -1292,7 +1406,9 @@ func (tx *Tx) MustExec(query string, args ...interface{}) sql.Result {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	res, err := tx.wtx.Exec(query, args...)
 
@@ -1321,7 +1437,9 @@ func (tx *Tx) MustExecContext(ctx context.Context, query string, args ...interfa
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	res, err := tx.wtx.Exec(query, args...)
 
@@ -1350,7 +1468,9 @@ func (tx *Tx) NamedExec(query string, arg interface{}) (sql.Result, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	res, err := tx.wtx.NamedExec(query, arg)
@@ -1375,7 +1495,9 @@ func (tx *Tx) NamedExecContext(ctx context.Context, query string, arg interface{
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	res, err := tx.wtx.NamedExecContext(ctx, query, arg)
@@ -1400,7 +1522,9 @@ func (tx *Tx) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	rows, err := tx.wtx.NamedQuery(query, arg)
@@ -1418,7 +1542,9 @@ func (tx *Tx) NamedStmt(stmt *NamedStmt) *NamedStmt {
 	}
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	ns := tx.wtx.NamedStmt(stmt.wns)
 	wrapStmt.wns = ns
@@ -1436,7 +1562,9 @@ func (tx *Tx) NamedStmtContext(ctx context.Context, stmt *NamedStmt) *NamedStmt 
 	}
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	ns := tx.wtx.NamedStmtContext(ctx, stmt.wns)
 	wrapStmt.wns = ns
@@ -1449,7 +1577,9 @@ func (tx *Tx) PrepareNamed(query string) (*NamedStmt, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &NamedStmt{
@@ -1473,7 +1603,9 @@ func (tx *Tx) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &NamedStmt{
@@ -1497,7 +1629,9 @@ func (tx *Tx) Preparex(query string) (*Stmt, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &Stmt{
@@ -1521,7 +1655,9 @@ func (tx *Tx) PreparexContext(ctx context.Context, query string) (*Stmt, error) 
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &Stmt{
@@ -1545,7 +1681,9 @@ func (tx *Tx) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	rows, err := tx.wtx.Query(query, args...)
@@ -1558,7 +1696,9 @@ func (tx *Tx) QueryContext(ctx context.Context, query string, args ...interface{
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	rows, err := tx.wtx.QueryContext(ctx, query, args...)
@@ -1571,7 +1711,9 @@ func (tx *Tx) QueryRow(query string, args ...interface{}) *sql.Row {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	row := tx.wtx.QueryRow(query, args...)
@@ -1584,7 +1726,9 @@ func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...interfa
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	row := tx.wtx.QueryRowContext(ctx, query, args...)
@@ -1597,7 +1741,9 @@ func (tx *Tx) QueryRowx(query string, args ...interface{}) *sqlx.Row {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	row := tx.wtx.QueryRowx(query, args...)
@@ -1610,7 +1756,9 @@ func (tx *Tx) QueryRowxContext(ctx context.Context, query string, args ...interf
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	row := tx.wtx.QueryRowxContext(ctx, query, args...)
@@ -1623,7 +1771,9 @@ func (tx *Tx) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	rows, err := tx.wtx.Queryx(query, args...)
@@ -1636,7 +1786,9 @@ func (tx *Tx) QueryxContext(ctx context.Context, query string, args ...interface
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	rows, err := tx.wtx.QueryxContext(ctx, query, args...)
@@ -1649,7 +1801,9 @@ func (tx *Tx) Rebind(query string) string {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	str := tx.wtx.Rebind(query)
 	return str
@@ -1661,7 +1815,9 @@ func (tx *Tx) Rollback() error {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	// do DB call
 	err = tx.wtx.Rollback()
@@ -1674,7 +1830,9 @@ func (tx *Tx) Select(dest interface{}, query string, args ...interface{}) error 
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	ev.AddField("db.dest_type", typeof(dest))
 
@@ -1688,7 +1846,9 @@ func (tx *Tx) SelectContext(ctx context.Context, dest interface{}, query string,
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	ev.AddField("db.dest_type", typeof(dest))
 
@@ -1702,7 +1862,9 @@ func (tx *Tx) Stmtx(stmt *Stmt) *Stmt {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &Stmt{
@@ -1727,7 +1889,9 @@ func (tx *Tx) StmtxContext(ctx context.Context, stmt *Stmt) *Stmt {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &Stmt{
@@ -1752,7 +1916,9 @@ func (tx *Tx) Unsafe() *Tx {
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
-	tx.wtx.Mapper = tx.Mapper
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
 
 	newtx := tx.wtx.Unsafe()
 	tx.wtx = newtx
