@@ -138,8 +138,8 @@ func rollup(ctx context.Context, ev *libhoney.Event, dur float64) {
 	metaType, ok := evFields["meta.type"]
 	if ok {
 		// make our field names
-		totalMetaCountKey := fmt.Sprintf("totals.%s_count", metaType)
-		totalMetaDurKey := fmt.Sprintf("totals.%s_duration_ms", metaType)
+		totalMetaCountKey := fmt.Sprintf("totals.%s.count", metaType)
+		totalMetaDurKey := fmt.Sprintf("totals.%s.duration_ms", metaType)
 		// get the existing values or zero if they're missing
 		totalTypeCount, _ := pvFields[totalMetaCountKey]
 		totalTypeCountVal, ok := totalTypeCount.(int)
@@ -159,8 +159,8 @@ func rollup(ctx context.Context, ev *libhoney.Event, dur float64) {
 		dbCall, ok := evFields["db.call"]
 		if ok {
 			// make our field names
-			totalCallCountKey := fmt.Sprintf("totals.%s_%s_count", metaType, dbCall)
-			totalCallDurKey := fmt.Sprintf("totals.%s_%s_duration_ms", metaType, dbCall)
+			totalCallCountKey := fmt.Sprintf("totals.%s.%s.count", metaType, dbCall)
+			totalCallDurKey := fmt.Sprintf("totals.%s.%s.duration_ms", metaType, dbCall)
 			// get the existing values or zero if they're missing
 			totalCallCount, _ := pvFields[totalCallCountKey]
 			totalCallCountVal, ok := totalCallCount.(int)
