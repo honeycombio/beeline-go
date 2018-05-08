@@ -45,9 +45,10 @@ func main() {
 # Use
 
 After initialization, the next step is to find the `http.ListenAndServe` call
-and add in the [`hnynethttp`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnynethttp) wrapper. This establishes the most
-basic instrumentation at the outermost layer of the call stack on a per-request
-basis.
+and add in the
+[`hnynethttp`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnynethttp)
+wrapper. This establishes the most basic instrumentation at the outermost layer
+of the call stack on a per-request basis.
 
 ```golang
 	import "github.com/honeycombio/beeline-go/wrappers/hnynethttp"
@@ -62,7 +63,7 @@ Once this middleware wrapper is in place, there is a Honeycomb event in the requ
 context available for use throughout the request's lifecycle.  You could stop here and
 have very basic instrumentation, or continue to get additional context.
 
-## Example questions
+## Example Questions
 
 * Which endpoints are the slowest?
 
@@ -89,7 +90,7 @@ CALCULATE: COUNT
 FILTER: request.url == <endpoint-url>
 ```
 
-## Example event
+## Example Event
 
 Depending on which wrappers you use, events will have different fields. This
 example gives you a feel for what generated events will look like, though it may
@@ -118,14 +119,20 @@ duration, and the `meta.type` field.
 ```
 
 
-## Custom Fields
+## Adding Additional Context
 
-At any time (once the `*http.Request` is decorated with a Honeycomb event) you
-can add additional custom fields to the event associated with this request.
+At any time (once the `*http.Request` is decorated with a Honeycomb event by the
+beeline) you can add additional custom fields to the event associated with this
+request.
 
 ```golang
-	beeline.AddField(req.Context(), "field_name", value)
+beeline.AddField(req.Context(), "field_name", value)
 ```
+
+By default additional fields you add are namespaced under `app.`, so the field
+in the example above would appear in your event as `app.field_name`. This
+namespacing groups all your fields together to make them easy to find and
+examine.
 
 These additional fields are your opportunity to add important and detailed
 context to your instrumentation. Put a timer around a section of code, add per-
@@ -141,7 +148,7 @@ soon as it resolves them. Later on in the call stack, you might add additional
 fields describing what the user is trying to achieve with this specific HTTP
 request.
 
-## Other middleware wrappers
+## Wrappers and Other Middleware
 
 After the router has parsed the request, more fields specific to that router are
 available, such as the specific handler matched or any request parameters that
@@ -162,7 +169,7 @@ Available DB wrappers:
 * [`hnysql`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnysql) (for `database/sql`)
 * [`hnysqlx`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnysqlx) (for `github.com/jmoiron/sqlx`)
 
-## Other HTTP frameworks
+## Other HTTP Frameworks
 
 If your favorite framework isn't listed here, but supports middleware, look at
 the [`hnynethttp`](wrappers/hnynethttp) wrapper. Chances are, a phrase like "any
@@ -173,7 +180,25 @@ which is exactly what the `WrapHandler` function in `hnynethttp` does.
 
 Try that out and see how far you can get with it and appropriate custom fields.
 
-# TODO
-* write more docs
-* add additional http routers and frameworks, eg https://github.com/go-chi/chi
-* pull in httpsnoop instead of the existing responseWriter
+## Troubleshooting
+
+When initializing the beeline, there is an optional field `Debug`. Setting this
+field to `true` will cause the beeline to send verbose output to STDOUT to aide
+in troubleshooting. This beeline is also still young, so please reach out to
+support@honeycomb.io or ping us with the chat bubble on https://honeycomb.io for
+assistance.
+
+## Optional Configuration
+
+If you are using both an HTTP wrapper and a SQL package, make sure you pass the
+context from the `*http.Request` through to the SQL package using the various
+Context-enabled function calls. Doing so will tie the SQL calls back to specific
+HTTP requests and you'll get extra fields in your request event showing things
+like how much time was spent in the DB, as well as request IDs tying the
+separate events together so you can see exactly which DB calls were triggered by
+a given event.
+
+For very high throughput services, you can send only a portion of the events
+flowing through your service by setting the `SampleRate` during initialization.
+This sample rate will send 1/n events, so a sample rate of 5 would send 20% of
+all events. For high throughput services, a sample rate of 100 is a good start.
