@@ -10,7 +10,7 @@ import (
 
 const (
 	defaultWriteKey   = "writekey-placeholder"
-	defaultDataset    = "go-http"
+	defaultDataset    = "beeline-go"
 	defaultSampleRate = 1
 
 	honeyBuilderContextKey = "honeycombBuilderContextKey"
@@ -27,6 +27,10 @@ type Config struct {
 	// Dataset is the name of the Honeycomb dataset to which events will be
 	// sent. default: go-http
 	Dataset string
+	// Service Name identifies your application. While optional, setting this
+	// field is extremely valuable when you instrument multiple services. If set
+	// it will be added to all events as `service_name`
+	ServiceName string
 	// SamplRate is a positive integer indicating the rate at which to sample
 	// events. default: 1
 	SampleRate uint
@@ -71,10 +75,17 @@ func Init(config Config) {
 		libhconfig.APIHost = config.APIHost
 	}
 	libhoney.Init(libhconfig)
-	libhoney.UserAgentAddition = fmt.Sprintf("beeline/%s", version)
 
+	// set the version in both the useragent and in all events
+	libhoney.UserAgentAddition = fmt.Sprintf("beeline/%s", version)
+	libhoney.AddField("meta.beeline_version", version)
+
+	// add a bunch of fields
+	if config.ServiceName != "" {
+		libhoney.AddField("service_name", config.ServiceName)
+	}
 	if hostname, err := os.Hostname(); err == nil {
-		libhoney.AddField("meta.localhostname", hostname)
+		libhoney.AddField("meta.local_hostname", hostname)
 	}
 	return
 }
@@ -89,7 +100,8 @@ func AddField(ctx context.Context, key string, val interface{}) {
 	if ev == nil {
 		return
 	}
-	ev.AddField(key, val)
+	namespacedKey := fmt.Sprintf("app.%s", key)
+	ev.AddField(namespacedKey, val)
 }
 
 // ContextWithEvent returns a new context created from the passed context with a

@@ -42,7 +42,9 @@ func Middleware(handler http.Handler) http.Handler {
 		} else {
 			hType := reflect.TypeOf(handler)
 			ev.AddField("handler.type", hType.String())
-			ev.AddField("handler.name", runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name())
+			name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+			ev.AddField("handler.name", name)
+			ev.AddField("name", name)
 		}
 		// find any matched patterns
 		pm := middleware.Pattern(ctx)

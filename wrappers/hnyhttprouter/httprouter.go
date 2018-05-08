@@ -36,7 +36,9 @@ func Middleware(handle httprouter.Handle) httprouter.Handle {
 		internal.AddRequestProps(r, ev)
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := &internal.ResponseWriter{ResponseWriter: w}
-		ev.AddField("handler.name", runtime.FuncForPC(reflect.ValueOf(handle).Pointer()).Name())
+		name := runtime.FuncForPC(reflect.ValueOf(handle).Pointer()).Name()
+		ev.AddField("handler.name", name)
+		ev.AddField("name", name)
 
 		handle(w, r, ps)
 

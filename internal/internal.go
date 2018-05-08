@@ -25,13 +25,13 @@ func (h *ResponseWriter) WriteHeader(statusCode int) {
 
 func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 	// identify the type of event
-	ev.AddField("meta.type", "http request")
+	ev.AddField("meta.type", "http")
 	// Add a variety of details about the HTTP request, such as user agent
 	// and method, to any created libhoney event.
 	ev.AddField("request.method", req.Method)
 	ev.AddField("request.path", req.URL.Path)
 	ev.AddField("request.host", req.URL.Host)
-	ev.AddField("request.proto", req.Proto)
+	ev.AddField("request.http_version", req.Proto)
 	ev.AddField("request.content_length", req.ContentLength)
 	ev.AddField("request.remote_addr", req.RemoteAddr)
 	ev.AddField("request.header.user_agent", req.UserAgent())
@@ -98,7 +98,7 @@ func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args
 		rollup(ctx, ev, duration)
 		ev.AddField("duration_ms", duration)
 		if err != nil {
-			ev.AddField("error", err)
+			ev.AddField("db.error", err)
 		}
 		ev.Send()
 	}
@@ -109,6 +109,7 @@ func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args
 	callName := runtime.FuncForPC(pc).Name()
 	callNameChunks := strings.Split(callName, ".")
 	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
+	ev.AddField("name", callNameChunks[len(callNameChunks)-1])
 
 	if query != "" {
 		ev.AddField("db.query", query)

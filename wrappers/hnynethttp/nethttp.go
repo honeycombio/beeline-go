@@ -43,10 +43,12 @@ func WrapHandler(handler http.Handler) http.Handler {
 			ev.AddField("handler.type", hType)
 			if name != "" {
 				ev.AddField("handler.name", name)
+				ev.AddField("name", name)
 			}
 		} else {
 			if handlerName != "" {
 				ev.AddField("handler.name", handlerName)
+				ev.AddField("name", handlerName)
 			}
 		}
 
@@ -78,7 +80,10 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := &internal.ResponseWriter{ResponseWriter: w}
 		// add the name of the handler func we're about to invoke
-		ev.AddField("handler_func_name", handlerFuncName)
+		if handlerFuncName != "" {
+			ev.AddField("handler_func_name", handlerFuncName)
+			ev.AddField("name", handlerFuncName)
+		}
 
 		hf(wrappedWriter, r)
 		if wrappedWriter.Status == 0 {
