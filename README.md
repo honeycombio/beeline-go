@@ -62,6 +62,62 @@ Once this middleware wrapper is in place, there is a Honeycomb event in the requ
 context available for use throughout the request's lifecycle.  You could stop here and
 have very basic instrumentation, or continue to get additional context.
 
+## Example questions
+
+* Which endpoints are the slowest?
+
+```
+BREAKDOWN: request.path
+CALCULATE: P99(duration_ms)
+FILTER: meta.type = http request
+ORDER BY: P99(duration_ms) DESC
+```
+
+* Which endpoints are the most frequently hit?
+
+```
+BREAKDOWN: request.path
+CALCULATE: COUNT
+FILTER: meta.type = http request
+```
+
+* Which users are using the endpoint that I'd like to deprecate? (assuming we add a custom field with user.email)
+
+```
+BREAKDOWN: app.user.email
+CALCULATE: COUNT
+FILTER: request.url == <endpoint-url>
+```
+
+## Example event
+
+Depending on which wrappers you use, events will have different fields. This
+example gives you a feel for what generated events will look like, though it may
+not exactly match what you'll see. All events have at least a timestamp, a
+duration, and the `meta.type` field.
+
+```json
+{
+    "Timestamp": "2018-03-20T00:47:25.339Z",
+    "duration_ms": 0.809993,
+    "meta.local_hostname": "cobbler.local",
+    "meta.type": "http request",
+    "mux.handler.name": "main.hello",
+    "mux.handler.pattern": "/hello/",
+    "mux.handler.type": "http.HandlerFunc",
+    "request.content_length": 0,
+    "request.header.user_agent": "curl/7.54.0",
+    "request.host": "",
+    "request.method": "GET",
+    "request.path": "/hello/foo/bar",
+    "request.proto": "HTTP/1.1",
+    "request.remote_addr": "127.0.0.1",
+    "response.status_code": 200,
+    "trace.trace_id": "5279bdc7-fedc-483b-8e4f-a03b4dbb7f27"
+}
+```
+
+
 ## Custom Fields
 
 At any time (once the `*http.Request` is decorated with a Honeycomb event) you
