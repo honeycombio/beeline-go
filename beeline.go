@@ -43,8 +43,13 @@ type Config struct {
 	// Mute when set to true will disable Honeycomb entirely; useful for tests
 	// and CI. default: false
 	Mute bool
-	// DisableTracing when set to true will suppress emitting trace.* fields
-	DisableTracing bool
+	// Debug will emit verbose logging to STDOUT when true. If you're having
+	// trouble getting the beeline to work, set this to true in a dev
+	// environment.
+	Debug bool
+
+	// disableTracing when set to true will suppress emitting trace.* fields
+	// disableTracing bool
 }
 
 // Init intializes the honeycomb instrumentation library.
@@ -87,7 +92,26 @@ func Init(config Config) {
 	if hostname, err := os.Hostname(); err == nil {
 		libhoney.AddField("meta.local_hostname", hostname)
 	}
+
+	if config.Debug {
+		// TODO add more debugging than just the responses queue
+		go readResponses(libhoney.Responses())
+	}
 	return
+}
+
+// Flush sends any pending events to Honeycomb. This is optional; events will be
+// flushed on a timer otherwies. It is useful to flush befare AWS Lambda
+// functions finish to ensure events get sent before AWS freezes the function.
+func Flush() {
+	libhoney.Flush()
+}
+
+// Close shuts down the beeline. Closing flushes any pending events and blocks
+// until they have been sent. It is optional to close the beeline, and
+// prohibited to try and send an event after the beeline has been closed.
+func Close() {
+	libhoney.Close()
 }
 
 // AddField allows you to add a single field to an event anywhere downstream of
@@ -132,4 +156,25 @@ func contextBuilder(ctx context.Context) *libhoney.Builder {
 		return bldr
 	}
 	return nil
+}
+
+// readResponses pulls from the response queue and spits them to STDOUT for
+// debugging
+func readResponses(responses chan libhoney.Response) {
+	for r := range responses {
+		var metadata string
+		if r.Metadata != nil {
+			metadata = fmt.Sprintf("%s", r.Metadata)
+		}
+		if r.StatusCode >= 200 && r.StatusCode < 300 {
+			message := "Successfully sent event to Honeycomb"
+			if metadata != "" {
+				message += fmt.Sprintf(": %s", metadata)
+			}
+			fmt.Printf("%s\n", message)
+		} else {
+			fmt.Printf("Error sending event to Honeycomb! %s had code %d, err %v and response body %s \n",
+				metadata, r.StatusCode, r.Err, r.Body)
+		}
+	}
 }

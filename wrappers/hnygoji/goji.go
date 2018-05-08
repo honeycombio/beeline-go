@@ -70,6 +70,7 @@ func Middleware(handler http.Handler) http.Handler {
 		}
 		ev.AddField("response.status_code", wrappedWriter.Status)
 		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
+		ev.Metadata, _ = ev.Fields()["name"]
 	}
 	return http.HandlerFunc(wrappedHandler)
 }

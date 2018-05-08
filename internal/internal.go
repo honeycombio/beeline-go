@@ -100,6 +100,7 @@ func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args
 		if err != nil {
 			ev.AddField("db.error", err)
 		}
+		ev.Metadata, _ = ev.Fields()["name"]
 		ev.Send()
 	}
 	addTraceID(ctx, ev)
