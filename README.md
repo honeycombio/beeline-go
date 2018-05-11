@@ -180,14 +180,6 @@ which is exactly what the `WrapHandler` function in `hnynethttp` does.
 
 Try that out and see how far you can get with it and appropriate custom fields.
 
-## Troubleshooting
-
-When initializing the beeline, there is an optional field `Debug`. Setting this
-field to `true` will cause the beeline to send verbose output to STDOUT to aide
-in troubleshooting. This beeline is also still young, so please reach out to
-support@honeycomb.io or ping us with the chat bubble on https://honeycomb.io for
-assistance.
-
 ## Optional Configuration
 
 If you are using both an HTTP wrapper and a SQL package, make sure you pass the
@@ -202,3 +194,35 @@ For very high throughput services, you can send only a portion of the events
 flowing through your service by setting the `SampleRate` during initialization.
 This sample rate will send 1/n events, so a sample rate of 5 would send 20% of
 all events. For high throughput services, a sample rate of 100 is a good start.
+
+## Troubleshooting
+
+There are two general approaches to finding out what's going wrong when the
+beeline isn't doing what you expect.
+
+### The events I'm generating don't contain the content I expect
+
+Use the `STDOUT` flag in configuring the beeline. This will print events to the
+terminal *instead* of sending them to Honeycomb. This lets you quickly see
+what's getting sent and modify your code to get what you would like to see.
+
+### The events I'm sending aren't being accepted by Honeycomb
+
+Use the `PrintResponses` flag in configuring the beeline. This will print the
+responses that come back from Honeycomb to the terminal when sending events.
+These responses will have extra detail saying why events are being rejected (or
+that they are being accepted) by Honeycomb.
+
+This beeline is also still young, so please reach out to support@honeycomb.io or
+ping us with the chat bubble on https://honeycomb.io for assistance.
+
+## Dependencies
+
+The beeline is written with an eye towards a fairly recent set of dependent
+packages. Some of the dependencies have changed their API interface over the
+past few years (eg goji, uuid, net/http) so you may need to upgrade to get to a
+place that works.
+
+* go 1.7 - the context package moved into the core library and is used
+  extensively by the beeline to make events available to the call stack
+* github.com/satori/go.uuid -
