@@ -7,7 +7,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/felixge/httpsnoop"
 	"github.com/google/uuid"
+
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/timer"
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -16,6 +18,12 @@ import (
 type ResponseWriter struct {
 	http.ResponseWriter
 	Status int
+}
+
+func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
+	return &ResponseWriter{
+		ResponseWriter: httpsnoop.Wrap(w, httpsnoop.Hooks{}),
+	}
 }
 
 func (h *ResponseWriter) WriteHeader(statusCode int) {

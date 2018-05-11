@@ -31,7 +31,7 @@ func Middleware(handler http.Handler) http.Handler {
 		// add some common fields from the request to our event
 		internal.AddRequestProps(r, ev)
 		// replace the writer with our wrapper to catch the status code
-		wrappedWriter := &internal.ResponseWriter{ResponseWriter: w}
+		wrappedWriter := internal.NewResponseWriter(w)
 		// pull out any variables in the URL, add the thing we're matching, etc.
 		vars := mux.Vars(r)
 		for k, v := range vars {
