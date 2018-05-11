@@ -31,7 +31,7 @@ func WrapHandler(handler http.Handler) http.Handler {
 		// add some common fields from the request to our event
 		internal.AddRequestProps(r, ev)
 		// replace the writer with our wrapper to catch the status code
-		wrappedWriter := &internal.ResponseWriter{ResponseWriter: w}
+		wrappedWriter := internal.NewResponseWriter(w)
 
 		mux, ok := handler.(*http.ServeMux)
 		if ok {
@@ -79,7 +79,7 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 		// add some common fields from the request to our event
 		internal.AddRequestProps(r, ev)
 		// replace the writer with our wrapper to catch the status code
-		wrappedWriter := &internal.ResponseWriter{ResponseWriter: w}
+		wrappedWriter := internal.NewResponseWriter(w)
 		// add the name of the handler func we're about to invoke
 		if handlerFuncName != "" {
 			ev.AddField("handler_func_name", handlerFuncName)

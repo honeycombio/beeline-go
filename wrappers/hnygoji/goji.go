@@ -33,7 +33,7 @@ func Middleware(handler http.Handler) http.Handler {
 		// add some common fields from the request to our event
 		internal.AddRequestProps(r, ev)
 		// replace the writer with our wrapper to catch the status code
-		wrappedWriter := &internal.ResponseWriter{ResponseWriter: w}
+		wrappedWriter := internal.NewResponseWriter(w)
 		// get bits about the handler
 		handler := middleware.Handler(ctx)
 		if handler == nil {
