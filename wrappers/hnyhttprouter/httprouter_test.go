@@ -1,16 +1,16 @@
-package hnygorilla
+package hnyhttprouter
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gorilla/mux"
 	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGorillaMiddleware(t *testing.T) {
+func TestHTTPRouterMiddleware(t *testing.T) {
 	// set up libhoney to catch events instead of send them
 	evCatcher := &libhoney.MockOutput{}
 	libhoney.Init(libhoney.Config{
@@ -22,10 +22,9 @@ func TestGorillaMiddleware(t *testing.T) {
 	r, _ := http.NewRequest("GET", "/hello/pooh", nil)
 	w := httptest.NewRecorder()
 
-	// build the gorilla mux router with Middleware
-	router := mux.NewRouter()
-	router.Use(Middleware)
-	router.HandleFunc("/hello/{name}", func(_ http.ResponseWriter, _ *http.Request) {})
+	// build the httprouter mux router with Middleware
+	router := httprouter.New()
+	router.GET("/hello/:name", Middleware(func(_ http.ResponseWriter, _ *http.Request, _ httprouter.Params) {}))
 	// handle the request
 	router.ServeHTTP(w, r)
 
@@ -36,7 +35,7 @@ func TestGorillaMiddleware(t *testing.T) {
 	status, ok := fields["response.status_code"]
 	assert.True(t, ok, "status field must exist on middleware generated event")
 	assert.Equal(t, 200, status, "successfully served request should have status 200")
-	name, ok := fields["gorilla.vars.name"]
-	assert.True(t, ok, "gorilla.vars.name field must exist on middleware generated event")
+	name, ok := fields["handler.vars.name"]
+	assert.True(t, ok, "handler.vars.name field must exist on middleware generated event")
 	assert.Equal(t, "pooh", name, "successfully served request should have name var populated")
 }

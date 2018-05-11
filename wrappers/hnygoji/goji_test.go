@@ -1,49 +1,44 @@
-package hnygoji_test
+package hnygoji
 
 import (
-	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"testing"
 
-	"github.com/honeycombio/beeline-go"
-	"github.com/honeycombio/beeline-go/wrappers/hnygoji"
-	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
-
-	"goji.io"
+	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/stretchr/testify/assert"
+	goji "goji.io"
 	"goji.io/pat"
 )
 
-func ExampleMiddleware() {
-	// Initialize beeline. The only required field is WriteKey.
-	beeline.Init(beeline.Config{
-		WriteKey: "abcabc123123",
-		Dataset:  "http-goji",
-		// for demonstration, send the event to STDOUT intead of Honeycomb.
-		// Remove the STDOUT setting when filling in a real write key.
-		STDOUT: true,
+func TestGojiMiddleware(t *testing.T) {
+	// set up libhoney to catch events instead of send them
+	evCatcher := &libhoney.MockOutput{}
+	libhoney.Init(libhoney.Config{
+		WriteKey: "abcd",
+		Dataset:  "efgh",
+		Output:   evCatcher,
 	})
+	// build a sample request to generate an event
+	r, _ := http.NewRequest("GET", "/hello/pooh", nil)
+	w := httptest.NewRecorder()
 
-	// this example uses a submux just to illustrate the middleware's use
-	root := goji.NewMux()
-	greetings := goji.SubMux()
-	root.Handle(pat.New("/greet/*"), greetings)
-	greetings.HandleFunc(pat.Get("/hello/:name"), hello)
-	greetings.HandleFunc(pat.Get("/bye/:name"), bye)
+	// build the goji mux router with Middleware
+	router := goji.NewMux()
+	router.HandleFunc(pat.Get("/hello/:name"), func(_ http.ResponseWriter, _ *http.Request) {})
+	router.Use(Middleware)
+	// handle the request
+	router.ServeHTTP(w, r)
 
-	// decorate calls that hit the greetings submux with extra fields
-	greetings.Use(hnygoji.Middleware)
+	// verify the MockOutput caught the well formed event
+	evs := evCatcher.Events()
+	assert.Equal(t, 1, len(evs), "one event is created with one request through the Middleware")
+	fields := evs[0].Fields()
+	status, ok := fields["response.status_code"]
+	assert.True(t, ok, "status field must exist on middleware generated event")
+	assert.Equal(t, 200, status, "successfully served request should have status 200")
+	name, ok := fields["goji.pat.name"]
+	assert.True(t, ok, "goji.pat.name field must exist on middleware generated event")
+	assert.Equal(t, "pooh", name, "successfully served request should have name var populated")
 
-	// wrap the main root handler to get an event out of every request
-	http.ListenAndServe("localhost:8080", hnynethttp.WrapHandler(root))
-}
-
-func hello(w http.ResponseWriter, r *http.Request) {
-	beeline.AddField(r.Context(), "custom", "in hello")
-	name := pat.Param(r, "name") // pat is automatically added to the event
-	fmt.Fprintf(w, "Hello, %s!\n", name)
-}
-
-func bye(w http.ResponseWriter, r *http.Request) {
-	beeline.AddField(r.Context(), "custom", "in bye")
-	name := pat.Param(r, "name") // pat is automatically added to the event
-	fmt.Fprintf(w, "goodbye, %s!", name)
 }
