@@ -6,7 +6,7 @@ import (
 	"database/sql/driver"
 	"time"
 
-	"github.com/satori/go.uuid"
+	"github.com/google/uuid"
 
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/internal"
@@ -52,7 +52,7 @@ func (db *DB) Begin() (*Tx, error) {
 	wrapTx := &Tx{
 		Builder: bld,
 	}
-	newid, _ := uuid.NewV4()
+	newid, _ := uuid.NewRandom()
 	txid := newid.String()
 	bld.AddField("db.txId", txid)
 	ev.AddField("db.txId", txid)
@@ -77,7 +77,7 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 		Builder: bld,
 	}
 	addTraceIDBuilder(ctx, bld)
-	newid, _ := uuid.NewV4()
+	newid, _ := uuid.NewRandom()
 	txid := newid.String()
 	bld.AddField("db.txId", txid)
 	ev.AddField("db.txId", txid)
@@ -99,7 +99,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 	defer sender(err)
 	bld := db.Builder.Clone()
 	addTraceIDBuilder(ctx, bld)
-	id, _ := uuid.NewV4()
+	id, _ := uuid.NewRandom()
 	connid := id.String()
 	wrapConn := &Conn{
 		Builder: bld,
@@ -181,7 +181,7 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 	defer sender(err)
 
 	bld := db.Builder.Clone()
-	id, _ := uuid.NewV4()
+	id, _ := uuid.NewRandom()
 	stmtid := id.String()
 	wrapStmt := &Stmt{
 		Builder: bld,
@@ -204,7 +204,7 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	defer sender(err)
 
 	bld := db.Builder.Clone()
-	id, _ := uuid.NewV4()
+	id, _ := uuid.NewRandom()
 	stmtid := id.String()
 	wrapStmt := &Stmt{
 		Builder: bld,
@@ -286,7 +286,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	// TODO if ctx.Cancel is called, the transaction is rolled back. We should
 	// submit an event indicating the rollback.
 	bld := c.Builder.Clone()
-	id, _ := uuid.NewV4()
+	id, _ := uuid.NewRandom()
 	txid := id.String()
 	wrapTx := &Tx{
 		Builder: bld,
@@ -351,7 +351,7 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 	defer sender(err)
 
 	bld := c.Builder.Clone()
-	id, _ := uuid.NewV4()
+	id, _ := uuid.NewRandom()
 	stmtid := id.String()
 	wrapStmt := &Stmt{
 		Builder: bld,
@@ -548,7 +548,7 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	defer sender(err)
 
 	bld := tx.Builder.Clone()
-	id, _ := uuid.NewV4()
+	id, _ := uuid.NewRandom()
 	stmtid := id.String()
 	wrapStmt := &Stmt{
 		Builder: bld,
@@ -569,7 +569,7 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	defer sender(err)
 
 	bld := tx.Builder.Clone()
-	id, _ := uuid.NewV4()
+	id, _ := uuid.NewRandom()
 	stmtid := id.String()
 	wrapStmt := &Stmt{
 		Builder: bld,

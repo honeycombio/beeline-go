@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/timer"
 	libhoney "github.com/honeycombio/libhoney-go"
-	uuid "github.com/satori/go.uuid"
 )
 
 type ResponseWriter struct {
@@ -40,7 +40,7 @@ func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 	ev.AddField("trace.trace_id", traceID)
 
 	// add a span ID
-	id, _ := uuid.NewV4()
+	id, _ := uuid.NewRandom()
 	ev.AddField("trace.span_id", id.String())
 }
 
@@ -80,7 +80,7 @@ func parseTraceHeader(req *http.Request, ev *libhoney.Event) string {
 		traceID = requestID
 	}
 	if traceID == "" {
-		id, _ := uuid.NewV4()
+		id, _ := uuid.NewRandom()
 		traceID = id.String()
 	}
 	return traceID
@@ -188,7 +188,7 @@ func addTraceID(ctx context.Context, ev *libhoney.Event) {
 		if id, ok := parentEv.Fields()["trace.span_id"]; ok {
 			ev.AddField("trace.parent_id", id)
 		}
-		id, _ := uuid.NewV4()
+		id, _ := uuid.NewRandom()
 		ev.AddField("trace.span_id", id.String())
 	}
 }
