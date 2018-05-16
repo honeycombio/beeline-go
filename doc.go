@@ -1,4 +1,4 @@
-// Package beeline aids adding isntrumentation to go apps using Honeycomb.
+// Package beeline aids adding instrumentation to go apps using Honeycomb.
 //
 // Summary
 //
@@ -24,5 +24,11 @@
 //
 // Once configured, use one of the subpackages to wrap HTTP handlers and SQL db
 // objects.
+//
+// Examples
+//
+// There are runnable examples at
+// https://github.com/honeycombio/beeline-go/tree/master/examples and examples
+// of each wrapper in the dgodoc.
 //
 package beeline
