@@ -8,4 +8,7 @@
 // while also decorating the most interesting paths (the hantdlers that you
 // wrap) with additional fields from the Goji patterns.
 //
+// For a complete example showing this wrapper in use, please see the examples in
+// https://github.com/honeycombio/beeline-go/tree/master/examples
+//
 package hnygoji
