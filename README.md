@@ -17,9 +17,6 @@ Sign up for a [Honeycomb trial](https://ui.honeycomb.io/signup) to obtain a writ
 
 For each of the [wrappers](wrappers/), documentation is found in godoc rather than the github README files. Each package has a fully functional example in the godoc as well, to show all the pieces fit together.
 
-## foo
-
-
 # Installation
 
 Add the main package to your `$GOPATH` in the normal way: `go get
