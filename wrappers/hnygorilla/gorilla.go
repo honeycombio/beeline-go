@@ -38,20 +38,22 @@ func Middleware(handler http.Handler) http.Handler {
 			ev.AddField("gorilla.vars."+k, v)
 		}
 		route := mux.CurrentRoute(r)
-		chosenHandler := route.GetHandler()
-		funcName := runtime.FuncForPC(reflect.ValueOf(chosenHandler).Pointer()).Name()
-		ev.AddField("handler.fnname", funcName)
-		if funcName != "" {
-			ev.AddField("name", funcName)
-		}
-		name := route.GetName()
-		if name != "" {
-			ev.AddField("handler.name", name)
-			// stomp name because user-supplied names are better than function names
-			ev.AddField("name", name)
-		}
-		if path, err := route.GetPathTemplate(); err == nil {
-			ev.AddField("handler.route", path)
+		if route != nil {
+			chosenHandler := route.GetHandler()
+			funcName := runtime.FuncForPC(reflect.ValueOf(chosenHandler).Pointer()).Name()
+			ev.AddField("handler.fnname", funcName)
+			if funcName != "" {
+				ev.AddField("name", funcName)
+			}
+			name := route.GetName()
+			if name != "" {
+				ev.AddField("handler.name", name)
+				// stomp name because user-supplied names are better than function names
+				ev.AddField("name", name)
+			}
+			if path, err := route.GetPathTemplate(); err == nil {
+				ev.AddField("handler.route", path)
+			}
 		}
 		handler.ServeHTTP(wrappedWriter, r)
 		if wrappedWriter.Status == 0 {
