@@ -31,9 +31,12 @@ type Config struct {
 	// field is extremely valuable when you instrument multiple services. If set
 	// it will be added to all events as `service_name`
 	ServiceName string
-	// SamplRate is a positive integer indicating the rate at which to sample
+	// SampleRate is a positive integer indicating the rate at which to sample
 	// events. default: 1
 	SampleRate uint
+	// DeterministicSample is a field name to deterministically sample on, i.e.,
+	// sample 1/N based on content of this field. default: `trace.trace_id`
+	DeterministicSample string
 	// APIHost is the hostname for the Honeycomb API server to which to send
 	// this event. default: https://api.honeycomb.io/
 	APIHost string
@@ -63,6 +66,10 @@ func Init(config Config) {
 	if config.SampleRate == 0 {
 		config.SampleRate = 1
 	}
+	if config.DeterministicSample == "" {
+		// Always present in beeline
+		config.DeterministicSample = "trace.trace_id"
+	}
 	var output libhoney.Output
 	if config.STDOUT == true {
 		output = &libhoney.WriterOutput{}
@@ -71,10 +78,11 @@ func Init(config Config) {
 		output = &libhoney.DiscardOutput{}
 	}
 	libhconfig := libhoney.Config{
-		WriteKey:   config.WriteKey,
-		Dataset:    config.Dataset,
-		SampleRate: config.SampleRate,
-		Output:     output,
+		WriteKey:            config.WriteKey,
+		Dataset:             config.Dataset,
+		SampleRate:          config.SampleRate,
+		DeterministicSample: config.DeterministicSample,
+		Output:              output,
 	}
 	if config.APIHost != "" {
 		libhconfig.APIHost = config.APIHost
