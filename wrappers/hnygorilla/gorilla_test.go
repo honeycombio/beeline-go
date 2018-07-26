@@ -59,5 +59,6 @@ func TestGorillaMiddleware(t *testing.T) {
 
 		evs := evCatcher.Events()
 		assert.Equal(t, 2, len(evs))
+		assert.Equal(t, "testHandler", evs[1].Fields()["name"])
 	})
 }
