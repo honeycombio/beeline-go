@@ -40,10 +40,13 @@ func Middleware(handler http.Handler) http.Handler {
 		route := mux.CurrentRoute(r)
 		if route != nil {
 			chosenHandler := route.GetHandler()
-			funcName := runtime.FuncForPC(reflect.ValueOf(chosenHandler).Pointer()).Name()
-			ev.AddField("handler.fnname", funcName)
-			if funcName != "" {
-				ev.AddField("name", funcName)
+			reflectHandler := reflect.ValueOf(chosenHandler)
+			if reflectHandler.Kind() == reflect.Func {
+				funcName := runtime.FuncForPC(reflectHandler.Pointer()).Name()
+				ev.AddField("handler.fnname", funcName)
+				if funcName != "" {
+					ev.AddField("name", funcName)
+				}
 			}
 			name := route.GetName()
 			if name != "" {
