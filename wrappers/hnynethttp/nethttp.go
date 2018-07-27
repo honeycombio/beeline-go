@@ -1,14 +1,13 @@
 package hnynethttp
 
 import (
+	"context"
 	"net/http"
 	"reflect"
 	"runtime"
-	"time"
 
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/internal"
-	"github.com/honeycombio/libhoney-go"
 )
 
 // WrapHandler will create a Honeycomb event per invocation of this handler with
@@ -19,17 +18,28 @@ func WrapHandler(handler http.Handler) http.Handler {
 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		// TODO find out if we're a sub-handler and don't stomp the parent event
-		// - get parent/child IDs and intentionally send a subevent
-		ev := beeline.ContextEvent(r.Context())
-		if ev == nil {
-			ev = libhoney.NewEvent()
-			// put the event on the context for everybody downsteam to use
-			r = r.WithContext(beeline.ContextWithEvent(r.Context(), ev))
+		var ctx context.Context
+		if !beeline.HasTrace(r.Context()) {
+			traceHeaders := internal.FindTraceHeaders(r)
+			ctx = beeline.StartSpan(r.Context())
+			beeline.SetTraceIDs(ctx, traceHeaders.TraceID, traceHeaders.ParentID)
+		} else {
+			ctx = beeline.StartSpan(r.Context())
 		}
+		defer beeline.EndSpan(ctx)
+		r = r.WithContext(ctx)
+		// // TODO find out if we're a sub-handler and don't stomp the parent event
+		// // - get parent/child IDs and intentionally send a subevent
+		// ev := beeline.ContextEvent(r.Context())
+		// if ev == nil {
+		// 	ev = libhoney.NewEvent()
+		// 	// put the event on the context for everybody downsteam to use
+		// 	r = r.WithContext(beeline.ContextWithEvent(r.Context(), ev))
+		// }
 		// add some common fields from the request to our event
-		internal.AddRequestProps(r, ev)
+		for k, v := range internal.GetRequestProps(r) {
+			internal.AddField(ctx, k, v)
+		}
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := internal.NewResponseWriter(w)
 
@@ -39,16 +49,16 @@ func WrapHandler(handler http.Handler) http.Handler {
 			handler, pat := mux.Handler(r)
 			name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 			hType := reflect.TypeOf(handler).String()
-			ev.AddField("handler.pattern", pat)
-			ev.AddField("handler.type", hType)
+			internal.AddField(ctx, "handler.pattern", pat)
+			internal.AddField(ctx, "handler.type", hType)
 			if name != "" {
-				ev.AddField("handler.name", name)
-				ev.AddField("name", name)
+				internal.AddField(ctx, "handler.name", name)
+				internal.AddField(ctx, "name", name)
 			}
 		} else {
 			if handlerName != "" {
-				ev.AddField("handler.name", handlerName)
-				ev.AddField("name", handlerName)
+				internal.AddField(ctx, "handler.name", handlerName)
+				internal.AddField(ctx, "name", handlerName)
 			}
 		}
 
@@ -56,10 +66,9 @@ func WrapHandler(handler http.Handler) http.Handler {
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
-		ev.AddField("response.status_code", wrappedWriter.Status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
-		ev.Metadata, _ = ev.Fields()["name"]
-		ev.Send()
+		internal.AddField(ctx, "response.status_code", wrappedWriter.Status)
+		// ev.Metadata, _ = ev.Fields()["name"]
+		// ev.Send()
 	}
 	return http.HandlerFunc(wrappedHandler)
 }
@@ -69,29 +78,25 @@ func WrapHandler(handler http.Handler) http.Handler {
 func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
 	handlerFuncName := runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		ev := beeline.ContextEvent(r.Context())
-		if ev == nil {
-			ev = libhoney.NewEvent()
-			// put the event on the context for everybody downstream to use
-			r = r.WithContext(beeline.ContextWithEvent(r.Context(), ev))
-		}
+		ctx := beeline.StartSpan(r.Context())
+		defer beeline.EndSpan(ctx)
+		r = r.WithContext(ctx)
 		// add some common fields from the request to our event
-		internal.AddRequestProps(r, ev)
+		for k, v := range internal.GetRequestProps(r) {
+			internal.AddField(ctx, k, v)
+		}
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := internal.NewResponseWriter(w)
 		// add the name of the handler func we're about to invoke
 		if handlerFuncName != "" {
-			ev.AddField("handler_func_name", handlerFuncName)
-			ev.AddField("name", handlerFuncName)
+			internal.AddField(ctx, "handler_func_name", handlerFuncName)
+			internal.AddField(ctx, "name", handlerFuncName)
 		}
 
 		hf(wrappedWriter, r)
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
-		ev.AddField("response.status_code", wrappedWriter.Status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
-		ev.Send()
+		internal.AddField(ctx, "response.status_code", wrappedWriter.Status)
 	}
 }

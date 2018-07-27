@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	internal "github.com/honeycombio/beeline-go/internal"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
@@ -12,9 +13,6 @@ const (
 	defaultWriteKey   = "writekey-placeholder"
 	defaultDataset    = "beeline-go"
 	defaultSampleRate = 1
-
-	honeyBuilderContextKey = "honeycombBuilderContextKey"
-	honeyEventContextKey   = "honeycombEventContextKey"
 )
 
 // Config is the place where you configure your Honeycomb write key and dataset
@@ -103,6 +101,7 @@ func Init(config Config) {
 // Flush sends any pending events to Honeycomb. This is optional; events will be
 // flushed on a timer otherwies. It is useful to flush befare AWS Lambda
 // functions finish to ensure events get sent before AWS freezes the function.
+// Flush implicitly ends all currently active spans.
 func Flush() {
 	libhoney.Flush()
 }
@@ -110,52 +109,74 @@ func Flush() {
 // Close shuts down the beeline. Closing flushes any pending events and blocks
 // until they have been sent. It is optional to close the beeline, and
 // prohibited to try and send an event after the beeline has been closed.
+// Close implicitly ends all currently active spans.
 func Close() {
 	libhoney.Close()
 }
 
-// AddField allows you to add a single field to an event anywhere downstream of
-// an instrumented request. After adding the appropriate middleware or wrapping
-// a Handler, feel free to call AddField freely within your code. Pass it the
-// context from the request (`r.Context()`) and the key and value you wish to
-// add.
+// AddField (Deprecated as of 0.2.0) is synonymous with AddFieldToSpan. It adds
+// the current field to the currently active span.
 func AddField(ctx context.Context, key string, val interface{}) {
-	ev := ContextEvent(ctx)
-	if ev == nil {
-		return
-	}
+	AddFieldToSpan(ctx, key, val)
+}
+
+// AddFieldToSpan allows you to add a single field to an event anywhere
+// downstream of an instrumented request. After adding the appropriate
+// middleware or wrapping a Handler, feel free to call AddField freely within
+// your code. Pass it the context from the request (`r.Context()`) and the key
+// and value you wish to add.This function is good for span-level data, eg
+// timers or the arguments to a specific function call, etc..
+func AddFieldToSpan(ctx context.Context, key string, val interface{}) {
 	namespacedKey := fmt.Sprintf("app.%s", key)
-	ev.AddField(namespacedKey, val)
+	internal.CurrentSpan(ctx).AddField(namespacedKey, val)
 }
 
-// ContextWithEvent returns a new context created from the passed context with a
-// Honeycomb event added to it. In most cases, the code adding the event to the
-// context should also be responsible for sending that event on to Honeycomb
-// when it's finished.
-func ContextWithEvent(ctx context.Context, ev *libhoney.Event) context.Context {
-	return context.WithValue(ctx, honeyEventContextKey, ev)
+// AddRollupFieldToSpan allows you to add a numeric field to the current span,
+// and, when called on multiple spans within a trace, the sum of the field will
+// be added to the root span
+func AddRollupFieldToSpan(ctx context.Context, key string, val float64) {
+	namespacedKey := fmt.Sprintf("app.%s", key)
+	internal.GetTraceFromContext(ctx).AddRollupField(namespacedKey, val)
 }
 
-// ContextEvent retrieves the Honeycomb event from a context. You can add fields
-// to the event or override settings (eg sample rate) but should not Send() the
-// event; the wrapper that inserted the event into the Context is responsible
-// for sending it to Hnoeycomb
-func ContextEvent(ctx context.Context) *libhoney.Event {
-	if ctx != nil {
-		if evt, ok := ctx.Value(honeyEventContextKey).(*libhoney.Event); ok {
-			return evt
-		}
-	}
-	return nil
+// AddFieldToTrace adds the field to both the currently active span and any
+// other spans involved in this trace that occur within this process.  This
+// function is good for adding context that is better scoped to the request than
+// this specific unit of work, eg user IDs, globally relevant feature flags,
+// errors, etc. Note that these values do not currently traverse process
+// boundaries.
+func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
+	namespacedKey := fmt.Sprintf("global.%s", key)
+	internal.GetTraceFromContext(ctx).AddField(namespacedKey, val)
 }
 
-// contextBuilder isn't used yet but matches ContextEvent. When it's useful,
-// export it, but until then it's just confusing.
-func contextBuilder(ctx context.Context) *libhoney.Builder {
-	if bldr, ok := ctx.Value(honeyBuilderContextKey).(*libhoney.Builder); ok {
-		return bldr
-	}
-	return nil
+// HasTrace returns true if there is a trace in the current context
+func HasTrace(ctx context.Context) bool {
+	trace := internal.GetTraceFromContext(ctx)
+	return trace != nil
+}
+
+// StartSpan lets you start a new span as a child of an already instrumented
+// handler. Use the returned contexts for all future calls to AddField to ensure
+// they're added to the right span. If there isn't an existing wrapped handler
+// in the context when this is called, it will start a new trace. Spans
+// automatically get a `duration_ms` field when they are ended; you should not
+// explicitly set the duration unless you want to override it.
+func StartSpan(ctx context.Context) context.Context {
+	return internal.PushSpanOnStack(ctx)
+}
+
+// SetTraceIDs lets you override the generated trace ID with IDs you've received
+// from another source (eg incoming HTTP headers)
+func SetTraceIDs(ctx context.Context, traceID, parentID string) {
+	t := internal.GetTraceFromContext(ctx)
+	t.SetTraceIDs(traceID, parentID)
+}
+
+// EndSpan finishes the currently active span. It should only be called for
+// spans created with StartSpan
+func EndSpan(ctx context.Context) {
+	internal.EndSpan(ctx)
 }
 
 // readResponses pulls from the response queue and spits them to STDOUT for
