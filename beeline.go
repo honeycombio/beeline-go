@@ -102,7 +102,9 @@ func Init(config Config) {
 // flushed on a timer otherwies. It is useful to flush befare AWS Lambda
 // functions finish to ensure events get sent before AWS freezes the function.
 // Flush implicitly ends all currently active spans.
-func Flush() {
+func Flush(ctx context.Context) {
+	trace := internal.GetTraceFromContext(ctx)
+	internal.SendTrace(trace)
 	libhoney.Flush()
 }
 
@@ -164,6 +166,14 @@ func HasTrace(ctx context.Context) bool {
 // explicitly set the duration unless you want to override it.
 func StartSpan(ctx context.Context) context.Context {
 	return internal.PushSpanOnStack(ctx)
+}
+
+// StartAsyncSpan is different from StartSpan in that it hands back a libhoney
+// event, and it's the caller's responsibility to handle everything from there
+// on - measuring the duration, adding appropriate fields, and sending the
+// event. Unlike normal spans, when finishing a trace, it does not get sent.
+func StartAsyncSpan(ctx context.Context) *libhoney.Event {
+	return internal.StartAsyncSpan(ctx)
 }
 
 // SetTraceIDs lets you override the generated trace ID with IDs you've received
