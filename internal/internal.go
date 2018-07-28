@@ -323,6 +323,16 @@ func (t *Trace) EndCurrentSpan() (bool, error) {
 	return len(t.openSpans) == 0, nil
 }
 
+func StartAsyncSpan(ctx context.Context) *libhoney.Event {
+	sp := CurrentSpan(ctx)
+	ev := libhoney.NewEvent()
+	ev.AddField("trace.trace_id", sp.traceID)
+	ev.AddField("trace.parent_id", sp.spanID)
+	newSpan, _ := uuid.NewRandom()
+	ev.AddField("trace.span_id", newSpan.String())
+	return ev
+}
+
 // PutTraceInContext takes an existing context and a trace and pushes the trace
 // into the context.  It should replace any traces that already exist in the
 // context. The returned error will be not nil if a trace already existed.
@@ -351,6 +361,9 @@ func PushSpanOnStack(ctx context.Context) context.Context {
 		spanID:   spanID.String(),
 		ev:       libhoney.NewEvent(),
 	}
+	span.ev.AddField("trace.span_id", span.spanID)
+	span.ev.AddField("trace.parent_id", span.parentID)
+	span.ev.AddField("trace.trace_id", span.traceID)
 	newSpanList := append(trace.openSpans, span)
 	trace.openSpans = newSpanList
 	ctx, _ = PutTraceInContext(ctx, trace)

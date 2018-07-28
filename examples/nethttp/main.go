@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 
@@ -32,6 +34,19 @@ func main() {
 
 func hello(w http.ResponseWriter, r *http.Request) {
 	beeline.AddField(r.Context(), "custom", "Wheee")
+	bigJob(r.Context())
 	// send our response to the caller
 	io.WriteString(w, fmt.Sprintf("Hello world!\n"))
+}
+
+// bigJob is going to take a long time and do lots of interesting work. It
+// should get its own span.
+func bigJob(ctx context.Context) {
+	ctx = beeline.StartSpan(ctx)
+	defer beeline.EndSpan(ctx)
+	beeline.AddField(ctx, "m1", 5.67)
+	beeline.AddField(ctx, "m2", 8.90)
+	time.Sleep(600 * time.Millisecond)
+	// this job also discovered something that's relevant to the whole trace
+	beeline.AddFieldToTrace(ctx, "vip_user", true)
 }
