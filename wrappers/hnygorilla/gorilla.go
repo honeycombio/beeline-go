@@ -48,6 +48,13 @@ func Middleware(handler http.Handler) http.Handler {
 					ev.AddField("name", funcName)
 				}
 			}
+			typeOfHandler := reflect.TypeOf(chosenHandler)
+			if typeOfHandler.Kind() == reflect.Struct {
+				structName := typeOfHandler.Name()
+				if structName != "" {
+					ev.AddField("name", structName)
+				}
+			}
 			name := route.GetName()
 			if name != "" {
 				ev.AddField("handler.name", name)
