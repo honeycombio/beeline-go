@@ -6,7 +6,7 @@ import (
 	"os"
 
 	internal "github.com/honeycombio/beeline-go/internal"
-	internal "github.com/honeycombio/beeline-go/internal/sample"
+	"github.com/honeycombio/beeline-go/internal/sample"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
@@ -98,9 +98,10 @@ func Init(config Config) {
 
 	// configure and set a global sampler so sending traces can use it without
 	// threading it through
-	sampler := sample.NewDeterministicSampler(config.SampleRate)
-	sample.GlobalSampler = sampler
-
+	sampler, err := sample.NewDeterministicSampler(config.SampleRate)
+	if err == nil {
+		sample.GlobalSampler = sampler
+	}
 	return
 }
 
@@ -169,18 +170,22 @@ func HasTrace(ctx context.Context) bool {
 // they're added to the right span. If there isn't an existing wrapped handler
 // in the context when this is called, it will start a new trace. Spans
 // automatically get a `duration_ms` field when they are ended; you should not
-// explicitly set the duration unless you want to override it.
-func StartSpan(ctx context.Context) context.Context {
-	return internal.PushSpanOnStack(ctx)
+// explicitly set the duration unless you want to override it. The name argument
+// will be the primary way the span is identified in the trace view within
+// Honeycomb.
+func StartSpan(ctx context.Context, name string) context.Context {
+	return internal.PushSpanOnStack(ctx, name)
 }
 
-// TODO change this to return a span object rather than a libhoney event to make it easier to treat appropriately for sampling
+// TODO change this to return a span object rather than a libhoney event to make
+// it easier to treat appropriately for sampling
+
 // StartAsyncSpan is different from StartSpan in that it hands back a libhoney
 // event, and it's the caller's responsibility to handle everything from there
 // on - measuring the duration, adding appropriate fields, and sending the
 // event. Unlike normal spans, when finishing a trace, it does not get sent.
-func StartAsyncSpan(ctx context.Context) *libhoney.Event {
-	return internal.StartAsyncSpan(ctx)
+func StartAsyncSpan(ctx context.Context, name string) *libhoney.Event {
+	return internal.StartAsyncSpan(ctx, name)
 }
 
 // SetTraceIDs lets you override the generated trace ID with IDs you've received

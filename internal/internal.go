@@ -51,13 +51,6 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	reqProps["request.content_length"] = req.ContentLength
 	reqProps["request.remote_addr"] = req.RemoteAddr
 	reqProps["request.header.user_agent"] = req.UserAgent()
-	// add any AWS trace headers that might be present
-	headers := FindTraceHeaders(req)
-	reqProps["trace.trace_id"] = headers.TraceID
-
-	// add a span ID
-	id, _ := uuid.NewRandom()
-	reqProps["trace.span_id"] = id.String()
 	return reqProps
 }
 
@@ -90,7 +83,15 @@ type TraceHeader struct {
 // NOTE that Amazon actually only means for the latter part of the header to be
 // the ID - format is version-timestamp-id. For now though (TODO) we treat it as
 // the entire string
-func FindTraceHeaders(req *http.Request) *TraceHeader {
+//
+// If getting trace context from another beeline, also returns any fields
+// included to be added to the trace as Trace level fields
+func FindTraceHeaders(req *http.Request) (*TraceHeader, map[string]interface{}, error) {
+	beelineHeader := req.Header.Get(TracePropagationHTTPHeader)
+	if beelineHeader != "" {
+		return UnmarshalTraceContext(beelineHeader)
+	}
+	// didn't find it from a beeline, let's go looking elsewhere
 	headers := &TraceHeader{}
 	var traceID string
 	awsHeader := req.Header.Get("X-Amzn-Trace-Id")
@@ -121,7 +122,7 @@ func FindTraceHeaders(req *http.Request) *TraceHeader {
 		traceID = id.String()
 	}
 	headers.TraceID = traceID
-	return headers
+	return headers, nil, nil
 }
 
 // // BuildDBEvent tries to bring together most of the things that need to happen
@@ -339,12 +340,13 @@ func (t *Trace) EndCurrentSpan() (bool, error) {
 }
 
 // TODO change this to return a span to make it easier to handle sampling
-func StartAsyncSpan(ctx context.Context) *libhoney.Event {
+func StartAsyncSpan(ctx context.Context, name string) *libhoney.Event {
 	sp := CurrentSpan(ctx)
 	if sp == nil {
 		return libhoney.NewEvent()
 	}
 	ev := libhoney.NewEvent()
+	ev.AddField("name", name)
 	ev.AddField("trace.trace_id", sp.traceID)
 	ev.AddField("trace.parent_id", sp.spanID)
 	newSpan, _ := uuid.NewRandom()
@@ -362,11 +364,11 @@ func PutTraceInContext(ctx context.Context, trace *Trace) (context.Context, erro
 
 // PushSpanOnStack adds a new span to a trace (or creates the trace if none
 // exists).
-func PushSpanOnStack(ctx context.Context) context.Context {
+func PushSpanOnStack(ctx context.Context, name string) context.Context {
 	trace := GetTraceFromContext(ctx)
 	if trace == nil {
 		// if we don't have an existing trace, make one and return
-		trace = MakeNewTrace("", "")
+		trace = MakeNewTrace("", "", name)
 		ctx, _ = PutTraceInContext(ctx, trace)
 		return ctx
 	}
@@ -383,12 +385,9 @@ func PushSpanOnStack(ctx context.Context) context.Context {
 		spanID:   spanID.String(),
 		ev:       libhoney.NewEvent(),
 	}
-	span.ev.AddField("trace.span_id", span.spanID)
-	span.ev.AddField("trace.parent_id", span.parentID)
-	span.ev.AddField("trace.trace_id", span.traceID)
+	span.ev.AddField("name", name)
 	newSpanList := append(trace.openSpans, span)
 	trace.openSpans = newSpanList
-	ctx, _ = PutTraceInContext(ctx, trace)
 	return ctx
 }
 
@@ -436,7 +435,7 @@ func CurrentSpanFromTrace(trace *Trace) *Span {
 	return nil
 }
 
-func MakeNewTrace(traceID, parentID string) *Trace {
+func MakeNewTrace(traceID, parentID, name string) *Trace {
 	if traceID == "" {
 		tid, _ := uuid.NewRandom()
 		traceID = tid.String()
@@ -449,9 +448,6 @@ func MakeNewTrace(traceID, parentID string) *Trace {
 	sid, _ := uuid.NewRandom()
 	spanID := sid.String()
 	ev := libhoney.NewEvent()
-	ev.AddField("trace.span_id", spanID)
-	ev.AddField("trace.parent_id", parentID)
-	ev.AddField("trace.trace_id", traceID)
 	span := &Span{
 		timer:    timer.Start(),
 		traceID:  traceID,
@@ -459,6 +455,8 @@ func MakeNewTrace(traceID, parentID string) *Trace {
 		parentID: parentID,
 		ev:       ev,
 	}
+	span.ev.AddField("name", name)
+	span.ev.AddField("meta.root_span", true)
 	shouldDropSample := !sample.GlobalSampler.Sample(traceID)
 	if shouldDropSample {
 		// if we're not going to send this sample, don't initialize anything.
@@ -486,11 +484,15 @@ func SendTrace(trace *Trace) error {
 	}
 	// if there are any remaining open spans, let's close them.
 	if len(trace.openSpans) != 0 {
-		for range trace.openSpans {
+		for _, span := range trace.openSpans {
+			span.AddField("meta.closed_by_trace_send", true)
 			trace.EndCurrentSpan()
 		}
 	}
 	for _, span := range trace.closedSpans {
+		span.ev.AddField("trace.span_id", span.spanID)
+		span.ev.AddField("trace.parent_id", span.parentID)
+		span.ev.AddField("trace.trace_id", span.traceID)
 		for k, v := range trace.traceLevelFields {
 			span.ev.AddField(k, v)
 		}
