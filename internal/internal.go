@@ -10,6 +10,7 @@ import (
 	"github.com/felixge/httpsnoop"
 	"github.com/google/uuid"
 
+	"github.com/honeycombio/beeline-go/internal/sample"
 	"github.com/honeycombio/beeline-go/timer"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
@@ -243,10 +244,19 @@ func FindTraceHeaders(req *http.Request) *TraceHeader {
 // AddField gets the current span and adds the field as is
 func AddField(ctx context.Context, key string, val interface{}) {
 	span := CurrentSpan(ctx)
-	span.ev.AddField(key, val)
+	if span != nil {
+		if span.ev != nil {
+			span.ev.AddField(key, val)
+		}
+	}
 }
 
 type Trace struct {
+	// shouldDropSample is true when this trace should be dropped, false when it
+	// should be sent.
+	shouldDropSample bool
+	sampleRate       int
+
 	headers          TraceHeader
 	sent             bool // true when the trace is sent, false otherwise.
 	openSpans        []*Span
@@ -280,20 +290,32 @@ func GetTraceFromContext(ctx context.Context) *Trace {
 }
 
 func (t *Trace) SetTraceIDs(traceID, parentID string) {
+	if t.shouldDropSample {
+		return
+	}
 	t.headers.TraceID = traceID
 	t.headers.ParentID = parentID
-	t.openSpans[0].traceID = traceID
-	t.openSpans[0].parentID = parentID
+	if len(t.openSpans) >= 1 {
+		t.openSpans[0].traceID = traceID
+		t.openSpans[0].parentID = parentID
+	}
 }
 
 func (t *Trace) AddField(key string, val interface{}) {
-	t.traceLevelFields[key] = val
+	if t.shouldDropSample {
+		return
+	}
+	if t.traceLevelFields != nil {
+		t.traceLevelFields[key] = val
+	}
 }
 
 func (t *Trace) AddRollupField(key string, val float64) {
+	if t.shouldDropSample {
+		return
+	}
 	numSpans := len(t.openSpans)
 	if numSpans == 0 {
-		// should throw an error here
 		return
 	}
 	t.openSpans[numSpans-1].ev.AddField(key, val)
@@ -302,6 +324,9 @@ func (t *Trace) AddRollupField(key string, val float64) {
 
 // EndCurrentSpan returns true when it's closing the last remaining span
 func (t *Trace) EndCurrentSpan() (bool, error) {
+	if t.shouldDropSample {
+		return false, nil
+	}
 	numSpans := len(t.openSpans)
 	if numSpans == 0 {
 		return false, errors.New("no open spans")
@@ -323,8 +348,12 @@ func (t *Trace) EndCurrentSpan() (bool, error) {
 	return len(t.openSpans) == 0, nil
 }
 
+// TODO change this to return a span to make it easier to handle sampling
 func StartAsyncSpan(ctx context.Context) *libhoney.Event {
 	sp := CurrentSpan(ctx)
+	if sp == nil {
+		return libhoney.NewEvent()
+	}
 	ev := libhoney.NewEvent()
 	ev.AddField("trace.trace_id", sp.traceID)
 	ev.AddField("trace.parent_id", sp.spanID)
@@ -351,6 +380,9 @@ func PushSpanOnStack(ctx context.Context) context.Context {
 		ctx, _ = PutTraceInContext(ctx, trace)
 		return ctx
 	}
+	if trace.shouldDropSample {
+		return ctx
+	}
 	currentSpan := trace.openSpans[len(trace.openSpans)-1]
 	// make a new span using the parent's span ID as my parent ID
 	spanID, _ := uuid.NewRandom()
@@ -375,6 +407,9 @@ func PushSpanOnStack(ctx context.Context) context.Context {
 // fields get added they will still make it onto the closed spans.
 func EndSpan(ctx context.Context) {
 	trace := GetTraceFromContext(ctx)
+	if trace.shouldDropSample {
+		return
+	}
 	finished, err := trace.EndCurrentSpan()
 	if err != nil {
 		// TODO handle this better
@@ -387,7 +422,8 @@ func EndSpan(ctx context.Context) {
 }
 
 // CurrentSpan gets the outermost span in the list, the currently closest
-// surrounding span to the code that's calling it.
+// surrounding span to the code that's calling it. Returns nil when there are no
+// spans or we should drop this trace because of sampling.
 func CurrentSpan(ctx context.Context) *Span {
 	trace := GetTraceFromContext(ctx)
 	if numSpans := len(trace.openSpans); numSpans > 0 {
@@ -401,7 +437,8 @@ func (s *Span) AddField(key string, val interface{}) {
 }
 
 // CurrentSpan gets the outermost span in the list, the currently closest
-// surrounding span to the code that's calling it.
+// surrounding span to the code that's calling it. Returns nil when there are no
+// spans or we should drop this trace because of sampling.
 func CurrentSpanFromTrace(trace *Trace) *Span {
 	if numSpans := len(trace.openSpans); numSpans > 0 {
 		return trace.openSpans[numSpans-1]
@@ -432,7 +469,17 @@ func MakeNewTrace(traceID, parentID string) *Trace {
 		parentID: parentID,
 		ev:       ev,
 	}
+	shouldDropSample := !sample.GlobalSampler.Sample(traceID)
+	if shouldDropSample {
+		// if we're not going to send this sample, don't initialize anything.
+		// We'll drop everything as it comes in to save computation, storage
+		return &Trace{
+			shouldDropSample: shouldDropSample,
+		}
+	}
 	return &Trace{
+		shouldDropSample: shouldDropSample,
+		sampleRate:       sample.GlobalSampler.GetSampleRate(),
 		openSpans:        []*Span{span},
 		traceLevelFields: make(map[string]interface{}),
 		rollupFields:     make(map[string]float64),
@@ -440,6 +487,9 @@ func MakeNewTrace(traceID, parentID string) *Trace {
 }
 
 func SendTrace(trace *Trace) error {
+	if trace.shouldDropSample {
+		return nil
+	}
 	// if this trace has already been sent, complain
 	if trace.sent == true {
 		return errors.New("shouldn't send a trace twice.")
@@ -454,7 +504,8 @@ func SendTrace(trace *Trace) error {
 		for k, v := range trace.traceLevelFields {
 			span.ev.AddField(k, v)
 		}
-		span.ev.Send()
+		span.ev.SampleRate = uint(trace.sampleRate)
+		span.ev.SendPresampled()
 	}
 	trace.sent = true
 	return nil

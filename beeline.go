@@ -6,6 +6,7 @@ import (
 	"os"
 
 	internal "github.com/honeycombio/beeline-go/internal"
+	internal "github.com/honeycombio/beeline-go/internal/sample"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
@@ -69,10 +70,9 @@ func Init(config Config) {
 		output = &libhoney.DiscardOutput{}
 	}
 	libhconfig := libhoney.Config{
-		WriteKey:   config.WriteKey,
-		Dataset:    config.Dataset,
-		SampleRate: config.SampleRate,
-		Output:     output,
+		WriteKey: config.WriteKey,
+		Dataset:  config.Dataset,
+		Output:   output,
 	}
 	if config.APIHost != "" {
 		libhconfig.APIHost = config.APIHost
@@ -95,6 +95,12 @@ func Init(config Config) {
 		// TODO add more debugging than just the responses queue
 		go readResponses(libhoney.Responses())
 	}
+
+	// configure and set a global sampler so sending traces can use it without
+	// threading it through
+	sampler := sample.NewDeterministicSampler(config.SampleRate)
+	sample.GlobalSampler = sampler
+
 	return
 }
 
@@ -168,6 +174,7 @@ func StartSpan(ctx context.Context) context.Context {
 	return internal.PushSpanOnStack(ctx)
 }
 
+// TODO change this to return a span object rather than a libhoney event to make it easier to treat appropriately for sampling
 // StartAsyncSpan is different from StartSpan in that it hands back a libhoney
 // event, and it's the caller's responsibility to handle everything from there
 // on - measuring the duration, adding appropriate fields, and sending the
