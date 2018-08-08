@@ -17,8 +17,9 @@ import (
 func main() {
 	// Initialize beeline. The only required field is WriteKey.
 	beeline.Init(beeline.Config{
-		WriteKey: "abcabc123123",
-		Dataset:  "http+sql",
+		WriteKey:    "abcabc123123",
+		Dataset:     "http+sql",
+		ServiceName: "sample app",
 		// for demonstration, send the event to STDOUT instead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
 		STDOUT: true,
@@ -42,7 +43,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 // bigJob is going to take a long time and do lots of interesting work. It
 // should get its own span.
 func bigJob(ctx context.Context) {
-	ctx = beeline.StartSpan(ctx)
+	ctx = beeline.StartSpan(ctx, "bigJob")
 	defer beeline.EndSpan(ctx)
 	beeline.AddField(ctx, "m1", 5.67)
 	beeline.AddField(ctx, "m2", 8.90)

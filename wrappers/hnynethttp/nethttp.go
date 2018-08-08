@@ -19,18 +19,19 @@ func WrapHandler(handler http.Handler) http.Handler {
 
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		var ctx context.Context
-		var rootSpan bool
 		if !beeline.HasTrace(r.Context()) {
-			rootSpan = true
-			traceHeaders := internal.FindTraceHeaders(r)
-			ctx = beeline.StartSpan(r.Context())
+			traceHeaders, traceContext, _ := internal.FindTraceHeaders(r)
+			ctx = beeline.StartSpan(r.Context(), "")
 			beeline.SetTraceIDs(ctx, traceHeaders.TraceID, traceHeaders.ParentID)
+			for k, v := range traceContext {
+				beeline.AddFieldToTrace(ctx, k, v)
+			}
+			trace := internal.GetTraceFromContext(ctx)
+			defer internal.SendTrace(trace)
 		} else {
-			ctx = beeline.StartSpan(r.Context())
-			// if we were the root span, we'll send everything, so only worry
-			// about defering closing this span if we're not the root
-			defer beeline.EndSpan(ctx)
+			ctx = beeline.StartSpan(r.Context(), "")
 		}
+		defer beeline.EndSpan(ctx)
 		r = r.WithContext(ctx)
 		// // TODO find out if we're a sub-handler and don't stomp the parent event
 		// // - get parent/child IDs and intentionally send a subevent
@@ -71,10 +72,6 @@ func WrapHandler(handler http.Handler) http.Handler {
 			wrappedWriter.Status = 200
 		}
 		internal.AddField(ctx, "response.status_code", wrappedWriter.Status)
-		if rootSpan {
-			trace := internal.GetTraceFromContext(ctx)
-			internal.SendTrace(trace)
-		}
 	}
 	return http.HandlerFunc(wrappedHandler)
 }
@@ -88,7 +85,7 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 		if !beeline.HasTrace(r.Context()) {
 			rootSpan = true
 		}
-		ctx := beeline.StartSpan(r.Context())
+		ctx := beeline.StartSpan(r.Context(), "")
 		defer beeline.EndSpan(ctx)
 		r = r.WithContext(ctx)
 		// add some common fields from the request to our event
