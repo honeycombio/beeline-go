@@ -474,12 +474,17 @@ func MakeNewTrace(traceID, parentID, name string) *Trace {
 	}
 	span.ev.AddField("name", name)
 	span.ev.AddField("meta.root_span", true)
-	shouldDropSample := !sample.GlobalSampler.Sample(traceID)
-	if shouldDropSample {
-		// if we're not going to send this sample, don't initialize anything.
-		// We'll drop everything as it comes in to save computation, storage
-		return &Trace{
-			shouldDropSample: shouldDropSample,
+	// if a deterministic sampler is defined, use it. Otherwise sampling happens
+	// via the hook at send time.
+	var shouldDropSample bool
+	if sample.GlobalSampler != nil {
+		shouldDropSample = !sample.GlobalSampler.Sample(traceID)
+		if shouldDropSample {
+			// if we're not going to send this sample, don't initialize anything.
+			// We'll drop everything as it comes in to save computation, storage
+			return &Trace{
+				shouldDropSample: shouldDropSample,
+			}
 		}
 	}
 	return &Trace{

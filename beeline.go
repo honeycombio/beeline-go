@@ -36,12 +36,12 @@ type Config struct {
 	// SamplerHook is a function that will get run with the contents of each
 	// event just before sending the event to Honeycomb. Register a function
 	// with this config option to have manual control over sampling within the
-	// beeline.
+	// beeline. Runs before the PresendHook.
 	SamplerHook func(map[string]interface{}) (bool, int)
 	// PresendHook is a function call that will get run with the contents of
 	// each event just before sending them to Honeycomb. The function registered
 	// here may mutate the map passed in to add, change, or drop fields from the
-	// event before it gets sent to Honeycomb.
+	// event before it gets sent to Honeycomb. Runs after the SamplerHook.
 	PresendHook func(map[string]interface{})
 	// APIHost is the hostname for the Honeycomb API server to which to send
 	// this event. default: https://api.honeycomb.io/
@@ -103,17 +103,18 @@ func Init(config Config) {
 		go readResponses(libhoney.Responses())
 	}
 
-	// configure and set a global sampler so sending traces can use it without
-	// threading it through
-	sampler, err := sample.NewDeterministicSampler(config.SampleRate)
-	if err == nil {
-		sample.GlobalSampler = sampler
-	}
-
-	// pass through hooks if they're defined
+	// Use the sampler hook if it's defined, otherwise a deterministic sampler
 	if config.SamplerHook != nil {
 		internal.GlobalConfig.SamplerHook = config.SamplerHook
+	} else {
+		// configure and set a global sampler so sending traces can use it without
+		// threading it through
+		sampler, err := sample.NewDeterministicSampler(config.SampleRate)
+		if err == nil {
+			sample.GlobalSampler = sampler
+		}
 	}
+
 	if config.PresendHook != nil {
 		internal.GlobalConfig.PresendHook = config.PresendHook
 	}
@@ -121,7 +122,7 @@ func Init(config Config) {
 }
 
 // Flush sends any pending events to Honeycomb. This is optional; events will be
-// flushed on a timer otherwies. It is useful to flush befare AWS Lambda
+// flushed on a timer otherwise. It is useful to flush before AWS Lambda
 // functions finish to ensure events get sent before AWS freezes the function.
 // Flush implicitly ends all currently active spans.
 func Flush(ctx context.Context) {
@@ -146,32 +147,46 @@ func AddField(ctx context.Context, key string, val interface{}) {
 
 // AddFieldToSpan allows you to add a single field to an event anywhere
 // downstream of an instrumented request. After adding the appropriate
-// middleware or wrapping a Handler, feel free to call AddField freely within
-// your code. Pass it the context from the request (`r.Context()`) and the key
-// and value you wish to add.This function is good for span-level data, eg
-// timers or the arguments to a specific function call, etc..
+// middleware or wrapping a Handler, feel free to call AddFieldToSpan freely
+// within your code. Pass it the context from the request (`r.Context()`) and
+// the key and value you wish to add.This function is good for span-level data,
+// eg timers or the arguments to a specific function call, etc. Fields added
+// here are prefixed with `app.`
 func AddFieldToSpan(ctx context.Context, key string, val interface{}) {
 	namespacedKey := fmt.Sprintf("app.%s", key)
-	internal.CurrentSpan(ctx).AddField(namespacedKey, val)
+	span := internal.CurrentSpan(ctx)
+	if span != nil {
+		span.AddField(namespacedKey, val)
+	}
 }
 
 // AddRollupFieldToSpan allows you to add a numeric field to the current span,
 // and, when called on multiple spans within a trace, the sum of the field will
-// be added to the root span
+// be added to the root span. Use this when doing an action many times or on
+// many spans and you want the sum of all those actions to be represented on the
+// root span. Fields added here are prefixed with `app.` and the rolled up
+// fields on the root span are prefixed with `totals.app.`
 func AddRollupFieldToSpan(ctx context.Context, key string, val float64) {
 	namespacedKey := fmt.Sprintf("app.%s", key)
-	internal.GetTraceFromContext(ctx).AddRollupField(namespacedKey, val)
+	trace := internal.GetTraceFromContext(ctx)
+	if trace != nil {
+		trace.AddRollupField(namespacedKey, val)
+	}
 }
 
-// AddFieldToTrace adds the field to both the currently active span and any
-// other spans involved in this trace that occur within this process.  This
-// function is good for adding context that is better scoped to the request than
-// this specific unit of work, eg user IDs, globally relevant feature flags,
-// errors, etc. Note that these values do not currently traverse process
-// boundaries.
+// AddFieldToTrace adds the field to both the currently active span and all
+// other spans involved in this trace that occur within this process.
+// Additionally, these fields are packaged up and passed along to downstream
+// processes if they are also using a beeline. This function is good for adding
+// context that is better scoped to the request than this specific unit of work,
+// eg user IDs, globally relevant feature flags, errors, etc. Fields added here
+// are prefixed with `global.`
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	namespacedKey := fmt.Sprintf("global.%s", key)
-	internal.GetTraceFromContext(ctx).AddField(namespacedKey, val)
+	trace := internal.GetTraceFromContext(ctx)
+	if trace != nil {
+		trace.AddField(namespacedKey, val)
+	}
 }
 
 // HasTrace returns true if there is a trace in the current context
