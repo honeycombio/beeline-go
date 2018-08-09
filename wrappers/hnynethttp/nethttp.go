@@ -20,28 +20,26 @@ func WrapHandler(handler http.Handler) http.Handler {
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		var ctx context.Context
 		if !beeline.HasTrace(r.Context()) {
+			// pick up any trace context from our caller, if present
 			traceHeaders, traceContext, _ := internal.FindTraceHeaders(r)
-			ctx = beeline.StartSpan(r.Context(), "")
-			beeline.SetTraceIDs(ctx, traceHeaders.TraceID, traceHeaders.ParentID)
+			// use the trace IDs found to spin up a new trace
+			ctx = beeline.StartTraceWithIDs(r.Context(),
+				traceHeaders.TraceID, traceHeaders.ParentID, "")
+			// push the context with our trace on to the request
+			r = r.WithContext(ctx)
+			// add any additional context to the trace
 			for k, v := range traceContext {
 				beeline.AddFieldToTrace(ctx, k, v)
 			}
+			// and make sure it gets completely sent when we're done.
 			trace := internal.GetTraceFromContext(ctx)
 			defer internal.SendTrace(trace)
 		} else {
-			ctx = beeline.StartSpan(r.Context(), "")
+			// if we're not the root span, just add another layer to our trace.
+			beeline.StartSpan(r.Context(), "")
 		}
 		defer beeline.EndSpan(ctx)
-		r = r.WithContext(ctx)
-		// // TODO find out if we're a sub-handler and don't stomp the parent event
-		// // - get parent/child IDs and intentionally send a subevent
-		// ev := beeline.ContextEvent(r.Context())
-		// if ev == nil {
-		// 	ev = libhoney.NewEvent()
-		// 	// put the event on the context for everybody downsteam to use
-		// 	r = r.WithContext(beeline.ContextWithEvent(r.Context(), ev))
-		// }
-		// add some common fields from the request to our event
+		// go get any common HTTP headers and attributes to add to the span
 		for k, v := range internal.GetRequestProps(r) {
 			internal.AddField(ctx, k, v)
 		}
@@ -81,13 +79,27 @@ func WrapHandler(handler http.Handler) http.Handler {
 func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
 	handlerFuncName := runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
-		var rootSpan bool
+		var ctx context.Context
 		if !beeline.HasTrace(r.Context()) {
-			rootSpan = true
+			// pick up any trace context from our caller, if present
+			traceHeaders, traceContext, _ := internal.FindTraceHeaders(r)
+			// use the trace IDs found to spin up a new trace
+			ctx = beeline.StartTraceWithIDs(r.Context(),
+				traceHeaders.TraceID, traceHeaders.ParentID, "")
+			// push the context with our trace on to the request
+			r = r.WithContext(ctx)
+			// add any additional context to the trace
+			for k, v := range traceContext {
+				beeline.AddFieldToTrace(ctx, k, v)
+			}
+			// and make sure it gets completely sent when we're done.
+			trace := internal.GetTraceFromContext(ctx)
+			defer internal.SendTrace(trace)
+		} else {
+			// if we're not the root span, just add another layer to our trace.
+			beeline.StartSpan(r.Context(), "")
 		}
-		ctx := beeline.StartSpan(r.Context(), "")
 		defer beeline.EndSpan(ctx)
-		r = r.WithContext(ctx)
 		// add some common fields from the request to our event
 		for k, v := range internal.GetRequestProps(r) {
 			internal.AddField(ctx, k, v)
@@ -105,9 +117,5 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 			wrappedWriter.Status = 200
 		}
 		internal.AddField(ctx, "response.status_code", wrappedWriter.Status)
-		if rootSpan {
-			trace := internal.GetTraceFromContext(ctx)
-			internal.SendTrace(trace)
-		}
 	}
 }

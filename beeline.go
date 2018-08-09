@@ -195,14 +195,24 @@ func HasTrace(ctx context.Context) bool {
 	return trace != nil
 }
 
+// StartTraceWithIDs lets you start a trace with a specific set of IDs - it is
+// used when you've received the IDs from another source (eg incoming HTTP
+// headers). If you don't care what the IDs are, you may use either this or
+// StartSpan to start a trace. You cannot change the trace IDs after a trace has
+// begun.
+func StartTraceWithIDs(ctx context.Context, traceID, parentID, name string) context.Context {
+	trace := internal.MakeNewTrace(traceID, parentID, name)
+	ctx, _ = internal.PutTraceInContext(ctx, trace)
+	return ctx
+}
+
 // StartSpan lets you start a new span as a child of an already instrumented
-// handler. Use the returned contexts for all future calls to AddField to ensure
-// they're added to the right span. If there isn't an existing wrapped handler
-// in the context when this is called, it will start a new trace. Spans
-// automatically get a `duration_ms` field when they are ended; you should not
-// explicitly set the duration unless you want to override it. The name argument
-// will be the primary way the span is identified in the trace view within
-// Honeycomb.
+// handler. If there isn't an existing wrapped handler in the context when this
+// is called, it will start a new trace. You may ignore the returned context
+// except when starting a new trace. Spans automatically get a `duration_ms`
+// field when they are ended; you should not explicitly set the duration unless
+// you want to override it. The name argument will be the primary way the span
+// is identified in the trace view within Honeycomb.
 func StartSpan(ctx context.Context, name string) context.Context {
 	return internal.PushSpanOnStack(ctx, name)
 }
@@ -216,13 +226,6 @@ func StartSpan(ctx context.Context, name string) context.Context {
 // event. Unlike normal spans, when finishing a trace, it does not get sent.
 func StartAsyncSpan(ctx context.Context, name string) *libhoney.Event {
 	return internal.StartAsyncSpan(ctx, name)
-}
-
-// SetTraceIDs lets you override the generated trace ID with IDs you've received
-// from another source (eg incoming HTTP headers)
-func SetTraceIDs(ctx context.Context, traceID, parentID string) {
-	t := internal.GetTraceFromContext(ctx)
-	t.SetTraceIDs(traceID, parentID)
 }
 
 // EndSpan finishes the currently active span. It should only be called for
