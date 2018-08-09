@@ -25,20 +25,20 @@ func WrapHandler(handler http.Handler) http.Handler {
 			// use the trace IDs found to spin up a new trace
 			ctx = beeline.StartTraceWithIDs(r.Context(),
 				traceHeaders.TraceID, traceHeaders.ParentID, "")
+			trace := internal.GetTraceFromContext(ctx)
 			// push the context with our trace on to the request
 			r = r.WithContext(ctx)
 			// add any additional context to the trace
 			for k, v := range traceContext {
-				beeline.AddFieldToTrace(ctx, k, v)
+				trace.AddField(k, v)
 			}
 			// and make sure it gets completely sent when we're done.
-			trace := internal.GetTraceFromContext(ctx)
 			defer internal.SendTrace(trace)
 		} else {
 			// if we're not the root span, just add another layer to our trace.
-			beeline.StartSpan(r.Context(), "")
+			internal.PushSpanOnStack(r.Context(), "")
 		}
-		defer beeline.EndSpan(ctx)
+		defer internal.EndSpan(ctx)
 		// go get any common HTTP headers and attributes to add to the span
 		for k, v := range internal.GetRequestProps(r) {
 			internal.AddField(ctx, k, v)
@@ -86,20 +86,20 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 			// use the trace IDs found to spin up a new trace
 			ctx = beeline.StartTraceWithIDs(r.Context(),
 				traceHeaders.TraceID, traceHeaders.ParentID, "")
+			trace := internal.GetTraceFromContext(ctx)
 			// push the context with our trace on to the request
 			r = r.WithContext(ctx)
 			// add any additional context to the trace
 			for k, v := range traceContext {
-				beeline.AddFieldToTrace(ctx, k, v)
+				trace.AddField(k, v)
 			}
 			// and make sure it gets completely sent when we're done.
-			trace := internal.GetTraceFromContext(ctx)
 			defer internal.SendTrace(trace)
 		} else {
 			// if we're not the root span, just add another layer to our trace.
-			beeline.StartSpan(r.Context(), "")
+			internal.PushSpanOnStack(r.Context(), "")
 		}
-		defer beeline.EndSpan(ctx)
+		defer internal.EndSpan(ctx)
 		// add some common fields from the request to our event
 		for k, v := range internal.GetRequestProps(r) {
 			internal.AddField(ctx, k, v)
