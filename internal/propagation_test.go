@@ -106,6 +106,21 @@ func TestUnmarshalTraceContext(t *testing.T) {
 			nil,
 			false,
 		},
+		{
+			"v1, extra unknown key (otherwise valid)",
+			"1;trace_id=abcdef,parent_id=12345,something=unsupported,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==",
+			&TraceHeader{
+				Source:   HeaderSourceBeeline,
+				TraceID:  "abcdef",
+				ParentID: "12345",
+			},
+			map[string]interface{}{
+				"userID":   float64(1),
+				"errorMsg": "failed to sign on",
+				"toRetry":  true,
+			},
+			false,
+		},
 	}
 
 	for _, tt := range testCases {
