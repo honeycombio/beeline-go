@@ -20,6 +20,13 @@ const (
 	honeyEventContextKey   = "honeycombEventContextKey"
 )
 
+var GlobalConfig Config
+
+type Config struct {
+	SamplerHook func(map[string]interface{}) (bool, int)
+	PresendHook func(map[string]interface{})
+}
+
 type ResponseWriter struct {
 	http.ResponseWriter
 	Status int
@@ -266,11 +273,12 @@ type Trace struct {
 }
 
 type Span struct {
-	timer    timer.Timer
-	traceID  string
-	spanID   string
-	parentID string
-	ev       *libhoney.Event
+	shouldDrop bool // used for sampler hook
+	timer      timer.Timer
+	traceID    string
+	spanID     string
+	parentID   string
+	ev         *libhoney.Event
 	// idea - indicate here whether it was a wrapper-created span or a custom
 	// span, add some extra protections around only beelines being able to close
 	// beeline-started spans or something.
@@ -506,7 +514,26 @@ func SendTrace(trace *Trace) error {
 			span.ev.AddField(k, v)
 		}
 		span.ev.SampleRate = uint(trace.sampleRate)
-		span.ev.SendPresampled()
+
+		// run hooks
+		var shouldKeep = true
+		if GlobalConfig.SamplerHook != nil {
+			var sampleRate int
+			shouldKeep, sampleRate = GlobalConfig.SamplerHook(span.ev.Fields())
+			if shouldKeep {
+				span.ev.SampleRate *= uint(sampleRate)
+			} else {
+				// we should drop this event
+				span.shouldDrop = true
+			}
+		}
+		if GlobalConfig.PresendHook != nil {
+			// munge all the fields
+			GlobalConfig.PresendHook(span.ev.Fields())
+		}
+		if shouldKeep {
+			span.ev.SendPresampled()
+		}
 	}
 	trace.sent = true
 	return nil

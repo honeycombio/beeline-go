@@ -33,6 +33,16 @@ type Config struct {
 	// SamplRate is a positive integer indicating the rate at which to sample
 	// events. default: 1
 	SampleRate uint
+	// SamplerHook is a function that will get run with the contents of each
+	// event just before sending the event to Honeycomb. Register a function
+	// with this config option to have manual control over sampling within the
+	// beeline.
+	SamplerHook func(map[string]interface{}) (bool, int)
+	// PresendHook is a function call that will get run with the contents of
+	// each event just before sending them to Honeycomb. The function registered
+	// here may mutate the map passed in to add, change, or drop fields from the
+	// event before it gets sent to Honeycomb.
+	PresendHook func(map[string]interface{})
 	// APIHost is the hostname for the Honeycomb API server to which to send
 	// this event. default: https://api.honeycomb.io/
 	APIHost string
@@ -46,9 +56,6 @@ type Config struct {
 	// trouble getting the beeline to work, set this to true in a dev
 	// environment.
 	Debug bool
-
-	// disableTracing when set to true will suppress emitting trace.* fields
-	// disableTracing bool
 }
 
 // Init intializes the honeycomb instrumentation library.
@@ -101,6 +108,14 @@ func Init(config Config) {
 	sampler, err := sample.NewDeterministicSampler(config.SampleRate)
 	if err == nil {
 		sample.GlobalSampler = sampler
+	}
+
+	// pass through hooks if they're defined
+	if config.SamplerHook != nil {
+		internal.GlobalConfig.SamplerHook = config.SamplerHook
+	}
+	if config.PresendHook != nil {
+		internal.GlobalConfig.PresendHook = config.PresendHook
 	}
 	return
 }
