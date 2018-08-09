@@ -248,7 +248,9 @@ func FindTraceHeaders(req *http.Request) (*TraceHeader, map[string]interface{}, 
 // 	}
 // }
 
-// AddField gets the current span and adds the field as is
+// AddField gets the current span and adds the field as is - it does not give
+// the field a prefix in the way the public beeline API does. This is necessary
+// to add protected fields such as `name` or `duration_ms`
 func AddField(ctx context.Context, key string, val interface{}) {
 	span := CurrentSpan(ctx)
 	if span != nil {
@@ -456,11 +458,6 @@ func MakeNewTrace(traceID, parentID, name string) *Trace {
 	if traceID == "" {
 		tid, _ := uuid.NewRandom()
 		traceID = tid.String()
-		pid, _ := uuid.NewRandom()
-		parentID = pid.String()
-	} else if parentID == "" {
-		pid, _ := uuid.NewRandom()
-		parentID = pid.String()
 	}
 	sid, _ := uuid.NewRandom()
 	spanID := sid.String()
@@ -477,6 +474,7 @@ func MakeNewTrace(traceID, parentID, name string) *Trace {
 	// if a deterministic sampler is defined, use it. Otherwise sampling happens
 	// via the hook at send time.
 	var shouldDropSample bool
+	var sampleRate = 1
 	if sample.GlobalSampler != nil {
 		shouldDropSample = !sample.GlobalSampler.Sample(traceID)
 		if shouldDropSample {
@@ -486,10 +484,11 @@ func MakeNewTrace(traceID, parentID, name string) *Trace {
 				shouldDropSample: shouldDropSample,
 			}
 		}
+		sampleRate = sample.GlobalSampler.GetSampleRate()
 	}
 	return &Trace{
 		shouldDropSample: shouldDropSample,
-		sampleRate:       sample.GlobalSampler.GetSampleRate(),
+		sampleRate:       sampleRate,
 		openSpans:        []*Span{span},
 		traceLevelFields: make(map[string]interface{}),
 		rollupFields:     make(map[string]float64),
@@ -513,7 +512,9 @@ func SendTrace(trace *Trace) error {
 	}
 	for _, span := range trace.closedSpans {
 		span.ev.AddField("trace.span_id", span.spanID)
-		span.ev.AddField("trace.parent_id", span.parentID)
+		if span.parentID != "" {
+			span.ev.AddField("trace.parent_id", span.parentID)
+		}
 		span.ev.AddField("trace.trace_id", span.traceID)
 		for k, v := range trace.traceLevelFields {
 			span.ev.AddField(k, v)
