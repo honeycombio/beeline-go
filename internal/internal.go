@@ -4,21 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"runtime"
-	"strings"
 
-	"github.com/felixge/httpsnoop"
 	"github.com/google/uuid"
 
 	"github.com/honeycombio/beeline-go/internal/sample"
 	"github.com/honeycombio/beeline-go/timer"
 	libhoney "github.com/honeycombio/libhoney-go"
-)
-
-const (
-	honeyBuilderContextKey = "honeycombBuilderContextKey"
-	honeyEventContextKey   = "honeycombEventContextKey"
 )
 
 var GlobalConfig Config
@@ -28,20 +19,18 @@ type Config struct {
 	PresendHook func(map[string]interface{})
 }
 
-type ResponseWriter struct {
-	http.ResponseWriter
-	Status int
-}
+type Trace struct {
+	// shouldDropSample is true when this trace should be dropped, false when it
+	// should be sent.
+	shouldDropSample bool
+	sampleRate       int
 
-func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
-	return &ResponseWriter{
-		ResponseWriter: httpsnoop.Wrap(w, httpsnoop.Hooks{}),
-	}
-}
-
-func (h *ResponseWriter) WriteHeader(statusCode int) {
-	h.Status = statusCode
-	h.ResponseWriter.WriteHeader(statusCode)
+	headers          TraceHeader
+	sent             bool // true when the trace is sent, false otherwise.
+	openSpans        []*Span
+	closedSpans      []*Span
+	rollupFields     map[string]float64
+	traceLevelFields map[string]interface{}
 }
 
 func AddRequestProps(req *http.Request, ev *libhoney.Event) {
@@ -69,6 +58,19 @@ func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 		ev.AddField("request.header.x_forwarded_proto", xForwardedProto)
 
 	}
+// TODO give spans a pointer back to the trace they're in so that you can end a
+// specific span rather than only the current one. Necessary to allow concurrent
+// use of a trace.
+type Span struct {
+	shouldDrop bool // used for sampler hook
+	timer      timer.Timer
+	traceID    string
+	spanID     string
+	parentID   string
+	ev         *libhoney.Event
+	// idea - indicate here whether it was a wrapper-created span or a custom
+	// span, add some extra protections around only beelines being able to close
+	// beeline-started spans or something.
 }
 
 type HeaderSource int
@@ -86,134 +88,6 @@ type TraceHeader struct {
 	TraceID  string
 	ParentID string
 	SpanID   string
-}
-
-// FindTraceHeaders parses tracing headers if they exist. Uses beeline headers
-// first, then looks for others.
-//
-// Request-Id: abcd-1234-uuid-v4
-// X-Amzn-Trace-Id X-Amzn-Trace-Id: Self=1-67891234-12456789abcdef012345678;Root=1-67891233-abcdef012345678912345678;CalledFrom=app
-//
-// adds all trace IDs to the passed in event, and returns a trace ID if it finds
-// one. Request-ID is preferred over the Amazon trace ID. Will generate a UUID
-// if it doesn't find any trace IDs.
-//
-// NOTE that Amazon actually only means for the latter part of the header to be
-// the ID - format is version-timestamp-id. For now though (TODO) we treat it as
-// the entire string
-//
-// If getting trace context from another beeline, also returns any fields
-// included to be added to the trace as Trace level fields
-func FindTraceHeaders(req *http.Request) (*TraceHeader, map[string]interface{}, error) {
-	beelineHeader := req.Header.Get(TracePropagationHTTPHeader)
-	if beelineHeader != "" {
-		return UnmarshalTraceContext(beelineHeader)
-	}
-	// didn't find it from a beeline, let's go looking elsewhere
-	headers := &TraceHeader{}
-	var traceID string
-	awsHeader := req.Header.Get("X-Amzn-Trace-Id")
-	if awsHeader != "" {
-		headers.Source = HeaderSourceAmazon
-		// break into key=val pairs on `;` and add each key=val header
-		ids := strings.Split(awsHeader, ";")
-		for _, id := range ids {
-			keyval := strings.Split(id, "=")
-			if len(keyval) != 2 {
-				// malformed keyval
-				continue
-			}
-			// ev.AddField("request.header.aws_trace_id."+keyval[0], keyval[1])
-			if keyval[0] == "Root" {
-				traceID = keyval[1]
-			}
-		}
-	}
-	requestID := req.Header.Get("Request-Id")
-	if requestID != "" {
-		headers.Source = HeaderSourceBeeline
-		// ev.AddField("request.header.request_id", requestID)
-		traceID = requestID
-	}
-	if traceID == "" {
-		id, _ := uuid.NewRandom()
-		traceID = id.String()
-	}
-	headers.TraceID = traceID
-	return headers, nil, nil
-}
-
-// BuildDBEvent tries to bring together most of the things that need to happen
-// for an event to wrap a DB call in bot the sql and sqlx packages. It returns a
-// function which, when called, dispatches the event that it created. This lets
-// it finish a timer around the call automatically. This function is only used
-// when no context is available to the caller - if context is available, use
-// BuildDBSpan() instead.
-func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
-	timer := timer.Start()
-	ev := bld.NewEvent()
-	fn := func(err error) {
-		duration := timer.Finish()
-		// rollup(ctx, ev, duration)
-		ev.AddField("duration_ms", duration)
-		if err != nil {
-			ev.AddField("db.error", err)
-		}
-		ev.Metadata, _ = ev.Fields()["name"]
-		ev.Send()
-	}
-
-	// get the name of the function that called this one. Strip the package and type
-	pc, _, _, _ := runtime.Caller(1)
-	callName := runtime.FuncForPC(pc).Name()
-	callNameChunks := strings.Split(callName, ".")
-	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
-	ev.AddField("name", callNameChunks[len(callNameChunks)-1])
-
-	if query != "" {
-		ev.AddField("db.query", query)
-	}
-	if args != nil {
-		ev.AddField("db.query_args", args)
-	}
-	return ev, fn
-}
-
-// BuildDBSpan does the same things as BuildDBEvent except that it has access to
-// a trace from the context and takes advantage of that to add the DB events
-// into the trace.
-func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) func(error) {
-	timer := timer.Start()
-	ev := bld.NewEvent()
-	trace := GetTraceFromContext(ctx)
-	if trace == nil || trace.shouldDropSample {
-		// if we have no trace or we're supposed to drop this trace, return a noop fn
-		return func(err error) {}
-	}
-	PushEventOnStack(ctx, ev)
-	fn := func(err error) {
-		duration := timer.Finish()
-		if err != nil {
-			ev.AddField("db.error", err)
-		}
-		trace.AddRollupField("db.duration_ms", duration)
-		trace.AddRollupField("db.call_count", 1)
-		trace.EndCurrentSpan() // TODO fixme concurrency :scream:
-	}
-	// get the name of the function that called this one. Strip the package and type
-	pc, _, _, _ := runtime.Caller(1)
-	callName := runtime.FuncForPC(pc).Name()
-	callNameChunks := strings.Split(callName, ".")
-	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
-	ev.AddField("name", callNameChunks[len(callNameChunks)-1])
-
-	if query != "" {
-		ev.AddField("db.query", query)
-	}
-	if args != nil {
-		ev.AddField("db.query_args", args)
-	}
-	return fn
 }
 
 // // rollup takes a context that might contain a parent event, the current event,
@@ -300,49 +174,6 @@ func AddField(ctx context.Context, key string, val interface{}) {
 	}
 }
 
-type Trace struct {
-	// shouldDropSample is true when this trace should be dropped, false when it
-	// should be sent.
-	shouldDropSample bool
-	sampleRate       int
-
-	headers          TraceHeader
-	sent             bool // true when the trace is sent, false otherwise.
-	openSpans        []*Span
-	closedSpans      []*Span
-	rollupFields     map[string]float64
-	traceLevelFields map[string]interface{}
-}
-
-// TODO give spans a pointer back to the trace they're in so that you can end a
-// specific span rather than only the current one. Necessary to allow concurrent
-// use of a trace.
-type Span struct {
-	shouldDrop bool // used for sampler hook
-	timer      timer.Timer
-	traceID    string
-	spanID     string
-	parentID   string
-	ev         *libhoney.Event
-	// idea - indicate here whether it was a wrapper-created span or a custom
-	// span, add some extra protections around only beelines being able to close
-	// beeline-started spans or something.
-}
-
-const honeyTraceContextKey = "honeycombTraceContextKey"
-
-func (t *Trace) SetTraceIDs(traceID, parentID string) {
-	if t.shouldDropSample {
-		return
-	}
-	t.headers.TraceID = traceID
-	t.headers.ParentID = parentID
-	if len(t.openSpans) >= 1 {
-		t.openSpans[0].traceID = traceID
-		t.openSpans[0].parentID = parentID
-	}
-}
-
 func (t *Trace) AddField(key string, val interface{}) {
 	if t.shouldDropSample {
 		return
@@ -407,24 +238,6 @@ func StartAsyncSpan(ctx context.Context, name string) *libhoney.Event {
 	return ev
 }
 
-// GetTraceFromContext pulls a trace off the passed in context or returns nil if
-// no trace exists.
-func GetTraceFromContext(ctx context.Context) *Trace {
-	if ctx != nil {
-		if trace, ok := ctx.Value(honeyTraceContextKey).(*Trace); ok {
-			return trace
-		}
-	}
-	return nil
-}
-
-// PutTraceInContext takes an existing context and a trace and pushes the trace
-// into the context.  It should replace any traces that already exist in the
-// context. The returned error will be not nil if a trace already existed.
-func PutTraceInContext(ctx context.Context, trace *Trace) (context.Context, error) {
-	return context.WithValue(ctx, honeyTraceContextKey, trace), nil
-}
-
 // PushSpanOnStack adds a new span to a trace (or creates the trace if none
 // exists).
 func PushSpanOnStack(ctx context.Context, name string) context.Context {
@@ -481,50 +294,6 @@ func PushEventOnStack(ctx context.Context, ev *libhoney.Event) error {
 	return nil
 }
 
-// EndSpan "closes" the current span by popping it off the open stack and
-// putting it on the closed stack. It is not sent in case additional trace level
-// fields get added they will still make it onto the closed spans.
-func EndSpan(ctx context.Context) {
-	trace := GetTraceFromContext(ctx)
-	if trace.shouldDropSample {
-		return
-	}
-	finished, err := trace.EndCurrentSpan()
-	if err != nil {
-		// TODO handle this better
-		return
-	}
-	// if this was the last open span, let's dispatch the trace
-	if finished {
-		SendTrace(trace)
-	}
-}
-
-// CurrentSpan gets the outermost span in the list, the currently closest
-// surrounding span to the code that's calling it. Returns nil when there are no
-// spans or we should drop this trace because of sampling.
-func CurrentSpan(ctx context.Context) *Span {
-	trace := GetTraceFromContext(ctx)
-	if numSpans := len(trace.openSpans); numSpans > 0 {
-		return trace.openSpans[numSpans-1]
-	}
-	return nil
-}
-
-func (s *Span) AddField(key string, val interface{}) {
-	s.ev.AddField(key, val)
-}
-
-// CurrentSpan gets the outermost span in the list, the currently closest
-// surrounding span to the code that's calling it. Returns nil when there are no
-// spans or we should drop this trace because of sampling.
-func CurrentSpanFromTrace(trace *Trace) *Span {
-	if numSpans := len(trace.openSpans); numSpans > 0 {
-		return trace.openSpans[numSpans-1]
-	}
-	return nil
-}
-
 func MakeNewTrace(traceID, parentID, name string) *Trace {
 	if traceID == "" {
 		tid, _ := uuid.NewRandom()
@@ -567,6 +336,50 @@ func MakeNewTrace(traceID, parentID, name string) *Trace {
 		traceLevelFields: make(map[string]interface{}),
 		rollupFields:     make(map[string]float64),
 	}
+}
+
+// EndSpan "closes" the current span by popping it off the open stack and
+// putting it on the closed stack. It is not sent in case additional trace level
+// fields get added they will still make it onto the closed spans.
+func EndSpan(ctx context.Context) {
+	trace := GetTraceFromContext(ctx)
+	if trace.shouldDropSample {
+		return
+	}
+	finished, err := trace.EndCurrentSpan()
+	if err != nil {
+		// TODO handle this better
+		return
+	}
+	// if this was the last open span, let's dispatch the trace
+	if finished {
+		SendTrace(trace)
+	}
+}
+
+// CurrentSpan gets the outermost span in the list, the currently closest
+// surrounding span to the code that's calling it. Returns nil when there are no
+// spans or we should drop this trace because of sampling.
+func CurrentSpan(ctx context.Context) *Span {
+	trace := GetTraceFromContext(ctx)
+	if numSpans := len(trace.openSpans); numSpans > 0 {
+		return trace.openSpans[numSpans-1]
+	}
+	return nil
+}
+
+func (s *Span) AddField(key string, val interface{}) {
+	s.ev.AddField(key, val)
+}
+
+// CurrentSpan gets the outermost span in the list, the currently closest
+// surrounding span to the code that's calling it. Returns nil when there are no
+// spans or we should drop this trace because of sampling.
+func CurrentSpanFromTrace(trace *Trace) *Span {
+	if numSpans := len(trace.openSpans); numSpans > 0 {
+		return trace.openSpans[numSpans-1]
+	}
+	return nil
 }
 
 func SendTrace(trace *Trace) error {
