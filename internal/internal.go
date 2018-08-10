@@ -567,6 +567,9 @@ func MakeNewTrace(traceID, parentID, name string) *Trace {
 }
 
 func SendTrace(trace *Trace) error {
+	if trace == nil {
+		return nil
+	}
 	if trace.shouldDropSample {
 		return nil
 	}

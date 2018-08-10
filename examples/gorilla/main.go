@@ -20,6 +20,8 @@ func main() {
 		// Remove the STDOUT setting when filling in a real write key.
 		STDOUT: true,
 	})
+	// ensure everything gets sent off before we exit
+	defer beeline.Close()
 
 	r := mux.NewRouter()
 	r.Use(hnygorilla.Middleware)
