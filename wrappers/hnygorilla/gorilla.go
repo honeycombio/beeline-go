@@ -4,12 +4,10 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/internal"
-	"github.com/honeycombio/libhoney-go"
 )
 
 // Middleware is a gorilla middleware to add Honeycomb instrumentation to the
@@ -17,49 +15,58 @@ import (
 func Middleware(handler http.Handler) http.Handler {
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		// TODO find out if we're a sub-handler and don't stomp the parent
-		// event, or at least get parent/child IDs and intentionally send a
-		// subevent or something
-		start := time.Now()
-		ev := beeline.ContextEvent(ctx)
-		if ev == nil {
-			ev = libhoney.NewEvent()
-			defer ev.Send()
-			// put the event on the context for everybody downsteam to use
-			r = r.WithContext(beeline.ContextWithEvent(ctx, ev))
+		if !beeline.HasTrace(r.Context()) {
+			// pick up any trace context from our caller, if present
+			traceHeaders, traceContext, _ := internal.FindTraceHeaders(r)
+			// use the trace IDs found to spin up a new trace
+			ctx = beeline.StartTraceWithIDs(r.Context(),
+				traceHeaders.TraceID, traceHeaders.ParentID, "")
+			trace := internal.GetTraceFromContext(ctx)
+			// push the context with our trace on to the request
+			r = r.WithContext(ctx)
+			// add any additional context to the trace
+			for k, v := range traceContext {
+				trace.AddField(k, v)
+			}
+			// and make sure it gets completely sent when we're done.
+			defer internal.SendTrace(trace)
+		} else {
+			// if we're not the root span, just add another layer to our trace.
+			internal.PushSpanOnStack(r.Context(), "")
 		}
-		// add some common fields from the request to our event
-		internal.AddRequestProps(r, ev)
+		defer internal.EndSpan(ctx)
+		// go get any common HTTP headers and attributes to add to the span
+		for k, v := range internal.GetRequestProps(r) {
+			internal.AddField(ctx, k, v)
+		}
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := internal.NewResponseWriter(w)
 		// pull out any variables in the URL, add the thing we're matching, etc.
 		vars := mux.Vars(r)
 		for k, v := range vars {
-			ev.AddField("gorilla.vars."+k, v)
+			internal.AddField(ctx, "gorilla.vars."+k, v)
 		}
 		route := mux.CurrentRoute(r)
 		chosenHandler := route.GetHandler()
 		funcName := runtime.FuncForPC(reflect.ValueOf(chosenHandler).Pointer()).Name()
-		ev.AddField("handler.fnname", funcName)
+		internal.AddField(ctx, "handler.fnname", funcName)
 		if funcName != "" {
-			ev.AddField("name", funcName)
+			internal.AddField(ctx, "name", funcName)
 		}
 		name := route.GetName()
 		if name != "" {
-			ev.AddField("handler.name", name)
+			internal.AddField(ctx, "handler.name", name)
 			// stomp name because user-supplied names are better than function names
-			ev.AddField("name", name)
+			internal.AddField(ctx, "name", name)
 		}
 		if path, err := route.GetPathTemplate(); err == nil {
-			ev.AddField("handler.route", path)
+			internal.AddField(ctx, "handler.route", path)
 		}
 		handler.ServeHTTP(wrappedWriter, r)
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
-		ev.AddField("response.status_code", wrappedWriter.Status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
-		ev.Metadata, _ = ev.Fields()["name"]
+		internal.AddField(ctx, "response.status_code", wrappedWriter.Status)
 	}
 	return http.HandlerFunc(wrappedHandler)
 }
