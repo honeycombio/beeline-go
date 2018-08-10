@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime"
 	"strings"
 
 	"github.com/felixge/httpsnoop"
@@ -87,7 +88,8 @@ type TraceHeader struct {
 	SpanID   string
 }
 
-// FindTraceHeaders parses tracing headers if they exist
+// FindTraceHeaders parses tracing headers if they exist. Uses beeline headers
+// first, then looks for others.
 //
 // Request-Id: abcd-1234-uuid-v4
 // X-Amzn-Trace-Id X-Amzn-Trace-Id: Self=1-67891234-12456789abcdef012345678;Root=1-67891233-abcdef012345678912345678;CalledFrom=app
@@ -141,40 +143,78 @@ func FindTraceHeaders(req *http.Request) (*TraceHeader, map[string]interface{}, 
 	return headers, nil, nil
 }
 
-// // BuildDBEvent tries to bring together most of the things that need to happen
-// // for an event to wrap a DB call in bot the sql and sqlx packages. It returns a
-// // function which, when called, dispatches the event that it created. This lets
-// // it finish a timer around the call automatically.
-// func BuildDBEvent(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
-// 	timer := timer.Start()
-// 	ev := bld.NewEvent()
-// 	fn := func(err error) {
-// 		duration := timer.Finish()
-// 		// rollup(ctx, ev, duration)
-// 		ev.AddField("duration_ms", duration)
-// 		if err != nil {
-// 			ev.AddField("db.error", err)
-// 		}
-// 		ev.Metadata, _ = ev.Fields()["name"]
-// 		ev.Send()
-// 	}
-// 	// addTraceID(ctx, ev)
+// BuildDBEvent tries to bring together most of the things that need to happen
+// for an event to wrap a DB call in bot the sql and sqlx packages. It returns a
+// function which, when called, dispatches the event that it created. This lets
+// it finish a timer around the call automatically. This function is only used
+// when no context is available to the caller - if context is available, use
+// BuildDBSpan() instead.
+func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
+	timer := timer.Start()
+	ev := bld.NewEvent()
+	fn := func(err error) {
+		duration := timer.Finish()
+		// rollup(ctx, ev, duration)
+		ev.AddField("duration_ms", duration)
+		if err != nil {
+			ev.AddField("db.error", err)
+		}
+		ev.Metadata, _ = ev.Fields()["name"]
+		ev.Send()
+	}
 
-// 	// get the name of the function that called this one. Strip the package and type
-// 	pc, _, _, _ := runtime.Caller(1)
-// 	callName := runtime.FuncForPC(pc).Name()
-// 	callNameChunks := strings.Split(callName, ".")
-// 	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
-// 	ev.AddField("name", callNameChunks[len(callNameChunks)-1])
+	// get the name of the function that called this one. Strip the package and type
+	pc, _, _, _ := runtime.Caller(1)
+	callName := runtime.FuncForPC(pc).Name()
+	callNameChunks := strings.Split(callName, ".")
+	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
+	ev.AddField("name", callNameChunks[len(callNameChunks)-1])
 
-// 	if query != "" {
-// 		ev.AddField("db.query", query)
-// 	}
-// 	if args != nil {
-// 		ev.AddField("db.query_args", args)
-// 	}
-// 	return ev, fn
-// }
+	if query != "" {
+		ev.AddField("db.query", query)
+	}
+	if args != nil {
+		ev.AddField("db.query_args", args)
+	}
+	return ev, fn
+}
+
+// BuildDBSpan does the same things as BuildDBEvent except that it has access to
+// a trace from the context and takes advantage of that to add the DB events
+// into the trace.
+func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) func(error) {
+	timer := timer.Start()
+	ev := bld.NewEvent()
+	trace := GetTraceFromContext(ctx)
+	if trace == nil || trace.shouldDropSample {
+		// if we have no trace or we're supposed to drop this trace, return a noop fn
+		return func(err error) {}
+	}
+	PushEventOnStack(ctx, ev)
+	fn := func(err error) {
+		duration := timer.Finish()
+		if err != nil {
+			ev.AddField("db.error", err)
+		}
+		trace.AddRollupField("db.duration_ms", duration)
+		trace.AddRollupField("db.call_count", 1)
+		trace.EndCurrentSpan() // TODO fixme concurrency :scream:
+	}
+	// get the name of the function that called this one. Strip the package and type
+	pc, _, _, _ := runtime.Caller(1)
+	callName := runtime.FuncForPC(pc).Name()
+	callNameChunks := strings.Split(callName, ".")
+	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
+	ev.AddField("name", callNameChunks[len(callNameChunks)-1])
+
+	if query != "" {
+		ev.AddField("db.query", query)
+	}
+	if args != nil {
+		ev.AddField("db.query_args", args)
+	}
+	return fn
+}
 
 // // rollup takes a context that might contain a parent event, the current event,
 // // and a duration. It pulls some attributes from the current event in order to
@@ -274,6 +314,9 @@ type Trace struct {
 	traceLevelFields map[string]interface{}
 }
 
+// TODO give spans a pointer back to the trace they're in so that you can end a
+// specific span rather than only the current one. Necessary to allow concurrent
+// use of a trace.
 type Span struct {
 	shouldDrop bool // used for sampler hook
 	timer      timer.Timer
@@ -287,17 +330,6 @@ type Span struct {
 }
 
 const honeyTraceContextKey = "honeycombTraceContextKey"
-
-// GetTraceFromContext pulls a trace off the passed in context or returns nil if
-// no trace exists.
-func GetTraceFromContext(ctx context.Context) *Trace {
-	if ctx != nil {
-		if trace, ok := ctx.Value(honeyTraceContextKey).(*Trace); ok {
-			return trace
-		}
-	}
-	return nil
-}
 
 func (t *Trace) SetTraceIDs(traceID, parentID string) {
 	if t.shouldDropSample {
@@ -329,7 +361,9 @@ func (t *Trace) AddRollupField(key string, val float64) {
 		return
 	}
 	t.openSpans[numSpans-1].ev.AddField(key, val)
-	t.rollupFields[key] += t.rollupFields[key] + val
+	prev := t.rollupFields[key]
+	t.rollupFields[key] += val
+	fmt.Printf("adding %f to rollup field %s prev %f cur %f\n", val, key, prev, t.rollupFields[key])
 }
 
 // EndCurrentSpan returns true when it's closing the last remaining span
@@ -373,12 +407,22 @@ func StartAsyncSpan(ctx context.Context, name string) *libhoney.Event {
 	return ev
 }
 
+// GetTraceFromContext pulls a trace off the passed in context or returns nil if
+// no trace exists.
+func GetTraceFromContext(ctx context.Context) *Trace {
+	if ctx != nil {
+		if trace, ok := ctx.Value(honeyTraceContextKey).(*Trace); ok {
+			return trace
+		}
+	}
+	return nil
+}
+
 // PutTraceInContext takes an existing context and a trace and pushes the trace
 // into the context.  It should replace any traces that already exist in the
 // context. The returned error will be not nil if a trace already existed.
 func PutTraceInContext(ctx context.Context, trace *Trace) (context.Context, error) {
 	return context.WithValue(ctx, honeyTraceContextKey, trace), nil
-
 }
 
 // PushSpanOnStack adds a new span to a trace (or creates the trace if none
@@ -408,6 +452,33 @@ func PushSpanOnStack(ctx context.Context, name string) context.Context {
 	newSpanList := append(trace.openSpans, span)
 	trace.openSpans = newSpanList
 	return ctx
+}
+
+// PushEventOnStack lets you take an event you've created outside the beeline
+// and push it in to the trace. This function will assign a parent, span, and
+// trace ID to the event and slot it in to the trace. A trace must exist in the
+// context or this function will fail (and return an error).
+func PushEventOnStack(ctx context.Context, ev *libhoney.Event) error {
+	trace := GetTraceFromContext(ctx)
+	if trace == nil {
+		return errors.New("can't push an event on the stack without a trace in the context")
+	}
+	if trace.shouldDropSample {
+		return nil
+	}
+	currentSpan := trace.openSpans[len(trace.openSpans)-1]
+	// make a new span using the parent's span ID as my parent ID
+	spanID, _ := uuid.NewRandom()
+	span := &Span{
+		timer:    timer.Start(),
+		traceID:  currentSpan.traceID,
+		parentID: currentSpan.spanID,
+		spanID:   spanID.String(),
+		ev:       ev,
+	}
+	newSpanList := append(trace.openSpans, span)
+	trace.openSpans = newSpanList
+	return nil
 }
 
 // EndSpan "closes" the current span by popping it off the open stack and

@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/internal"
 	"github.com/honeycombio/libhoney-go"
 )
@@ -45,7 +44,7 @@ func WrapDB(s *sql.DB) *DB {
 
 func (db *DB) Begin() (*Tx, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(context.Background(), db.Builder, "")
+	ev, sender := internal.BuildDBEvent(db.Builder, "")
 	defer sender(err)
 
 	bld := db.Builder.Clone()
@@ -67,7 +66,7 @@ func (db *DB) Begin() (*Tx, error) {
 
 func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(ctx, db.Builder, "")
+	sender := internal.BuildDBSpan(ctx, db.Builder, "")
 	defer sender(err)
 
 	// TODO if ctx.Cancel is called, the transaction is rolled back. We should
@@ -76,14 +75,13 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	wrapTx := &Tx{
 		Builder: bld,
 	}
-	addTraceIDBuilder(ctx, bld)
 	newid, _ := uuid.NewRandom()
 	txid := newid.String()
 	bld.AddField("db.txId", txid)
-	ev.AddField("db.txId", txid)
+	internal.AddField(ctx, "db.txId", txid)
 
 	bld.AddField("db.options", opts)
-	ev.AddField("db.options", opts)
+	internal.AddField(ctx, "db.options", opts)
 
 	// do DB call
 	tx, err := db.wdb.BeginTx(ctx, opts)
@@ -95,17 +93,16 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 
 func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(ctx, db.Builder, "")
+	sender := internal.BuildDBSpan(ctx, db.Builder, "")
 	defer sender(err)
 	bld := db.Builder.Clone()
-	addTraceIDBuilder(ctx, bld)
 	id, _ := uuid.NewRandom()
 	connid := id.String()
 	wrapConn := &Conn{
 		Builder: bld,
 	}
 	bld.AddField("db.connId", connid)
-	ev.AddField("db.connId", connid)
+	internal.AddField(ctx, "db.connId", connid)
 
 	// do DB call
 	conn, err := db.wdb.Conn(ctx)
@@ -117,7 +114,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 
 func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(context.Background(), db.Builder, query, args...)
+	ev, sender := internal.BuildDBEvent(db.Builder, query, args...)
 	defer sender(err)
 
 	// do DB call
@@ -139,7 +136,7 @@ func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
 
 func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(ctx, db.Builder, query, args...)
+	sender := internal.BuildDBSpan(ctx, db.Builder, query, args...)
 	defer sender(err)
 
 	// do DB call
@@ -149,11 +146,11 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}
 	if err == nil {
 		id, lierr := res.LastInsertId()
 		if lierr == nil {
-			ev.AddField("db.last_insert_id", id)
+			internal.AddField(ctx, "db.last_insert_id", id)
 		}
 		numrows, nrerr := res.RowsAffected()
 		if nrerr == nil {
-			ev.AddField("db.rows_affected", numrows)
+			internal.AddField(ctx, "db.rows_affected", numrows)
 		}
 	}
 	return res, err
@@ -161,7 +158,7 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}
 
 func (db *DB) Ping() error {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), db.Builder, "")
+	_, sender := internal.BuildDBEvent(db.Builder, "")
 	defer sender(err)
 	err = db.wdb.Ping()
 	return err
@@ -169,7 +166,7 @@ func (db *DB) Ping() error {
 
 func (db *DB) PingContext(ctx context.Context) error {
 	var err error
-	_, sender := internal.BuildDBEvent(ctx, db.Builder, "")
+	sender := internal.BuildDBSpan(ctx, db.Builder, "")
 	defer sender(err)
 	err = db.wdb.Ping()
 	return err
@@ -177,7 +174,7 @@ func (db *DB) PingContext(ctx context.Context) error {
 
 func (db *DB) Prepare(query string) (*Stmt, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(context.Background(), db.Builder, query)
+	ev, sender := internal.BuildDBEvent(db.Builder, query)
 	defer sender(err)
 
 	bld := db.Builder.Clone()
@@ -200,7 +197,7 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 
 func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(ctx, db.Builder, query)
+	sender := internal.BuildDBSpan(ctx, db.Builder, query)
 	defer sender(err)
 
 	bld := db.Builder.Clone()
@@ -213,7 +210,7 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	// add the query to the builder so all executions of this prepared statement
 	// have the query right there
 	bld.AddField("db.query", query)
-	ev.AddField("db.stmtId", stmtid)
+	internal.AddField(ctx, "db.stmtId", stmtid)
 
 	// do DB call
 	stmt, err := db.wdb.PrepareContext(ctx, query)
@@ -223,7 +220,7 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 
 func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), db.Builder, query, args)
+	_, sender := internal.BuildDBEvent(db.Builder, query, args)
 	defer sender(err)
 
 	// do DB call
@@ -234,7 +231,7 @@ func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
 
 func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
-	_, sender := internal.BuildDBEvent(ctx, db.Builder, query, args)
+	sender := internal.BuildDBSpan(ctx, db.Builder, query, args)
 	defer sender(err)
 
 	// do DB call
@@ -243,7 +240,7 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{
 }
 
 func (db *DB) QueryRow(query string, args ...interface{}) *sql.Row {
-	_, sender := internal.BuildDBEvent(context.Background(), db.Builder, query, args)
+	_, sender := internal.BuildDBEvent(db.Builder, query, args)
 	defer sender(nil)
 
 	// do DB call
@@ -251,7 +248,7 @@ func (db *DB) QueryRow(query string, args ...interface{}) *sql.Row {
 	return row
 }
 func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	_, sender := internal.BuildDBEvent(ctx, db.Builder, query, args)
+	sender := internal.BuildDBSpan(ctx, db.Builder, query, args)
 	defer sender(nil)
 
 	// do DB call
@@ -261,7 +258,7 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 
 func (db *DB) Close() error {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), db.Builder, "")
+	_, sender := internal.BuildDBEvent(db.Builder, "")
 	defer sender(err)
 	err = db.wdb.Close()
 	return err
@@ -281,7 +278,7 @@ type Conn struct {
 
 func (c *Conn) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(ctx, c.Builder, "")
+	sender := internal.BuildDBSpan(ctx, c.Builder, "")
 	defer sender(err)
 	// TODO if ctx.Cancel is called, the transaction is rolled back. We should
 	// submit an event indicating the rollback.
@@ -292,9 +289,9 @@ func (c *Conn) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 		Builder: bld,
 	}
 	bld.AddField("db.txId", txid)
-	ev.AddField("db.txId", txid)
+	internal.AddField(ctx, "db.txId", txid)
 
-	ev.AddField("db.options", opts)
+	internal.AddField(ctx, "db.options", opts)
 	bld.AddField("db.options", opts)
 
 	// do DB call
@@ -307,7 +304,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 
 func (c *Conn) Close() error {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), c.Builder, "")
+	_, sender := internal.BuildDBEvent(c.Builder, "")
 	defer sender(err)
 
 	// do DB call
@@ -317,7 +314,7 @@ func (c *Conn) Close() error {
 
 func (c *Conn) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(ctx, c.Builder, query, args...)
+	sender := internal.BuildDBSpan(ctx, c.Builder, query, args...)
 	defer sender(err)
 
 	// do DB call
@@ -327,11 +324,11 @@ func (c *Conn) ExecContext(ctx context.Context, query string, args ...interface{
 	if err == nil {
 		id, lierr := res.LastInsertId()
 		if lierr == nil {
-			ev.AddField("db.last_insert_id", id)
+			internal.AddField(ctx, "db.last_insert_id", id)
 		}
 		numrows, nrerr := res.RowsAffected()
 		if nrerr == nil {
-			ev.AddField("db.rows_affected", numrows)
+			internal.AddField(ctx, "db.rows_affected", numrows)
 		}
 	}
 	return res, err
@@ -339,7 +336,7 @@ func (c *Conn) ExecContext(ctx context.Context, query string, args ...interface{
 
 func (c *Conn) PingContext(ctx context.Context) error {
 	var err error
-	_, sender := internal.BuildDBEvent(ctx, c.Builder, "")
+	sender := internal.BuildDBSpan(ctx, c.Builder, "")
 	defer sender(err)
 	err = c.wconn.PingContext(ctx)
 	return err
@@ -347,7 +344,7 @@ func (c *Conn) PingContext(ctx context.Context) error {
 
 func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(ctx, c.Builder, query)
+	sender := internal.BuildDBSpan(ctx, c.Builder, query)
 	defer sender(err)
 
 	bld := c.Builder.Clone()
@@ -358,7 +355,7 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 	}
 	bld.AddField("db.stmtId", stmtid)
 	bld.AddField("db.query", query)
-	ev.AddField("db.stmtId", stmtid)
+	internal.AddField(ctx, "db.stmtId", stmtid)
 
 	// do DB call
 	stmt, err := c.wconn.PrepareContext(ctx, query)
@@ -370,7 +367,7 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 
 func (c *Conn) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
-	_, sender := internal.BuildDBEvent(ctx, c.Builder, query, args)
+	sender := internal.BuildDBSpan(ctx, c.Builder, query, args)
 	defer sender(err)
 
 	// do DB call
@@ -379,7 +376,7 @@ func (c *Conn) QueryContext(ctx context.Context, query string, args ...interface
 }
 
 func (c *Conn) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	_, sender := internal.BuildDBEvent(ctx, c.Builder, query, args)
+	sender := internal.BuildDBSpan(ctx, c.Builder, query, args)
 	defer sender(nil)
 
 	// do DB call
@@ -394,7 +391,7 @@ type Stmt struct {
 
 func (s *Stmt) Close() error {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), s.Builder, "")
+	_, sender := internal.BuildDBEvent(s.Builder, "")
 	defer sender(err)
 	err = s.wstmt.Close()
 	return err
@@ -402,7 +399,7 @@ func (s *Stmt) Close() error {
 
 func (s *Stmt) Exec(args ...interface{}) (sql.Result, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(context.Background(), s.Builder, "", args...)
+	ev, sender := internal.BuildDBEvent(s.Builder, "", args...)
 	defer sender(err)
 
 	// do DB call
@@ -424,7 +421,7 @@ func (s *Stmt) Exec(args ...interface{}) (sql.Result, error) {
 
 func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(ctx, s.Builder, "", args...)
+	sender := internal.BuildDBSpan(ctx, s.Builder, "", args...)
 	defer sender(err)
 
 	// do DB call
@@ -434,11 +431,11 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result
 	if err == nil {
 		id, lierr := res.LastInsertId()
 		if lierr == nil {
-			ev.AddField("db.last_insert_id", id)
+			internal.AddField(ctx, "db.last_insert_id", id)
 		}
 		numrows, nrerr := res.RowsAffected()
 		if nrerr == nil {
-			ev.AddField("db.rows_affected", numrows)
+			internal.AddField(ctx, "db.rows_affected", numrows)
 		}
 	}
 	return res, err
@@ -446,7 +443,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result
 
 func (s *Stmt) Query(args ...interface{}) (*sql.Rows, error) {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), s.Builder, "", args)
+	_, sender := internal.BuildDBEvent(s.Builder, "", args)
 	defer sender(err)
 
 	// do DB call
@@ -456,7 +453,7 @@ func (s *Stmt) Query(args ...interface{}) (*sql.Rows, error) {
 
 func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*sql.Rows, error) {
 	var err error
-	_, sender := internal.BuildDBEvent(ctx, s.Builder, "", args)
+	sender := internal.BuildDBSpan(ctx, s.Builder, "", args)
 	defer sender(err)
 
 	// do DB call
@@ -465,7 +462,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*sql.Rows
 }
 
 func (s *Stmt) QueryRow(args ...interface{}) *sql.Row {
-	_, sender := internal.BuildDBEvent(context.Background(), s.Builder, "", args)
+	_, sender := internal.BuildDBEvent(s.Builder, "", args)
 	defer sender(nil)
 
 	// do DB call
@@ -474,7 +471,7 @@ func (s *Stmt) QueryRow(args ...interface{}) *sql.Row {
 }
 
 func (s *Stmt) QueryRowContext(ctx context.Context, args ...interface{}) *sql.Row {
-	_, sender := internal.BuildDBEvent(ctx, s.Builder, "", args)
+	sender := internal.BuildDBSpan(ctx, s.Builder, "", args)
 	defer sender(nil)
 
 	// do DB call
@@ -490,7 +487,7 @@ type Tx struct {
 
 func (tx *Tx) Commit() error {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), tx.Builder, "")
+	_, sender := internal.BuildDBEvent(tx.Builder, "")
 	defer sender(err)
 
 	// do DB call
@@ -500,7 +497,7 @@ func (tx *Tx) Commit() error {
 
 func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(context.Background(), tx.Builder, query, args...)
+	ev, sender := internal.BuildDBEvent(tx.Builder, query, args...)
 	defer sender(err)
 
 	// do DB call
@@ -522,7 +519,7 @@ func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 
 func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(ctx, tx.Builder, query, args...)
+	sender := internal.BuildDBSpan(ctx, tx.Builder, query, args...)
 	defer sender(err)
 
 	// do DB call
@@ -532,11 +529,11 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 	if err == nil {
 		id, lierr := res.LastInsertId()
 		if lierr == nil {
-			ev.AddField("db.last_insert_id", id)
+			internal.AddField(ctx, "db.last_insert_id", id)
 		}
 		numrows, nrerr := res.RowsAffected()
 		if nrerr == nil {
-			ev.AddField("db.rows_affected", numrows)
+			internal.AddField(ctx, "db.rows_affected", numrows)
 		}
 	}
 	return res, err
@@ -544,7 +541,7 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 
 func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(context.Background(), tx.Builder, query)
+	ev, sender := internal.BuildDBEvent(tx.Builder, query)
 	defer sender(err)
 
 	bld := tx.Builder.Clone()
@@ -565,7 +562,7 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 
 func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var err error
-	ev, sender := internal.BuildDBEvent(ctx, tx.Builder, query)
+	sender := internal.BuildDBSpan(ctx, tx.Builder, query)
 	defer sender(err)
 
 	bld := tx.Builder.Clone()
@@ -575,7 +572,7 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 		Builder: bld,
 	}
 	bld.AddField("db.stmtId", stmtid)
-	ev.AddField("db.stmtId", stmtid)
+	internal.AddField(ctx, "db.stmtId", stmtid)
 	bld.AddField("db.query", query)
 
 	// do DB call
@@ -586,7 +583,7 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 
 func (tx *Tx) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), tx.Builder, query, args)
+	_, sender := internal.BuildDBEvent(tx.Builder, query, args)
 	defer sender(err)
 
 	// do DB call
@@ -596,7 +593,7 @@ func (tx *Tx) Query(query string, args ...interface{}) (*sql.Rows, error) {
 
 func (tx *Tx) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
-	_, sender := internal.BuildDBEvent(ctx, tx.Builder, query, args)
+	sender := internal.BuildDBSpan(ctx, tx.Builder, query, args)
 	defer sender(err)
 
 	// do DB call
@@ -605,7 +602,7 @@ func (tx *Tx) QueryContext(ctx context.Context, query string, args ...interface{
 }
 
 func (tx *Tx) QueryRow(query string, args ...interface{}) *sql.Row {
-	_, sender := internal.BuildDBEvent(context.Background(), tx.Builder, query, args)
+	_, sender := internal.BuildDBEvent(tx.Builder, query, args)
 	defer sender(nil)
 
 	// do DB call
@@ -614,7 +611,7 @@ func (tx *Tx) QueryRow(query string, args ...interface{}) *sql.Row {
 }
 
 func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	_, sender := internal.BuildDBEvent(ctx, tx.Builder, query, args)
+	sender := internal.BuildDBSpan(ctx, tx.Builder, query, args)
 	defer sender(nil)
 
 	// do DB call
@@ -624,7 +621,7 @@ func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...interfa
 
 func (tx *Tx) Rollback() error {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), tx.Builder, "")
+	_, sender := internal.BuildDBEvent(tx.Builder, "")
 	defer sender(err)
 
 	// do DB call
@@ -633,7 +630,7 @@ func (tx *Tx) Rollback() error {
 }
 
 func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
-	ev, sender := internal.BuildDBEvent(context.Background(), tx.Builder, "")
+	ev, sender := internal.BuildDBEvent(tx.Builder, "")
 	defer sender(nil)
 
 	bld := stmt.Builder.Clone()
@@ -652,7 +649,7 @@ func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 }
 
 func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
-	ev, sender := internal.BuildDBEvent(ctx, tx.Builder, "")
+	sender := internal.BuildDBSpan(ctx, tx.Builder, "")
 	defer sender(nil)
 
 	bld := stmt.Builder.Clone()
@@ -662,19 +659,10 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 	// add the transaction's ID to the statement so that when it gets executed
 	// you get both
 	bld.AddField("db.txid", tx.Builder.Fields()["db.txid"])
-	ev.AddField("db.stmtid", stmt.Builder.Fields()["db.stmtid"])
+	internal.AddField(ctx, "db.stmtid", stmt.Builder.Fields()["db.stmtid"])
 
 	// do DB call
 	newStmt := tx.wtx.StmtContext(ctx, stmt.wstmt)
 	wrapStmt.wstmt = newStmt
 	return wrapStmt
-}
-
-func addTraceIDBuilder(ctx context.Context, bld *libhoney.Builder) {
-	// get a transaction ID from the request's event, if it's sitting in context
-	if parentEv := beeline.ContextEvent(ctx); parentEv != nil {
-		if id, ok := parentEv.Fields()["trace.trace_id"]; ok {
-			bld.AddField("trace.trace_id", id)
-		}
-	}
 }
