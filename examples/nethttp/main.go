@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -20,14 +21,14 @@ import (
 func main() {
 	// Initialize beeline. The only required field is WriteKey.
 	beeline.Init(beeline.Config{
-		WriteKey:    "abcabc123123",
+		WriteKey:    "abcabc123123abcabc",
 		Dataset:     "http+sql",
 		ServiceName: "sample app",
-		SamplerHook: sampler,
-		PresendHook: presend,
+		// SamplerHook: sampler,
+		// PresendHook: presend,
 		// for demonstration, send the event to STDOUT instead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
-		STDOUT: true,
+		// STDOUT: true,
 	})
 
 	globalmux := http.NewServeMux()
@@ -41,6 +42,7 @@ func main() {
 func hello(w http.ResponseWriter, r *http.Request) {
 	beeline.AddField(r.Context(), "email", "one@two.com")
 	bigJob(r.Context())
+	outboundCall(r.Context())
 	// send our response to the caller
 	io.WriteString(w, fmt.Sprintf("Hello world!\n"))
 }
@@ -55,6 +57,24 @@ func bigJob(ctx context.Context) {
 	time.Sleep(600 * time.Millisecond)
 	// this job also discovered something that's relevant to the whole trace
 	beeline.AddFieldToTrace(ctx, "vip_user", true)
+}
+
+// outboundCall demonstrates wrapping an outbound HTTP client
+func outboundCall(ctx context.Context) {
+	// let's make an outbound HTTP call
+	client := &http.Client{
+		Transport: hnynethttp.WrapRoundTripper(http.DefaultTransport),
+		Timeout:   time.Second * 5,
+	}
+	req, _ := http.NewRequest(http.MethodGet, "http://scooterlabs.com/echo.json", strings.NewReader(""))
+	req = req.WithContext(ctx)
+	resp, err := client.Do(req)
+	if err == nil {
+		defer resp.Body.Close()
+		bod, _ := ioutil.ReadAll(resp.Body)
+		// data, _ := base64.StdEncoding.DecodeString(string(bod))
+		beeline.AddField(ctx, "resp.body", bod)
+	}
 }
 
 func presend(fields map[string]interface{}) {

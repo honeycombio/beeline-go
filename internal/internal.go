@@ -558,6 +558,9 @@ func MakeNewTrace(traceID, parentID, name string) *Trace {
 		sampleRate = sample.GlobalSampler.GetSampleRate()
 	}
 	return &Trace{
+		headers: TraceHeader{
+			TraceID: traceID,
+		},
 		shouldDropSample: shouldDropSample,
 		sampleRate:       sampleRate,
 		openSpans:        []*Span{span},
