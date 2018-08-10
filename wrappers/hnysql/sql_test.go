@@ -21,6 +21,8 @@ func Example() {
 		// Remove the STDOUT setting when filling in a real write key.
 		STDOUT: true,
 	})
+	// and make sure we close to force flushing all pending events before shutdown
+	defer beeline.Close()
 
 	// open a regular sql.DB connection
 	odb, err := sql.Open("mysql", "root:@tcp(127.0.0.1)/donut")
@@ -31,10 +33,12 @@ func Example() {
 
 	// replace it with a wrapped hnysql.DB
 	db := hnysql.WrapDB(odb)
+	// and start up a trace to capture all the calls
+	ctx := beeline.StartSpan(context.Background(), "start")
+	defer beeline.EndSpan(ctx)
 
 	// from here on, all SQL calls will emit events.
 
-	ctx := context.Background()
 	db.ExecContext(ctx, "insert into flavors (flavor) values ('rose')")
 	fv := "rose"
 	rows, err := db.QueryContext(ctx, "SELECT id FROM flavors WHERE flavor=?", fv)

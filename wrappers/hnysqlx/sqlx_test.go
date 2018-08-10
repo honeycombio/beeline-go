@@ -21,6 +21,8 @@ func Example() {
 		// Remove the STDOUT setting when filling in a real write key.
 		STDOUT: true,
 	})
+	// and make sure we close to force flushing all pending events before shutdown
+	defer beeline.Close()
 
 	// open a regular sqlx connection
 	odb, err := sqlx.Open("mysql", "root:@tcp(127.0.0.1)/donut")
@@ -30,8 +32,10 @@ func Example() {
 
 	// replace it with a wrapped hnysqlx.DB
 	db := hnysqlx.WrapDB(odb)
+	// and start up a trace for these statements to join
+	ctx := beeline.StartSpan(context.Background(), "start")
+	defer beeline.EndSpan(ctx)
 
-	ctx := context.Background()
 	db.MustExecContext(ctx, "insert into flavors (flavor) values ('rose')")
 	fv := "rose"
 	rows, err := db.QueryxContext(ctx, "SELECT id FROM flavors WHERE flavor=?", fv)
