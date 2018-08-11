@@ -2,6 +2,7 @@ package beeline
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -52,4 +53,54 @@ func TestNestedSpans(t *testing.T) {
 	}
 	assert.True(t, foundStart, "didn't find the start span")
 	assert.True(t, foundMiddle, "didn't find the middle span")
+}
+
+// TestBasicSpanAttributes verifies that creating and finishing a span gives it
+// all the basic required attributes: duration, trace, span, and parentIDs, and
+// name.
+func TestBasicSpanAttributes(t *testing.T) {
+	mo := &libhoney.MockOutput{}
+	libhoney.Init(
+		libhoney.Config{
+			APIHost:  "placeholder",
+			WriteKey: "placeholder",
+			Dataset:  "placeholder",
+			Output:   mo,
+		},
+	)
+	ctx := StartSpan(context.Background(), "start")
+	AddField(ctx, "start_col", 1)
+	ctx = StartSpan(ctx, "middle")
+	AddField(ctx, "mid_col", 1)
+	ctx = FinishSpan(ctx)
+	ctx = FinishSpan(ctx)
+	Flush(ctx)
+
+	events := mo.Events()
+	assert.Equal(t, 2, len(events), "should have sent 2 events")
+
+	var foundRoot bool
+	for _, ev := range events {
+		fields := ev.Fields()
+		name, ok := fields["name"]
+		assert.True(t, ok, "failed to find name")
+		_, ok = fields["trace.trace_id"]
+		assert.True(t, ok, fmt.Sprintf("failed to find trace ID for span %s", name))
+		_, ok = fields["trace.span_id"]
+		assert.True(t, ok, fmt.Sprintf("failed to find span ID for span %s", name))
+
+		rootSpan, ok := fields["meta.root_span"]
+		if ok {
+			rootSpanBool, ok := rootSpan.(bool)
+			assert.True(t, ok, "root span field meta.root_span should be boolean")
+			assert.True(t, rootSpanBool, "root span should have a meta.root_span field that's true")
+			foundRoot = true
+		} else {
+			// non-root spans should have a parent ID
+			_, ok = fields["trace.parent_id"]
+			assert.True(t, ok, fmt.Sprintf("failed to find parent ID for span %s", name))
+		}
+		// root span will be missing parent ID
+	}
+	assert.True(t, foundRoot, "root span missing")
 }
