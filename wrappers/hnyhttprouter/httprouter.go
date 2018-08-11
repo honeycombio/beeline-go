@@ -33,7 +33,7 @@ func Middleware(handle httprouter.Handle) httprouter.Handle {
 			// if we're not the root span, just add another layer to our trace.
 			ctx, span = internal.StartSpan(r.Context(), "")
 		}
-		defer span.Finish()
+		defer span.Finish(ctx)
 		// push the context with our trace on to the request
 		r = r.WithContext(ctx)
 		// go get any common HTTP headers and attributes to add to the span
