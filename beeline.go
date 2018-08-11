@@ -236,7 +236,10 @@ func StartAsyncSpan(ctx context.Context, name string) context.Context {
 // FinishSpan finishes the currently active span. It should only be called for
 // spans created with StartTraceWithIDs, StartSpan, or StartAsyncSpan. Use the
 // context returned by finish span in order to ensure operations on the
-// "current" span continue to work correctly.
+// "current" span continue to work correctly. The only time you should ignore
+// the context returned by this function is when using it as a defer to finish a
+// span also started in this scope; in that case when the function finishes the
+// previously scoped context will still have the right span marked as current.
 func FinishSpan(ctx context.Context) context.Context {
 	return internal.FinishSpan(ctx)
 }
