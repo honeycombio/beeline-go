@@ -3,7 +3,7 @@ package internal
 import (
 	"context"
 	"errors"
-	"fmt"
+	"sync"
 
 	"github.com/google/uuid"
 
@@ -12,6 +12,32 @@ import (
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
+// a short discussion about the model of managing traces.
+//
+// The user of the beeline only cares about traces when wanting to assert the
+// trace ID upon its creation. In most cases, the user is only interacting with
+// spans.
+//
+// Everything about interacting with a trace or its spans comes from providing
+// the context that's storing the trace and the current span and acting upon
+// that information.  It's the responsibility of the user to capture the context
+// coming back from each span creation in order to add fields to the right span
+//
+// The current span has a link back to the trace for adding trace level fields
+// and to trigger sending all spans when the root span is finished.
+//
+// Whet an async span is started, it's still part of the trace, but does not get
+// sent when the root span finishes. These spans are intended to outlive their
+// parent process.
+//
+// Spans (even async spans) are meant to be started and finished by the same
+// process. They are not intended to be started in one service, serialized and
+// passed to a second service, and finished there.
+//
+// You can serialize trace context and pass that along to downstream services,
+// but that downstream service should create a trace of its own (that shares the
+// trace ID so it will be unified in the Honeycomb UI) with its own spans.
+
 var GlobalConfig Config
 
 type Config struct {
@@ -19,18 +45,24 @@ type Config struct {
 	PresendHook func(map[string]interface{})
 }
 
+// Trace holds fields relevant to the entire trace - a list of spans, a list of
+// trace level fields, and so on.  The trace does not know what the "current"
+// span is, since there can be multiple current spans when dealing with
+// goroutines.
 type Trace struct {
-	// shouldDropSample is true when this trace should be dropped, false when it
+	// shouldDrop is true when this trace should be dropped, false when it
 	// should be sent.
-	shouldDropSample bool
-	sampleRate       int
+	shouldDrop bool
+	sampleRate int
 
 	headers          TraceHeader
 	sent             bool // true when the trace is sent, false otherwise.
-	openSpans        []*Span
-	closedSpans      []*Span
+	spans            []*Span
+	spanLock         sync.Mutex
 	rollupFields     map[string]float64
+	rollupLock       sync.Mutex
 	traceLevelFields map[string]interface{}
+	tlfLock          sync.Mutex
 }
 
 func AddRequestProps(req *http.Request, ev *libhoney.Event) {
@@ -62,15 +94,45 @@ func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 // specific span rather than only the current one. Necessary to allow concurrent
 // use of a trace.
 type Span struct {
-	shouldDrop bool // used for sampler hook
-	timer      timer.Timer
-	traceID    string
-	spanID     string
-	parentID   string
-	ev         *libhoney.Event
-	// idea - indicate here whether it was a wrapper-created span or a custom
-	// span, add some extra protections around only beelines being able to close
-	// beeline-started spans or something.
+	// shouldDrop is used by sampler hook to pass information that this specific
+	// span should be dropped instead of sent
+	shouldDrop bool
+	// timer starts when the span is created and ends when it is closed to get a
+	// duration for this span's existence.
+	timer timer.Timer
+	// amRoot is true when this span is the root span for the trace.  When the
+	// root span is closed, the rest of the trace should be wrapped up and sent
+	// as well.
+	amRoot bool
+	// amAsync is true when this span is an async span.  Async spans get sent
+	// immediately when they finish, which is usually after the rest of the span
+	// has already finished. They are intended to outlive the trace, and are
+	// useful for things like background email sending that usually takes longer
+	// than the main trace wants to wait for. trace is a pointer to the trace
+	// that contains this span, so that when ending a span you can get back to
+	// the trace to move it around in the internal trace span tree accounting
+	// data structures appropriately.
+	amAsync bool
+	// trace is a pointer to the trace that contains this span, so that when
+	// ending a span you can get back to the trace to move it around in the
+	// internal trace span tree accounting data structures appropriately.
+	trace *Trace
+	// hasFinished is set to true when the span is closed or finished. This does
+	// not trigger the span to get sent to Honeycomb - that happens when the
+	// entire trace is closed. Whether a span has finished is tracked to help
+	// identify unfinished spans as potential bugs in the surrounding span
+	// management, and indicate when maybe an async span should be created
+	// instead
+	hasFinished bool
+
+	// three IDs to identify the span
+	traceID  string
+	spanID   string
+	parentID string
+
+	// ev has all the fields added to this span ready to be sent to Honeycomb
+	// when the time is right
+	ev *libhoney.Event
 }
 
 type HeaderSource int
@@ -90,78 +152,6 @@ type TraceHeader struct {
 	SpanID   string
 }
 
-// // rollup takes a context that might contain a parent event, the current event,
-// // and a duration. It pulls some attributes from the current event in order to
-// // add the duration to a summed timer in the parent event.
-// func rollup(ctx context.Context, ev *libhoney.Event, dur float64) {
-// 	parentEv := beeline.ContextEvent(ctx)
-// 	if parentEv == nil {
-// 		return
-// 	}
-// 	// ok now parentEv exists. lets add this to a total duration for the
-// 	// meta.type and the specific db call
-// 	evFields := ev.Fields()
-// 	pvFields := parentEv.Fields()
-
-// 	// only roll up if we have a meta type
-// 	metaType, ok := evFields["meta.type"]
-// 	if ok {
-// 		// make our field names
-// 		totalMetaCountKey := fmt.Sprintf("totals.%s.count", metaType)
-// 		totalMetaDurKey := fmt.Sprintf("totals.%s.duration_ms", metaType)
-// 		// get the existing values or zero if they're missing
-// 		totalTypeCount, _ := pvFields[totalMetaCountKey]
-// 		totalTypeCountVal, ok := totalTypeCount.(int)
-// 		if !ok {
-// 			totalTypeCountVal = 0
-// 		}
-// 		totalTypeDur, _ := pvFields[totalMetaDurKey]
-// 		totalTypeDurVal, ok := totalTypeDur.(float64)
-// 		if !ok {
-// 			totalTypeDurVal = 0
-// 		}
-// 		// add them to the parent event
-// 		parentEv.AddField(totalMetaCountKey, totalTypeCountVal+1)
-// 		parentEv.AddField(totalMetaDurKey, totalTypeDurVal+dur)
-
-// 		// if we're a db call, let's roll up the specific call too.
-// 		dbCall, ok := evFields["db.call"]
-// 		if ok {
-// 			// make our field names
-// 			totalCallCountKey := fmt.Sprintf("totals.%s.%s.count", metaType, dbCall)
-// 			totalCallDurKey := fmt.Sprintf("totals.%s.%s.duration_ms", metaType, dbCall)
-// 			// get the existing values or zero if they're missing
-// 			totalCallCount, _ := pvFields[totalCallCountKey]
-// 			totalCallCountVal, ok := totalCallCount.(int)
-// 			if !ok {
-// 				totalCallCountVal = 0
-// 			}
-// 			totalCallDur, _ := pvFields[totalCallDurKey]
-// 			totalCallDurVal, ok := totalCallDur.(float64)
-// 			if !ok {
-// 				totalCallDurVal = 0
-// 			}
-// 			// add them to the parent event
-// 			parentEv.AddField(totalCallCountKey, totalCallCountVal+1)
-// 			parentEv.AddField(totalCallDurKey, totalCallDurVal+dur)
-// 		}
-// 	}
-// }
-
-// func addTraceID(ctx context.Context, ev *libhoney.Event) {
-// 	// get a transaction ID from the request's event, if it's sitting in context
-// 	if parentEv := beeline.ContextEvent(ctx); parentEv != nil {
-// 		if id, ok := parentEv.Fields()["trace.trace_id"]; ok {
-// 			ev.AddField("trace.trace_id", id)
-// 		}
-// 		if id, ok := parentEv.Fields()["trace.span_id"]; ok {
-// 			ev.AddField("trace.parent_id", id)
-// 		}
-// 		id, _ := uuid.NewRandom()
-// 		ev.AddField("trace.span_id", id.String())
-// 	}
-// }
-
 // AddField gets the current span and adds the field as is - it does not give
 // the field a prefix in the way the public beeline API does. This is necessary
 // to add protected fields such as `name` or `duration_ms`
@@ -174,84 +164,50 @@ func AddField(ctx context.Context, key string, val interface{}) {
 	}
 }
 
+// AddField on the trace object adds the key/val provided to every span in the
+// trace
 func (t *Trace) AddField(key string, val interface{}) {
-	if t.shouldDropSample {
+	if t.shouldDrop {
 		return
 	}
+	t.tlfLock.Lock()
+	defer t.tlfLock.Unlock()
 	if t.traceLevelFields != nil {
 		t.traceLevelFields[key] = val
 	}
 }
 
-func (t *Trace) AddRollupField(key string, val float64) {
-	if t.shouldDropSample {
+// AddRollupField adds the key and value to the current span and also adds the
+// sum of all times this is called to the root span of the trace
+func (s *Span) AddRollupField(key string, val float64) {
+	if s.shouldDrop {
 		return
 	}
-	numSpans := len(t.openSpans)
-	if numSpans == 0 {
-		return
-	}
-	t.openSpans[numSpans-1].ev.AddField(key, val)
-	prev := t.rollupFields[key]
-	t.rollupFields[key] += val
-	fmt.Printf("adding %f to rollup field %s prev %f cur %f\n", val, key, prev, t.rollupFields[key])
+	s.ev.AddField(key, val)
+	s.trace.rollupLock.Lock()
+	defer s.trace.rollupLock.Unlock()
+	s.trace.rollupFields[key] += val
 }
 
-// EndCurrentSpan returns true when it's closing the last remaining span
-func (t *Trace) EndCurrentSpan() (bool, error) {
-	if t.shouldDropSample {
-		return false, nil
-	}
-	numSpans := len(t.openSpans)
-	if numSpans == 0 {
-		return false, errors.New("no open spans")
-	}
-	span := t.openSpans[numSpans-1]
-	// if it doesn't have duration overridden, set it.
-	if _, ok := span.ev.Fields()["duration_ms"]; !ok {
-		span.ev.AddField("duration_ms", span.timer.Finish())
-	}
-	// if this is the root span, add the rollup fields
-	if numSpans == 1 {
-		for key, val := range t.rollupFields {
-			rollupKey := fmt.Sprintf("totals.%s", key)
-			span.ev.AddField(rollupKey, val)
-		}
-	}
-	t.closedSpans = append(t.closedSpans, span)
-	t.openSpans = t.openSpans[:numSpans-1]
-	return len(t.openSpans) == 0, nil
+// AddSpan adds a new span to the trace to be tracked
+func (t *Trace) AddSpan(span *Span) {
+	t.spanLock.Lock()
+	defer t.spanLock.Unlock()
+	t.spans = append(t.spans, span)
 }
 
-// TODO change this to return a span to make it easier to handle sampling
-func StartAsyncSpan(ctx context.Context, name string) *libhoney.Event {
-	sp := CurrentSpan(ctx)
-	if sp == nil {
-		return libhoney.NewEvent()
-	}
-	ev := libhoney.NewEvent()
-	ev.AddField("name", name)
-	ev.AddField("trace.trace_id", sp.traceID)
-	ev.AddField("trace.parent_id", sp.spanID)
-	newSpan, _ := uuid.NewRandom()
-	ev.AddField("trace.span_id", newSpan.String())
-	return ev
-}
-
-// PushSpanOnStack adds a new span to a trace (or creates the trace if none
+// StartSpan adds a new span to a trace (or creates the trace if none
 // exists).
-func PushSpanOnStack(ctx context.Context, name string) context.Context {
+func StartSpan(ctx context.Context, name string) (context.Context, *Span) {
 	trace := GetTraceFromContext(ctx)
 	if trace == nil {
 		// if we don't have an existing trace, make one and return
-		trace = MakeNewTrace("", "", name)
-		ctx, _ = PutTraceInContext(ctx, trace)
-		return ctx
+		span := MakeNewTrace("", "", name)
+		ctx = PutCurrentSpanInContext(ctx, span)
+		ctx = PutTraceInContext(ctx, span.trace)
+		return ctx, span
 	}
-	if trace.shouldDropSample {
-		return ctx
-	}
-	currentSpan := trace.openSpans[len(trace.openSpans)-1]
+	currentSpan := CurrentSpan(ctx)
 	// make a new span using the parent's span ID as my parent ID
 	spanID, _ := uuid.NewRandom()
 	span := &Span{
@@ -261,176 +217,184 @@ func PushSpanOnStack(ctx context.Context, name string) context.Context {
 		spanID:   spanID.String(),
 		ev:       libhoney.NewEvent(),
 	}
+	span.ev.SampleRate = uint(trace.sampleRate)
 	span.ev.AddField("name", name)
-	newSpanList := append(trace.openSpans, span)
-	trace.openSpans = newSpanList
-	return ctx
+	trace.AddSpan(span)
+	ctx = PutCurrentSpanInContext(ctx, span)
+	return ctx, span
 }
 
-// PushEventOnStack lets you take an event you've created outside the beeline
+// StartSpanWithEvent lets you take an event you've created outside the beeline
 // and push it in to the trace. This function will assign a parent, span, and
-// trace ID to the event and slot it in to the trace. A trace must exist in the
-// context or this function will fail (and return an error).
-func PushEventOnStack(ctx context.Context, ev *libhoney.Event) error {
-	trace := GetTraceFromContext(ctx)
-	if trace == nil {
-		return errors.New("can't push an event on the stack without a trace in the context")
-	}
-	if trace.shouldDropSample {
-		return nil
-	}
-	currentSpan := trace.openSpans[len(trace.openSpans)-1]
-	// make a new span using the parent's span ID as my parent ID
-	spanID, _ := uuid.NewRandom()
-	span := &Span{
-		timer:    timer.Start(),
-		traceID:  currentSpan.traceID,
-		parentID: currentSpan.spanID,
-		spanID:   spanID.String(),
-		ev:       ev,
-	}
-	newSpanList := append(trace.openSpans, span)
-	trace.openSpans = newSpanList
-	return nil
+// trace ID to the event and slot it in to the trace.
+func StartSpanWithEvent(ctx context.Context, ev *libhoney.Event) (context.Context, *Span) {
+	var span *Span
+	ctx, span = StartSpan(ctx, "")
+	span.ev = ev
+	return ctx, span
 }
 
-func MakeNewTrace(traceID, parentID, name string) *Trace {
+func StartAsyncSpan(ctx context.Context, name string) (context.Context, *Span) {
+	var span *Span
+	ctx, span = StartSpan(ctx, "")
+	span.amAsync = true
+	return ctx, span
+}
+
+func StartTraceWithIDs(ctx context.Context, traceID, parentID, name string) (context.Context, *Span) {
+	span := MakeNewTrace(traceID, parentID, name)
+	ctx = PutCurrentSpanInContext(ctx, span)
+	ctx = PutTraceInContext(ctx, span.trace)
+	return ctx, span
+}
+
+func MakeNewTrace(traceID, parentID, name string) *Span {
 	if traceID == "" {
 		tid, _ := uuid.NewRandom()
 		traceID = tid.String()
 	}
 	sid, _ := uuid.NewRandom()
 	spanID := sid.String()
-	ev := libhoney.NewEvent()
-	span := &Span{
-		timer:    timer.Start(),
-		traceID:  traceID,
-		spanID:   spanID,
-		parentID: parentID,
-		ev:       ev,
-	}
-	span.ev.AddField("name", name)
-	span.ev.AddField("meta.root_span", true)
-	// if a deterministic sampler is defined, use it. Otherwise sampling happens
-	// via the hook at send time.
-	var shouldDropSample bool
-	var sampleRate = 1
-	if sample.GlobalSampler != nil {
-		shouldDropSample = !sample.GlobalSampler.Sample(traceID)
-		if shouldDropSample {
-			// if we're not going to send this sample, don't initialize anything.
-			// We'll drop everything as it comes in to save computation, storage
-			return &Trace{
-				shouldDropSample: shouldDropSample,
-			}
-		}
-		sampleRate = sample.GlobalSampler.GetSampleRate()
-	}
-	return &Trace{
+
+	trace := &Trace{
 		headers: TraceHeader{
 			TraceID: traceID,
 		},
-		shouldDropSample: shouldDropSample,
-		sampleRate:       sampleRate,
-		openSpans:        []*Span{span},
+		spans:            make([]*Span, 0, 2), // most traces will have at least 2 spans
 		traceLevelFields: make(map[string]interface{}),
 		rollupFields:     make(map[string]float64),
 	}
+	// if a deterministic sampler is defined, use it. Otherwise sampling happens
+	// via the hook at send time.
+	var shouldDrop bool
+	var sampleRate = 1
+	if sample.GlobalSampler != nil {
+		shouldDrop = !sample.GlobalSampler.Sample(traceID)
+		sampleRate = sample.GlobalSampler.GetSampleRate()
+	}
+	trace.shouldDrop = shouldDrop
+	trace.sampleRate = sampleRate
+
+	span := &Span{
+		shouldDrop: shouldDrop,
+		timer:      timer.Start(),
+		amRoot:     true,
+		trace:      trace,
+		traceID:    traceID,
+		spanID:     spanID,
+		parentID:   parentID,
+		ev:         libhoney.NewEvent(),
+	}
+	span.ev.SampleRate = uint(trace.sampleRate)
+	span.ev.AddField("name", name)
+	span.ev.AddField("meta.root_span", true)
+
+	// add the newly formed span to the trace and add both to the context
+	trace.AddSpan(span)
+	return span
 }
 
-// EndSpan "closes" the current span by popping it off the open stack and
+// FinishSpan "closes" the current span by popping it off the open stack and
 // putting it on the closed stack. It is not sent in case additional trace level
 // fields get added they will still make it onto the closed spans.
-func EndSpan(ctx context.Context) {
-	trace := GetTraceFromContext(ctx)
-	if trace.shouldDropSample {
+func FinishSpan(ctx context.Context) {
+	span := GetCurrentSpanFromContext(ctx)
+	if span == nil {
+		// we've somehow lost context.
+		// TODO This is an error we should flag somehow
 		return
 	}
-	finished, err := trace.EndCurrentSpan()
-	if err != nil {
-		// TODO handle this better
+	span.Finish()
+}
+
+func (s *Span) Finish() {
+	if s.shouldDrop {
+		// we're not recording this trace; we're done here.
 		return
 	}
-	// if this was the last open span, let's dispatch the trace
-	if finished {
-		SendTrace(trace)
+	s.hasFinished = true
+	// if we're an async span, send immediately
+	if s.amAsync {
+		s.Send()
+	}
+	// if we're finishing the root span, we should send the whole trace.
+	if s.amRoot {
+		s.trace.rollupLock.Lock()
+		for k, v := range s.trace.rollupFields {
+			s.AddField(k, v)
+		}
+		s.trace.rollupLock.Unlock()
+		s.trace.Send()
 	}
 }
 
-// CurrentSpan gets the outermost span in the list, the currently closest
-// surrounding span to the code that's calling it. Returns nil when there are no
-// spans or we should drop this trace because of sampling.
+// CurrentSpan gets the span marked current in the context. Returns nil when
+// there are no spans.
 func CurrentSpan(ctx context.Context) *Span {
-	trace := GetTraceFromContext(ctx)
-	if numSpans := len(trace.openSpans); numSpans > 0 {
-		return trace.openSpans[numSpans-1]
-	}
-	return nil
+	return GetCurrentSpanFromContext(ctx)
 }
 
 func (s *Span) AddField(key string, val interface{}) {
 	s.ev.AddField(key, val)
 }
 
-// CurrentSpan gets the outermost span in the list, the currently closest
-// surrounding span to the code that's calling it. Returns nil when there are no
-// spans or we should drop this trace because of sampling.
-func CurrentSpanFromTrace(trace *Trace) *Span {
-	if numSpans := len(trace.openSpans); numSpans > 0 {
-		return trace.openSpans[numSpans-1]
-	}
-	return nil
-}
-
-func SendTrace(trace *Trace) error {
-	if trace == nil {
-		return nil
-	}
-	if trace.shouldDropSample {
+func (t *Trace) Send() error {
+	// if we're not supposed to send this trace because of sampling, don't.
+	if t.shouldDrop {
 		return nil
 	}
 	// if this trace has already been sent, complain
-	if trace.sent == true {
+	if t.sent == true {
 		return errors.New("shouldn't send a trace twice.")
 	}
-	// if there are any remaining open spans, let's close them.
-	if len(trace.openSpans) != 0 {
-		for _, span := range trace.openSpans {
+	// go through all the spans and send them!
+	for _, span := range t.spans {
+		// skip async spans when sending the trace; they are supposed to outlive
+		// the trace.
+		if span.amAsync {
+			continue
+		}
+		// Everything else should get marked if it is getting closed by the
+		// trace send.
+		if !span.hasFinished {
 			span.AddField("meta.closed_by_trace_send", true)
-			trace.EndCurrentSpan()
 		}
-	}
-	for _, span := range trace.closedSpans {
-		span.ev.AddField("trace.span_id", span.spanID)
-		if span.parentID != "" {
-			span.ev.AddField("trace.parent_id", span.parentID)
-		}
-		span.ev.AddField("trace.trace_id", span.traceID)
-		for k, v := range trace.traceLevelFields {
-			span.ev.AddField(k, v)
-		}
-		span.ev.SampleRate = uint(trace.sampleRate)
 
-		// run hooks
-		var shouldKeep = true
-		if GlobalConfig.SamplerHook != nil {
-			var sampleRate int
-			shouldKeep, sampleRate = GlobalConfig.SamplerHook(span.ev.Fields())
-			if shouldKeep {
-				span.ev.SampleRate *= uint(sampleRate)
-			} else {
-				// we should drop this event
-				span.shouldDrop = true
-			}
-		}
-		if GlobalConfig.PresendHook != nil {
-			// munge all the fields
-			GlobalConfig.PresendHook(span.ev.Fields())
-		}
-		if shouldKeep {
-			span.ev.SendPresampled()
-		}
+		span.Send()
+
 	}
-	trace.sent = true
+	t.sent = true
 	return nil
+}
+
+// Send goes through all the accounting necessary and then actually dispatches
+// this span's event to Honeycomb
+func (s *Span) Send() {
+	// add all the relevant IDs
+	s.ev.AddField("trace.span_id", s.spanID)
+	if s.parentID != "" {
+		s.ev.AddField("trace.parent_id", s.parentID)
+	}
+	s.ev.AddField("trace.trace_id", s.traceID)
+
+	s.trace.tlfLock.Lock()
+	for k, v := range s.trace.traceLevelFields {
+		s.AddField(k, v)
+	}
+	s.trace.tlfLock.Unlock()
+
+	// run hooks
+	var shouldKeep = true
+	if GlobalConfig.SamplerHook != nil {
+		var sampleRate int
+		shouldKeep, sampleRate = GlobalConfig.SamplerHook(s.ev.Fields())
+		s.ev.SampleRate *= uint(sampleRate)
+	}
+	if GlobalConfig.PresendHook != nil {
+		// munge all the fields
+		GlobalConfig.PresendHook(s.ev.Fields())
+	}
+	if shouldKeep {
+		s.ev.SendPresampled()
+	}
 }

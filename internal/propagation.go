@@ -47,14 +47,13 @@ func (p *PropagationError) Error() string {
 }
 
 func MarshalTraceContext(ctx context.Context) string {
-	trace := GetTraceFromContext(ctx)
-	currentSpan := trace.openSpans[len(trace.openSpans)-1]
+	currentSpan := CurrentSpan(ctx)
 
 	var prop = &Propagation{}
 	prop.Source = HeaderSourceBeeline
-	prop.TraceID = trace.headers.TraceID
+	prop.TraceID = currentSpan.trace.headers.TraceID
 	prop.ParentID = currentSpan.spanID
-	prop.TraceContext = trace.traceLevelFields
+	prop.TraceContext = currentSpan.trace.traceLevelFields
 
 	tcJSON, err := json.Marshal(prop.TraceContext)
 	if err != nil {

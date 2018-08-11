@@ -15,36 +15,37 @@ import (
 func Middleware(handler http.Handler) http.Handler {
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		var span *internal.Span
 		if !beeline.HasTrace(r.Context()) {
 			// pick up any trace context from our caller, if present
 			traceHeaders, traceContext, _ := internal.FindTraceHeaders(r)
 			// use the trace IDs found to spin up a new trace
-			ctx = beeline.StartTraceWithIDs(r.Context(),
+			ctx, span = internal.StartTraceWithIDs(r.Context(),
 				traceHeaders.TraceID, traceHeaders.ParentID, "")
 			trace := internal.GetTraceFromContext(ctx)
-			// push the context with our trace on to the request
-			r = r.WithContext(ctx)
 			// add any additional context to the trace
 			for k, v := range traceContext {
 				trace.AddField(k, v)
 			}
 			// and make sure it gets completely sent when we're done.
-			defer internal.SendTrace(trace)
+			defer trace.Send()
 		} else {
 			// if we're not the root span, just add another layer to our trace.
-			internal.PushSpanOnStack(r.Context(), "")
+			ctx, span = internal.StartSpan(r.Context(), "")
 		}
-		defer internal.EndSpan(ctx)
+		defer span.Finish()
+		// push the context with our trace on to the request
+		r = r.WithContext(ctx)
 		// go get any common HTTP headers and attributes to add to the span
 		for k, v := range internal.GetRequestProps(r) {
-			internal.AddField(ctx, k, v)
+			span.AddField(k, v)
 		}
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := internal.NewResponseWriter(w)
 		// pull out any variables in the URL, add the thing we're matching, etc.
 		vars := mux.Vars(r)
 		for k, v := range vars {
-			internal.AddField(ctx, "gorilla.vars."+k, v)
+			span.AddField("gorilla.vars."+k, v)
 		}
 		route := mux.CurrentRoute(r)
 		if route != nil {
@@ -52,33 +53,33 @@ func Middleware(handler http.Handler) http.Handler {
 			reflectHandler := reflect.ValueOf(chosenHandler)
 			if reflectHandler.Kind() == reflect.Func {
 				funcName := runtime.FuncForPC(reflectHandler.Pointer()).Name()
-				internal.AddField("handler.fnname", funcName)
+				span.AddField("handler.fnname", funcName)
 				if funcName != "" {
-					internal.AddField("name", funcName)
+					span.AddField("name", funcName)
 				}
 			}
 			typeOfHandler := reflect.TypeOf(chosenHandler)
 			if typeOfHandler.Kind() == reflect.Struct {
 				structName := typeOfHandler.Name()
 				if structName != "" {
-					internal.AddField("name", structName)
+					span.AddField("name", structName)
 				}
 			}
 			name := route.GetName()
 			if name != "" {
-				internal.AddField("handler.name", name)
+				span.AddField("handler.name", name)
 				// stomp name because user-supplied names are better than function names
-				internal.AddField("name", name)
+				span.AddField("name", name)
 			}
 			if path, err := route.GetPathTemplate(); err == nil {
-				internal.AddField("handler.route", path)
+				span.AddField("handler.route", path)
 			}
 		}
 		handler.ServeHTTP(wrappedWriter, r)
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
-		internal.AddField(ctx, "response.status_code", wrappedWriter.Status)
+		span.AddField("response.status_code", wrappedWriter.Status)
 	}
 	return http.HandlerFunc(wrappedHandler)
 }

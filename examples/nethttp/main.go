@@ -51,7 +51,7 @@ func hello(w http.ResponseWriter, r *http.Request) {
 // should get its own span.
 func bigJob(ctx context.Context) {
 	ctx = beeline.StartSpan(ctx, "bigJob")
-	defer beeline.EndSpan(ctx)
+	defer beeline.FinishSpan(ctx)
 	beeline.AddField(ctx, "m1", 5.67)
 	beeline.AddField(ctx, "m2", 8.90)
 	time.Sleep(600 * time.Millisecond)
