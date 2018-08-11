@@ -48,20 +48,33 @@ func Middleware(handler http.Handler) http.Handler {
 			span.AddField("gorilla.vars."+k, v)
 		}
 		route := mux.CurrentRoute(r)
-		chosenHandler := route.GetHandler()
-		funcName := runtime.FuncForPC(reflect.ValueOf(chosenHandler).Pointer()).Name()
-		span.AddField("handler.fnname", funcName)
-		if funcName != "" {
-			span.AddField("name", funcName)
-		}
-		name := route.GetName()
-		if name != "" {
-			span.AddField("handler.name", name)
-			// stomp name because user-supplied names are better than function names
-			span.AddField("name", name)
-		}
-		if path, err := route.GetPathTemplate(); err == nil {
-			span.AddField("handler.route", path)
+
+		if route != nil {
+			chosenHandler := route.GetHandler()
+			reflectHandler := reflect.ValueOf(chosenHandler)
+			if reflectHandler.Kind() == reflect.Func {
+				funcName := runtime.FuncForPC(reflectHandler.Pointer()).Name()
+				span.AddField("handler.fnname", funcName)
+				if funcName != "" {
+					span.AddField("name", funcName)
+				}
+			}
+			typeOfHandler := reflect.TypeOf(chosenHandler)
+			if typeOfHandler.Kind() == reflect.Struct {
+				structName := typeOfHandler.Name()
+				if structName != "" {
+					span.AddField("name", structName)
+				}
+			}
+			name := route.GetName()
+			if name != "" {
+				span.AddField("handler.name", name)
+				// stomp name because user-supplied names are better than function names
+				span.AddField("name", name)
+			}
+			if path, err := route.GetPathTemplate(); err == nil {
+				span.AddField("handler.route", path)
+			}
 		}
 		handler.ServeHTTP(wrappedWriter, r)
 		if wrappedWriter.Status == 0 {
