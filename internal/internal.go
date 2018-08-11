@@ -117,6 +117,9 @@ type Span struct {
 	// ending a span you can get back to the trace to move it around in the
 	// internal trace span tree accounting data structures appropriately.
 	trace *Trace
+	// parent is a pointer to the span that spawned this span, so when this span
+	// finishes, we can put the parent back in the context.
+	parent *Span
 	// hasFinished is set to true when the span is closed or finished. This does
 	// not trigger the span to get sent to Honeycomb - that happens when the
 	// entire trace is closed. Whether a span has finished is tracked to help
@@ -212,6 +215,8 @@ func StartSpan(ctx context.Context, name string) (context.Context, *Span) {
 	spanID, _ := uuid.NewRandom()
 	span := &Span{
 		timer:    timer.Start(),
+		trace:    trace,
+		parent:   currentSpan,
 		traceID:  currentSpan.traceID,
 		parentID: currentSpan.spanID,
 		spanID:   spanID.String(),
@@ -296,23 +301,32 @@ func MakeNewTrace(traceID, parentID, name string) *Span {
 
 // FinishSpan "closes" the current span by popping it off the open stack and
 // putting it on the closed stack. It is not sent in case additional trace level
-// fields get added they will still make it onto the closed spans.
-func FinishSpan(ctx context.Context) {
+// fields get added they will still make it onto the closed spans. The returned
+// context has the parent of this span put back in place as "current".
+func FinishSpan(ctx context.Context) context.Context {
 	span := GetCurrentSpanFromContext(ctx)
 	if span == nil {
 		// we've somehow lost context.
 		// TODO This is an error we should flag somehow
-		return
+		return ctx
 	}
-	span.Finish()
+	return span.Finish(ctx)
 }
 
-func (s *Span) Finish() {
+func (s *Span) Finish(ctx context.Context) context.Context {
 	if s.shouldDrop {
 		// we're not recording this trace; we're done here.
-		return
+		if s.parent != nil {
+			ctx = PutCurrentSpanInContext(ctx, s.parent)
+		}
+		return ctx
 	}
 	s.hasFinished = true
+
+	// finish the timer and add duration to the span
+	dur := s.timer.Finish()
+	s.AddField("duration_ms", dur)
+
 	// if we're an async span, send immediately
 	if s.amAsync {
 		s.Send()
@@ -326,6 +340,11 @@ func (s *Span) Finish() {
 		s.trace.rollupLock.Unlock()
 		s.trace.Send()
 	}
+	// if we have a parent span, we should set that as the new current.
+	if s.parent != nil {
+		ctx = PutCurrentSpanInContext(ctx, s.parent)
+	}
+	return ctx
 }
 
 // CurrentSpan gets the span marked current in the context. Returns nil when
@@ -360,6 +379,7 @@ func (t *Trace) Send() error {
 			span.AddField("meta.closed_by_trace_send", true)
 		}
 
+		// spew.Dump(span)
 		span.Send()
 
 	}
