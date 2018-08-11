@@ -234,9 +234,11 @@ func StartAsyncSpan(ctx context.Context, name string) context.Context {
 }
 
 // FinishSpan finishes the currently active span. It should only be called for
-// spans created with StartTraceWithIDs, StartSpan, or StartAsyncSpan.
-func FinishSpan(ctx context.Context) {
-	internal.FinishSpan(ctx)
+// spans created with StartTraceWithIDs, StartSpan, or StartAsyncSpan. Use the
+// context returned by finish span in order to ensure operations on the
+// "current" span continue to work correctly.
+func FinishSpan(ctx context.Context) context.Context {
+	return internal.FinishSpan(ctx)
 }
 
 // readResponses pulls from the response queue and spits them to STDOUT for
