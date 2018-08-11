@@ -127,7 +127,7 @@ func Init(config Config) {
 // Flush implicitly ends all currently active spans.
 func Flush(ctx context.Context) {
 	trace := internal.GetTraceFromContext(ctx)
-	internal.SendTrace(trace)
+	trace.Send()
 	libhoney.Flush()
 }
 
@@ -168,9 +168,9 @@ func AddFieldToSpan(ctx context.Context, key string, val interface{}) {
 // fields on the root span are prefixed with `totals.app.`
 func AddRollupFieldToSpan(ctx context.Context, key string, val float64) {
 	namespacedKey := fmt.Sprintf("app.%s", key)
-	trace := internal.GetTraceFromContext(ctx)
-	if trace != nil {
-		trace.AddRollupField(namespacedKey, val)
+	span := internal.CurrentSpan(ctx)
+	if span != nil {
+		span.AddRollupField(namespacedKey, val)
 	}
 }
 
@@ -199,39 +199,43 @@ func HasTrace(ctx context.Context) bool {
 // used when you've received the IDs from another source (eg incoming HTTP
 // headers). If you don't care what the IDs are, you may use either this or
 // StartSpan to start a trace. You cannot change the trace IDs after a trace has
-// begun.
+// begun. StartTraceWithIDs also starts a span (the root span) for this trace.
+// You should call FinishSpan to close the span (and trace) started by this
+// function.
 func StartTraceWithIDs(ctx context.Context, traceID, parentID, name string) context.Context {
-	trace := internal.MakeNewTrace(traceID, parentID, name)
-	ctx, _ = internal.PutTraceInContext(ctx, trace)
+	ctx, _ = internal.StartTraceWithIDs(ctx, traceID, parentID, name)
 	return ctx
 }
 
 // StartSpan lets you start a new span as a child of an already instrumented
 // handler. If there isn't an existing wrapped handler in the context when this
-// is called, it will start a new trace. You may ignore the returned context
-// except when starting a new trace. Spans automatically get a `duration_ms`
+// is called, it will start a new trace. Spans automatically get a `duration_ms`
 // field when they are ended; you should not explicitly set the duration unless
 // you want to override it. The name argument will be the primary way the span
-// is identified in the trace view within Honeycomb.
+// is identified in the trace view within Honeycomb. You must use the returned
+// context to ensure attributes are added to the correct span.
 func StartSpan(ctx context.Context, name string) context.Context {
-	return internal.PushSpanOnStack(ctx, name)
+	ctx, _ = internal.StartSpan(ctx, name)
+	return ctx
 }
 
 // TODO change this to return a span object rather than a libhoney event to make
-// it easier to treat appropriately for sampling
+// it easier to treat appropriately for sampling. Maybe a context instead for
+// consistency, now that there is a way to get at the current span independent
+// of the trace?
 
-// StartAsyncSpan is different from StartSpan in that it hands back a libhoney
-// event, and it's the caller's responsibility to handle everything from there
-// on - measuring the duration, adding appropriate fields, and sending the
-// event. Unlike normal spans, when finishing a trace, it does not get sent.
-func StartAsyncSpan(ctx context.Context, name string) *libhoney.Event {
-	return internal.StartAsyncSpan(ctx, name)
+// StartAsyncSpan is different from StartSpan in that when finishing a trace, it
+// does not get automatically sent. When finishing an async span it gets sent
+// immediately.
+func StartAsyncSpan(ctx context.Context, name string) context.Context {
+	ctx, _ = internal.StartAsyncSpan(ctx, name)
+	return ctx
 }
 
-// EndSpan finishes the currently active span. It should only be called for
-// spans created with StartSpan
-func EndSpan(ctx context.Context) {
-	internal.EndSpan(ctx)
+// FinishSpan finishes the currently active span. It should only be called for
+// spans created with StartTraceWithIDs, StartSpan, or StartAsyncSpan.
+func FinishSpan(ctx context.Context) {
+	internal.FinishSpan(ctx)
 }
 
 // readResponses pulls from the response queue and spits them to STDOUT for

@@ -34,7 +34,7 @@ func Example() {
 	db := hnysqlx.WrapDB(odb)
 	// and start up a trace for these statements to join
 	ctx := beeline.StartSpan(context.Background(), "start")
-	defer beeline.EndSpan(ctx)
+	defer beeline.FinishSpan(ctx)
 
 	db.MustExecContext(ctx, "insert into flavors (flavor) values ('rose')")
 	fv := "rose"

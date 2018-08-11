@@ -14,21 +14,25 @@ var testHeaders = TraceHeader{
 }
 var testTrace = &Trace{
 	headers: testHeaders,
-	openSpans: []*Span{
-		&Span{
-			spanID: "0102030405",
-		},
-	},
+	spans:   []*Span{},
+
 	traceLevelFields: map[string]interface{}{
 		"userID":   float64(1),
 		"errorMsg": "failed to sign on",
 		"toRetry":  true,
 	},
 }
+var testSpan = &Span{spanID: "0102030405"}
+
+func init() {
+	// set up the links correctly
+	testTrace.AddSpan(testSpan)
+	testSpan.trace = testTrace
+}
 
 func TestMarshalTraceContext(t *testing.T) {
-	ctx, err := PutTraceInContext(context.TODO(), testTrace)
-	assert.Nil(t, err, "Put trace in context should not error")
+	ctx := PutTraceInContext(context.TODO(), testTrace)
+	ctx = PutCurrentSpanInContext(ctx, testSpan)
 	marshaled := MarshalTraceContext(ctx)
 	assert.Equal(t, "1;", marshaled[0:2])
 }
@@ -138,8 +142,8 @@ func TestUnmarshalTraceContext(t *testing.T) {
 // TestContextPropagationRoundTrip encodes some things then decodes them and
 // expects to get back the same thing it put in
 func TestContextPropagationRoundTrip(t *testing.T) {
-	ctx, err := PutTraceInContext(context.TODO(), testTrace)
-	assert.Nil(t, err, "Put trace in context should not error")
+	ctx := PutTraceInContext(context.TODO(), testTrace)
+	ctx = PutCurrentSpanInContext(ctx, testSpan)
 	marshaled := MarshalTraceContext(ctx)
 	header, fields, err := UnmarshalTraceContext(marshaled)
 	assert.Equal(t, &testHeaders, header, "roundtrip headers")

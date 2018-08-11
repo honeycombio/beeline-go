@@ -1,7 +1,6 @@
 package hnynethttp
 
 import (
-	"context"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -20,30 +19,31 @@ func WrapHandler(handler http.Handler) http.Handler {
 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
-		var ctx context.Context
+		ctx := r.Context()
+		var span *internal.Span
 		if !beeline.HasTrace(r.Context()) {
 			// pick up any trace context from our caller, if present
 			traceHeaders, traceContext, _ := internal.FindTraceHeaders(r)
 			// use the trace IDs found to spin up a new trace
-			ctx = beeline.StartTraceWithIDs(r.Context(),
+			ctx, span = internal.StartTraceWithIDs(r.Context(),
 				traceHeaders.TraceID, traceHeaders.ParentID, "")
 			trace := internal.GetTraceFromContext(ctx)
-			// push the context with our trace on to the request
-			r = r.WithContext(ctx)
 			// add any additional context to the trace
 			for k, v := range traceContext {
 				trace.AddField(k, v)
 			}
 			// and make sure it gets completely sent when we're done.
-			defer internal.SendTrace(trace)
+			defer trace.Send()
 		} else {
 			// if we're not the root span, just add another layer to our trace.
-			internal.PushSpanOnStack(r.Context(), "")
+			ctx, span = internal.StartSpan(r.Context(), "")
 		}
-		defer internal.EndSpan(ctx)
+		defer span.Finish()
+		// push the context with our trace on to the request
+		r = r.WithContext(ctx)
 		// go get any common HTTP headers and attributes to add to the span
 		for k, v := range internal.GetRequestProps(r) {
-			internal.AddField(ctx, k, v)
+			span.AddField(k, v)
 		}
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := internal.NewResponseWriter(w)
@@ -54,16 +54,16 @@ func WrapHandler(handler http.Handler) http.Handler {
 			handler, pat := mux.Handler(r)
 			name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 			hType := reflect.TypeOf(handler).String()
-			internal.AddField(ctx, "handler.pattern", pat)
-			internal.AddField(ctx, "handler.type", hType)
+			span.AddField("handler.pattern", pat)
+			span.AddField("handler.type", hType)
 			if name != "" {
-				internal.AddField(ctx, "handler.name", name)
-				internal.AddField(ctx, "name", name)
+				span.AddField("handler.name", name)
+				span.AddField("name", name)
 			}
 		} else {
 			if handlerName != "" {
-				internal.AddField(ctx, "handler.name", handlerName)
-				internal.AddField(ctx, "name", handlerName)
+				span.AddField("handler.name", handlerName)
+				span.AddField("name", handlerName)
 			}
 		}
 
@@ -71,7 +71,7 @@ func WrapHandler(handler http.Handler) http.Handler {
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
-		internal.AddField(ctx, "response.status_code", wrappedWriter.Status)
+		span.AddField("response.status_code", wrappedWriter.Status)
 	}
 	return http.HandlerFunc(wrappedHandler)
 }
@@ -81,44 +81,45 @@ func WrapHandler(handler http.Handler) http.Handler {
 func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
 	handlerFuncName := runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
-		var ctx context.Context
+		ctx := r.Context()
+		var span *internal.Span
 		if !beeline.HasTrace(r.Context()) {
 			// pick up any trace context from our caller, if present
 			traceHeaders, traceContext, _ := internal.FindTraceHeaders(r)
 			// use the trace IDs found to spin up a new trace
-			ctx = beeline.StartTraceWithIDs(r.Context(),
+			ctx, span = internal.StartTraceWithIDs(r.Context(),
 				traceHeaders.TraceID, traceHeaders.ParentID, "")
 			trace := internal.GetTraceFromContext(ctx)
-			// push the context with our trace on to the request
-			r = r.WithContext(ctx)
 			// add any additional context to the trace
 			for k, v := range traceContext {
 				trace.AddField(k, v)
 			}
 			// and make sure it gets completely sent when we're done.
-			defer internal.SendTrace(trace)
+			defer trace.Send()
 		} else {
 			// if we're not the root span, just add another layer to our trace.
-			internal.PushSpanOnStack(r.Context(), "")
+			ctx, span = internal.StartSpan(r.Context(), "")
 		}
-		defer internal.EndSpan(ctx)
+		defer span.Finish()
+		// push the context with our trace on to the request
+		r = r.WithContext(ctx)
 		// add some common fields from the request to our event
 		for k, v := range internal.GetRequestProps(r) {
-			internal.AddField(ctx, k, v)
+			span.AddField(k, v)
 		}
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := internal.NewResponseWriter(w)
 		// add the name of the handler func we're about to invoke
 		if handlerFuncName != "" {
-			internal.AddField(ctx, "handler_func_name", handlerFuncName)
-			internal.AddField(ctx, "name", handlerFuncName)
+			span.AddField("handler_func_name", handlerFuncName)
+			span.AddField("name", handlerFuncName)
 		}
 
 		hf(wrappedWriter, r)
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
-		internal.AddField(ctx, "response.status_code", wrappedWriter.Status)
+		span.AddField("response.status_code", wrappedWriter.Status)
 	}
 }
 
@@ -148,23 +149,25 @@ func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	}
 	// we have a trace, let's use it and pass along trace context in addition to
 	// making a span around this HTTP call
-	beeline.StartSpan(ctx, "http_client")
-	defer beeline.EndSpan(ctx) // TODO concurrency
-	internal.AddField(ctx, "meta.type", "http_client")
+	var span *internal.Span
+	ctx, span = internal.StartSpan(ctx, "http_client")
+	defer span.Finish()
+	r = r.WithContext(ctx)
+	span.AddField("meta.type", "http_client")
 	r.Header.Add(internal.TracePropagationHTTPHeader, internal.MarshalTraceContext(ctx))
 
 	// add in common request headers.
 	reqprops := internal.GetRequestProps(r)
 	for k, v := range reqprops {
-		internal.AddField(ctx, k, v)
+		span.AddField(k, v)
 	}
 
 	resp, err := ht.wrt.RoundTrip(r)
 
 	if err != nil {
-		internal.AddField(ctx, "error", err.Error())
+		span.AddField("error", err.Error())
 	} else {
-		internal.AddField(ctx, "resp.status_code", resp.StatusCode)
+		span.AddField("resp.status_code", resp.StatusCode)
 
 	}
 	return resp, err

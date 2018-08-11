@@ -144,19 +144,20 @@ func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args 
 	timer := timer.Start()
 	ev := bld.NewEvent()
 	trace := GetTraceFromContext(ctx)
-	if trace == nil || trace.shouldDropSample {
+	if trace == nil || trace.shouldDrop {
 		// if we have no trace or we're supposed to drop this trace, return a noop fn
 		return func(err error) {}
 	}
-	PushEventOnStack(ctx, ev)
+	var span *Span
+	ctx, span = StartSpanWithEvent(ctx, ev)
 	fn := func(err error) {
 		duration := timer.Finish()
 		if err != nil {
 			ev.AddField("db.error", err)
 		}
-		trace.AddRollupField("db.duration_ms", duration)
-		trace.AddRollupField("db.call_count", 1)
-		trace.EndCurrentSpan() // TODO fixme concurrency :scream:
+		span.AddRollupField("db.duration_ms", duration)
+		span.AddRollupField("db.call_count", 1)
+		FinishSpan(ctx)
 	}
 	// get the name of the function that called this one. Strip the package and type
 	pc, _, _, _ := runtime.Caller(1)
