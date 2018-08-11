@@ -219,10 +219,11 @@ func StartSpan(ctx context.Context, name string) context.Context {
 	return ctx
 }
 
-// TODO change this to return a span object rather than a libhoney event to make
-// it easier to treat appropriately for sampling. Maybe a context instead for
-// consistency, now that there is a way to get at the current span independent
-// of the trace?
+// TODO do we need to provide some way to extract the trace / span from this
+// context and shove it in to another? I suspect strange things would happen to
+// any downstream services that want to use the context for timeouts or
+// cancellation if the request finished (which triggers the original context
+// getting cancelled, which is most likely inappropriate for an async span).
 
 // StartAsyncSpan is different from StartSpan in that when finishing a trace, it
 // does not get automatically sent. When finishing an async span it gets sent
