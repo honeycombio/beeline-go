@@ -141,6 +141,7 @@ func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 		resp, err := ht.wrt.RoundTrip(r)
 
 		if err != nil {
+			// TODO should this error field be namespaced somehow
 			ev.AddField("error", err.Error())
 		}
 		dur := tm.Finish()
@@ -165,6 +166,7 @@ func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	resp, err := ht.wrt.RoundTrip(r)
 
 	if err != nil {
+		// TODO should this error field be namespaced somehow
 		span.AddField("error", err.Error())
 	} else {
 		span.AddField("resp.status_code", resp.StatusCode)
