@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
-	"time"
 
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/internal"
-	"github.com/honeycombio/libhoney-go"
+	"github.com/honeycombio/beeline-go/timer"
+	libhoney "github.com/honeycombio/libhoney-go"
 )
 
 // WrapHandler will create a Honeycomb event per invocation of this handler with
@@ -19,17 +19,32 @@ func WrapHandler(handler http.Handler) http.Handler {
 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		// TODO find out if we're a sub-handler and don't stomp the parent event
-		// - get parent/child IDs and intentionally send a subevent
-		ev := beeline.ContextEvent(r.Context())
-		if ev == nil {
-			ev = libhoney.NewEvent()
-			// put the event on the context for everybody downsteam to use
-			r = r.WithContext(beeline.ContextWithEvent(r.Context(), ev))
+		ctx := r.Context()
+		var span *internal.Span
+		if !beeline.HasTrace(r.Context()) {
+			// pick up any trace context from our caller, if present
+			traceHeaders, traceContext, _ := internal.FindTraceHeaders(r)
+			// use the trace IDs found to spin up a new trace
+			ctx, span = internal.StartTraceWithIDs(r.Context(),
+				traceHeaders.TraceID, traceHeaders.ParentID, "")
+			trace := internal.GetTraceFromContext(ctx)
+			// add any additional context to the trace
+			for k, v := range traceContext {
+				trace.AddField(k, v)
+			}
+			// and make sure it gets completely sent when we're done.
+			defer trace.Send()
+		} else {
+			// if we're not the root span, just add another layer to our trace.
+			ctx, span = internal.StartSpan(r.Context(), "")
 		}
-		// add some common fields from the request to our event
-		internal.AddRequestProps(r, ev)
+		defer span.Finish(ctx)
+		// push the context with our trace on to the request
+		r = r.WithContext(ctx)
+		// go get any common HTTP headers and attributes to add to the span
+		for k, v := range internal.GetRequestProps(r) {
+			span.AddField(k, v)
+		}
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := internal.NewResponseWriter(w)
 
@@ -39,16 +54,16 @@ func WrapHandler(handler http.Handler) http.Handler {
 			handler, pat := mux.Handler(r)
 			name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 			hType := reflect.TypeOf(handler).String()
-			ev.AddField("handler.pattern", pat)
-			ev.AddField("handler.type", hType)
+			span.AddField("handler.pattern", pat)
+			span.AddField("handler.type", hType)
 			if name != "" {
-				ev.AddField("handler.name", name)
-				ev.AddField("name", name)
+				span.AddField("handler.name", name)
+				span.AddField("name", name)
 			}
 		} else {
 			if handlerName != "" {
-				ev.AddField("handler.name", handlerName)
-				ev.AddField("name", handlerName)
+				span.AddField("handler.name", handlerName)
+				span.AddField("name", handlerName)
 			}
 		}
 
@@ -56,10 +71,7 @@ func WrapHandler(handler http.Handler) http.Handler {
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
-		ev.AddField("response.status_code", wrappedWriter.Status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
-		ev.Metadata, _ = ev.Fields()["name"]
-		ev.Send()
+		span.AddField("response.status_code", wrappedWriter.Status)
 	}
 	return http.HandlerFunc(wrappedHandler)
 }
@@ -69,29 +81,106 @@ func WrapHandler(handler http.Handler) http.Handler {
 func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
 	handlerFuncName := runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		ev := beeline.ContextEvent(r.Context())
-		if ev == nil {
-			ev = libhoney.NewEvent()
-			// put the event on the context for everybody downstream to use
-			r = r.WithContext(beeline.ContextWithEvent(r.Context(), ev))
+		ctx := r.Context()
+		var span *internal.Span
+		if !beeline.HasTrace(r.Context()) {
+			// pick up any trace context from our caller, if present
+			traceHeaders, traceContext, _ := internal.FindTraceHeaders(r)
+			// use the trace IDs found to spin up a new trace
+			ctx, span = internal.StartTraceWithIDs(r.Context(),
+				traceHeaders.TraceID, traceHeaders.ParentID, "")
+			trace := internal.GetTraceFromContext(ctx)
+			// add any additional context to the trace
+			for k, v := range traceContext {
+				trace.AddField(k, v)
+			}
+			// and make sure it gets completely sent when we're done.
+			defer trace.Send()
+		} else {
+			// if we're not the root span, just add another layer to our trace.
+			ctx, span = internal.StartSpan(r.Context(), "")
 		}
+		defer span.Finish(ctx)
+		// push the context with our trace on to the request
+		r = r.WithContext(ctx)
 		// add some common fields from the request to our event
-		internal.AddRequestProps(r, ev)
+		for k, v := range internal.GetRequestProps(r) {
+			span.AddField(k, v)
+		}
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := internal.NewResponseWriter(w)
 		// add the name of the handler func we're about to invoke
 		if handlerFuncName != "" {
-			ev.AddField("handler_func_name", handlerFuncName)
-			ev.AddField("name", handlerFuncName)
+			span.AddField("handler_func_name", handlerFuncName)
+			span.AddField("name", handlerFuncName)
 		}
 
 		hf(wrappedWriter, r)
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
-		ev.AddField("response.status_code", wrappedWriter.Status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
-		ev.Send()
+		span.AddField("response.status_code", wrappedWriter.Status)
+	}
+}
+
+type hnyTripper struct {
+	// wrt is the wrapped round tripper
+	wrt http.RoundTripper
+}
+
+func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	ctx := r.Context()
+	// if there's no trace in the context, just send an event
+	if !beeline.HasTrace(ctx) {
+		tm := timer.Start()
+		ev := libhoney.NewEvent()
+		defer ev.Send()
+
+		ev.AddField("meta.type", "http_client")
+
+		resp, err := ht.wrt.RoundTrip(r)
+
+		if err != nil {
+			// TODO should this error field be namespaced somehow
+			ev.AddField("error", err.Error())
+		}
+		dur := tm.Finish()
+		ev.AddField("duration_ms", dur)
+		return resp, err
+	}
+	// we have a trace, let's use it and pass along trace context in addition to
+	// making a span around this HTTP call
+	var span *internal.Span
+	ctx, span = internal.StartSpan(ctx, "http_client")
+	defer span.Finish(ctx)
+	r = r.WithContext(ctx)
+	span.AddField("meta.type", "http_client")
+	r.Header.Add(internal.TracePropagationHTTPHeader, internal.MarshalTraceContext(ctx))
+
+	// add in common request headers.
+	reqprops := internal.GetRequestProps(r)
+	for k, v := range reqprops {
+		span.AddField(k, v)
+	}
+
+	resp, err := ht.wrt.RoundTrip(r)
+
+	if err != nil {
+		// TODO should this error field be namespaced somehow
+		span.AddField("error", err.Error())
+	} else {
+		span.AddField("resp.status_code", resp.StatusCode)
+
+	}
+	return resp, err
+}
+
+// WrapRoundTripper wraps an http transport for outgoing HTTP calls. Using a
+// wrapped transport will send an event to Honeycomb for each outbound HTTP call
+// you make. Include a context with outbound requests when possible to enable
+// correlation
+func WrapRoundTripper(r http.RoundTripper) http.RoundTripper {
+	return &hnyTripper{
+		wrt: r,
 	}
 }
