@@ -3,8 +3,8 @@ package internal
 import "context"
 
 const (
-	honeyCurrentSpanContextKey = "honeycombCurrentSpanContextKey"
-	honeyTraceContextKey       = "honeycombTraceContextKey"
+	honeySpanContextKey  = "honeycombSpanContextKey"
+	honeyTraceContextKey = "honeycombTraceContextKey"
 )
 
 // GetTraceFromContext pulls a trace off the passed in context or returns nil if
@@ -27,12 +27,12 @@ func PutTraceInContext(ctx context.Context, trace *Trace) context.Context {
 	return context.WithValue(ctx, honeyTraceContextKey, trace)
 }
 
-// GetCurrentSpan identifies the currently active span via the span context key.
-// It returns that span, and access to the trace is available via the span or
-// from the context directly.
-func GetCurrentSpanFromContext(ctx context.Context) *Span {
+// GetSpanFromContext identifies the currently active span via the span
+// context key. It returns that span, and access to the trace is available via
+// the span or from the context directly.
+func GetSpanFromContext(ctx context.Context) *Span {
 	if ctx != nil {
-		if val := ctx.Value(honeyCurrentSpanContextKey); val != nil {
+		if val := ctx.Value(honeySpanContextKey); val != nil {
 			if span, ok := val.(*Span); ok {
 				return span
 			}
@@ -41,6 +41,6 @@ func GetCurrentSpanFromContext(ctx context.Context) *Span {
 	return nil
 }
 
-func PutCurrentSpanInContext(ctx context.Context, span *Span) context.Context {
-	return context.WithValue(ctx, honeyCurrentSpanContextKey, span)
+func PutSpanInContext(ctx context.Context, span *Span) context.Context {
+	return context.WithValue(ctx, honeySpanContextKey, span)
 }

@@ -155,18 +155,6 @@ type TraceHeader struct {
 	SpanID   string
 }
 
-// AddField gets the current span and adds the field as is - it does not give
-// the field a prefix in the way the public beeline API does. This is necessary
-// to add protected fields such as `name` or `duration_ms`
-func AddField(ctx context.Context, key string, val interface{}) {
-	span := CurrentSpan(ctx)
-	if span != nil {
-		if span.ev != nil {
-			span.ev.AddField(key, val)
-		}
-	}
-}
-
 // AddField on the trace object adds the key/val provided to every span in the
 // trace
 func (t *Trace) AddField(key string, val interface{}) {
@@ -178,6 +166,47 @@ func (t *Trace) AddField(key string, val interface{}) {
 	if t.traceLevelFields != nil {
 		t.traceLevelFields[key] = val
 	}
+}
+
+// AddSpan adds a new span to the trace to be tracked
+func (t *Trace) AddSpan(span *Span) {
+	t.spanLock.Lock()
+	defer t.spanLock.Unlock()
+	t.spans = append(t.spans, span)
+}
+
+func (t *Trace) Send() error {
+	// if we're not supposed to send this trace because of sampling, don't.
+	if t.shouldDrop {
+		return nil
+	}
+	// if this trace has already been sent, complain
+	if t.sent == true {
+		return errors.New("shouldn't send a trace twice.")
+	}
+	// go through all the spans and send them!
+	for _, span := range t.spans {
+		// skip async spans when sending the trace; they are supposed to outlive
+		// the trace.
+		if span.amAsync {
+			continue
+		}
+		// Everything else should get marked if it is getting closed by the
+		// trace send.
+		if !span.hasFinished {
+			span.AddField("meta.closed_by_trace_send", true)
+		}
+
+		// spew.Dump(span)
+		span.Send()
+
+	}
+	t.sent = true
+	return nil
+}
+
+func (s *Span) AddField(key string, val interface{}) {
+	s.ev.AddField(key, val)
 }
 
 // AddRollupField adds the key and value to the current span and also adds the
@@ -192,11 +221,82 @@ func (s *Span) AddRollupField(key string, val float64) {
 	s.trace.rollupFields[key] += val
 }
 
-// AddSpan adds a new span to the trace to be tracked
-func (t *Trace) AddSpan(span *Span) {
-	t.spanLock.Lock()
-	defer t.spanLock.Unlock()
-	t.spans = append(t.spans, span)
+func (s *Span) Finish(ctx context.Context) context.Context {
+	if s.shouldDrop {
+		// we're not recording this trace; we're done here.
+		if s.parent != nil {
+			ctx = PutCurrentSpanInContext(ctx, s.parent)
+		}
+		return ctx
+	}
+	s.hasFinished = true
+
+	// finish the timer and add duration to the span
+	dur := s.timer.Finish()
+	s.AddField("duration_ms", dur)
+
+	// if we're an async span, send immediately
+	if s.amAsync {
+		s.Send()
+	}
+	// if we're finishing the root span, we should send the whole trace.
+	if s.amRoot {
+		s.trace.rollupLock.Lock()
+		for k, v := range s.trace.rollupFields {
+			s.AddField(k, v)
+		}
+		s.trace.rollupLock.Unlock()
+		s.trace.Send()
+	}
+	// if we have a parent span, we should set that as the new current.
+	if s.parent != nil {
+		ctx = PutCurrentSpanInContext(ctx, s.parent)
+	}
+	return ctx
+}
+
+// Send goes through all the accounting necessary and then actually dispatches
+// this span's event to Honeycomb
+func (s *Span) Send() {
+	// add all the relevant IDs
+	s.ev.AddField("trace.span_id", s.spanID)
+	if s.parentID != "" {
+		s.ev.AddField("trace.parent_id", s.parentID)
+	}
+	s.ev.AddField("trace.trace_id", s.traceID)
+
+	s.trace.tlfLock.Lock()
+	for k, v := range s.trace.traceLevelFields {
+		s.AddField(k, v)
+	}
+	s.trace.tlfLock.Unlock()
+
+	// run hooks
+	var shouldKeep = true
+	if GlobalConfig.SamplerHook != nil {
+		var sampleRate int
+		shouldKeep, sampleRate = GlobalConfig.SamplerHook(s.ev.Fields())
+		s.ev.SampleRate *= uint(sampleRate)
+	}
+	if GlobalConfig.PresendHook != nil {
+		// munge all the fields
+		GlobalConfig.PresendHook(s.ev.Fields())
+	}
+	if shouldKeep {
+		s.ev.SendPresampled()
+	}
+}
+
+// AddField gets the current span and adds the field as is - it does not give
+// the field a prefix in the way the public beeline API does. This is necessary
+// to add protected fields such as `name` or `duration_ms`
+func AddField(ctx context.Context, key string, val interface{}) {
+	span := CurrentSpan(ctx)
+	if span != nil {
+		if span.ev != nil {
+			span.ev.AddField(key, val)
+		}
+	}
 }
 
 // StartSpan adds a new span to a trace (or creates the trace if none
@@ -254,6 +354,9 @@ func StartTraceWithIDs(ctx context.Context, traceID, parentID, name string) (con
 }
 
 func MakeNewTrace(traceID, parentID, name string) *Span {
+	// TODO start up something to catch if the context gets canceled or times
+	// out and sends the trace if so -- is this reasonable? maybe a config
+	// option on the trace itself?
 	if traceID == "" {
 		tid, _ := uuid.NewRandom()
 		traceID = tid.String()
@@ -313,108 +416,8 @@ func FinishSpan(ctx context.Context) context.Context {
 	return span.Finish(ctx)
 }
 
-func (s *Span) Finish(ctx context.Context) context.Context {
-	if s.shouldDrop {
-		// we're not recording this trace; we're done here.
-		if s.parent != nil {
-			ctx = PutCurrentSpanInContext(ctx, s.parent)
-		}
-		return ctx
-	}
-	s.hasFinished = true
-
-	// finish the timer and add duration to the span
-	dur := s.timer.Finish()
-	s.AddField("duration_ms", dur)
-
-	// if we're an async span, send immediately
-	if s.amAsync {
-		s.Send()
-	}
-	// if we're finishing the root span, we should send the whole trace.
-	if s.amRoot {
-		s.trace.rollupLock.Lock()
-		for k, v := range s.trace.rollupFields {
-			s.AddField(k, v)
-		}
-		s.trace.rollupLock.Unlock()
-		s.trace.Send()
-	}
-	// if we have a parent span, we should set that as the new current.
-	if s.parent != nil {
-		ctx = PutCurrentSpanInContext(ctx, s.parent)
-	}
-	return ctx
-}
-
 // CurrentSpan gets the span marked current in the context. Returns nil when
 // there are no spans.
 func CurrentSpan(ctx context.Context) *Span {
 	return GetCurrentSpanFromContext(ctx)
-}
-
-func (s *Span) AddField(key string, val interface{}) {
-	s.ev.AddField(key, val)
-}
-
-func (t *Trace) Send() error {
-	// if we're not supposed to send this trace because of sampling, don't.
-	if t.shouldDrop {
-		return nil
-	}
-	// if this trace has already been sent, complain
-	if t.sent == true {
-		return errors.New("shouldn't send a trace twice.")
-	}
-	// go through all the spans and send them!
-	for _, span := range t.spans {
-		// skip async spans when sending the trace; they are supposed to outlive
-		// the trace.
-		if span.amAsync {
-			continue
-		}
-		// Everything else should get marked if it is getting closed by the
-		// trace send.
-		if !span.hasFinished {
-			span.AddField("meta.closed_by_trace_send", true)
-		}
-
-		// spew.Dump(span)
-		span.Send()
-
-	}
-	t.sent = true
-	return nil
-}
-
-// Send goes through all the accounting necessary and then actually dispatches
-// this span's event to Honeycomb
-func (s *Span) Send() {
-	// add all the relevant IDs
-	s.ev.AddField("trace.span_id", s.spanID)
-	if s.parentID != "" {
-		s.ev.AddField("trace.parent_id", s.parentID)
-	}
-	s.ev.AddField("trace.trace_id", s.traceID)
-
-	s.trace.tlfLock.Lock()
-	for k, v := range s.trace.traceLevelFields {
-		s.AddField(k, v)
-	}
-	s.trace.tlfLock.Unlock()
-
-	// run hooks
-	var shouldKeep = true
-	if GlobalConfig.SamplerHook != nil {
-		var sampleRate int
-		shouldKeep, sampleRate = GlobalConfig.SamplerHook(s.ev.Fields())
-		s.ev.SampleRate *= uint(sampleRate)
-	}
-	if GlobalConfig.PresendHook != nil {
-		// munge all the fields
-		GlobalConfig.PresendHook(s.ev.Fields())
-	}
-	if shouldKeep {
-		s.ev.SendPresampled()
-	}
 }

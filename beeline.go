@@ -139,38 +139,17 @@ func Close() {
 	libhoney.Close()
 }
 
-// AddField (Deprecated as of 0.2.0) is synonymous with AddFieldToSpan. It adds
-// the current field to the currently active span.
+// AddField allows you to add a single field to an event anywhere downstream of
+// an instrumented request. After adding the appropriate middleware or wrapping
+// a Handler, feel free to call AddFieldToSpan freely within your code. Pass it
+// the context from the request (`r.Context()`) and the key and value you wish
+// to add.This function is good for span-level data, eg timers or the arguments
+// to a specific function call, etc. Fields added here are prefixed with `app.`
 func AddField(ctx context.Context, key string, val interface{}) {
-	AddFieldToSpan(ctx, key, val)
-}
-
-// AddFieldToSpan allows you to add a single field to an event anywhere
-// downstream of an instrumented request. After adding the appropriate
-// middleware or wrapping a Handler, feel free to call AddFieldToSpan freely
-// within your code. Pass it the context from the request (`r.Context()`) and
-// the key and value you wish to add.This function is good for span-level data,
-// eg timers or the arguments to a specific function call, etc. Fields added
-// here are prefixed with `app.`
-func AddFieldToSpan(ctx context.Context, key string, val interface{}) {
 	namespacedKey := fmt.Sprintf("app.%s", key)
 	span := internal.CurrentSpan(ctx)
 	if span != nil {
 		span.AddField(namespacedKey, val)
-	}
-}
-
-// AddRollupFieldToSpan allows you to add a numeric field to the current span,
-// and, when called on multiple spans within a trace, the sum of the field will
-// be added to the root span. Use this when doing an action many times or on
-// many spans and you want the sum of all those actions to be represented on the
-// root span. Fields added here are prefixed with `app.` and the rolled up
-// fields on the root span are prefixed with `totals.app.`
-func AddRollupFieldToSpan(ctx context.Context, key string, val float64) {
-	namespacedKey := fmt.Sprintf("app.%s", key)
-	span := internal.CurrentSpan(ctx)
-	if span != nil {
-		span.AddRollupField(namespacedKey, val)
 	}
 }
 
@@ -189,24 +168,6 @@ func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	}
 }
 
-// HasTrace returns true if there is a trace in the current context
-func HasTrace(ctx context.Context) bool {
-	trace := internal.GetTraceFromContext(ctx)
-	return trace != nil
-}
-
-// StartTraceWithIDs lets you start a trace with a specific set of IDs - it is
-// used when you've received the IDs from another source (eg incoming HTTP
-// headers). If you don't care what the IDs are, you may use either this or
-// StartSpan to start a trace. You cannot change the trace IDs after a trace has
-// begun. StartTraceWithIDs also starts a span (the root span) for this trace.
-// You should call FinishSpan to close the span (and trace) started by this
-// function.
-func StartTraceWithIDs(ctx context.Context, traceID, parentID, name string) context.Context {
-	ctx, _ = internal.StartTraceWithIDs(ctx, traceID, parentID, name)
-	return ctx
-}
-
 // StartSpan lets you start a new span as a child of an already instrumented
 // handler. If there isn't an existing wrapped handler in the context when this
 // is called, it will start a new trace. Spans automatically get a `duration_ms`
@@ -216,20 +177,6 @@ func StartTraceWithIDs(ctx context.Context, traceID, parentID, name string) cont
 // context to ensure attributes are added to the correct span.
 func StartSpan(ctx context.Context, name string) context.Context {
 	ctx, _ = internal.StartSpan(ctx, name)
-	return ctx
-}
-
-// TODO do we need to provide some way to extract the trace / span from this
-// context and shove it in to another? I suspect strange things would happen to
-// any downstream services that want to use the context for timeouts or
-// cancellation if the request finished (which triggers the original context
-// getting cancelled, which is most likely inappropriate for an async span).
-
-// StartAsyncSpan is different from StartSpan in that when finishing a trace, it
-// does not get automatically sent. When finishing an async span it gets sent
-// immediately.
-func StartAsyncSpan(ctx context.Context, name string) context.Context {
-	ctx, _ = internal.StartAsyncSpan(ctx, name)
 	return ctx
 }
 
@@ -262,5 +209,21 @@ func readResponses(responses chan libhoney.Response) {
 			fmt.Printf("Error sending event to Honeycomb! %s had code %d, err %v and response body %s \n",
 				metadata, r.StatusCode, r.Err, r.Body)
 		}
+	}
+}
+
+// --------    remove from the main beeline package -----
+
+// AddRollupFieldToSpan allows you to add a numeric field to the current span,
+// and, when called on multiple spans within a trace, the sum of the field will
+// be added to the root span. Use this when doing an action many times or on
+// many spans and you want the sum of all those actions to be represented on the
+// root span. Fields added here are prefixed with `app.` and the rolled up
+// fields on the root span are prefixed with `totals.app.`
+func AddRollupField(ctx context.Context, key string, val float64) {
+	namespacedKey := fmt.Sprintf("app.%s", key)
+	span := internal.CurrentSpan(ctx)
+	if span != nil {
+		span.AddRollupField(namespacedKey, val)
 	}
 }
