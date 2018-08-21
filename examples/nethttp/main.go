@@ -24,8 +24,8 @@ func main() {
 		WriteKey:    "abcabc123123abcabc",
 		Dataset:     "http+sql",
 		ServiceName: "sample app",
-		// SamplerHook: sampler,
-		// PresendHook: presend,
+		SamplerHook: sampler,
+		PresendHook: presend,
 		// for demonstration, send the event to STDOUT instead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
 		STDOUT: true,
@@ -80,6 +80,7 @@ func outboundCall(ctx context.Context) {
 func presend(fields map[string]interface{}) {
 	// If the email address field exists, add a field representing the
 	// domain of the user's email address and hash the original email
+	fmt.Println("presend hook called")
 	if email, ok := fields["app.email"]; ok {
 		if emailStr, ok := email.(string); ok {
 			splitEmail := strings.SplitN(emailStr, "@", 2)
@@ -95,6 +96,7 @@ func presend(fields map[string]interface{}) {
 }
 
 func sampler(fields map[string]interface{}) (bool, int) {
+	fmt.Println("sampler hook called")
 	// example sampler that samples at 1/3 when the "m1" field is present and
 	// 1/2 when it is absent
 	var sampleRate = 2

@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	internal "github.com/honeycombio/beeline-go/internal"
-	"github.com/honeycombio/beeline-go/internal/sample"
+	"github.com/honeycombio/beeline-go/sample"
 	"github.com/honeycombio/beeline-go/trace"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
@@ -106,7 +105,7 @@ func Init(config Config) {
 
 	// Use the sampler hook if it's defined, otherwise a deterministic sampler
 	if config.SamplerHook != nil {
-		internal.GlobalConfig.SamplerHook = config.SamplerHook
+		trace.GlobalConfig.SamplerHook = config.SamplerHook
 	} else {
 		// configure and set a global sampler so sending traces can use it without
 		// threading it through
@@ -117,7 +116,7 @@ func Init(config Config) {
 	}
 
 	if config.PresendHook != nil {
-		internal.GlobalConfig.PresendHook = config.PresendHook
+		trace.GlobalConfig.PresendHook = config.PresendHook
 	}
 	return
 }

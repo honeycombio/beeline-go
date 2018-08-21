@@ -258,9 +258,7 @@ func (s *SyncSpan) send() {
 		GlobalConfig.PresendHook(s.ev.Fields())
 	}
 	if shouldKeep {
-		// if s.ev != nil {
 		s.ev.SendPresampled()
-		// }
 	}
 }
 
