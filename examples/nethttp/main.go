@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -28,7 +27,7 @@ func main() {
 		// PresendHook: presend,
 		// for demonstration, send the event to STDOUT instead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
-		// STDOUT: true,
+		STDOUT: true,
 	})
 
 	globalmux := http.NewServeMux()
@@ -42,7 +41,7 @@ func main() {
 func hello(w http.ResponseWriter, r *http.Request) {
 	beeline.AddField(r.Context(), "email", "one@two.com")
 	bigJob(r.Context())
-	outboundCall(r.Context())
+	// outboundCall(r.Context())
 	// send our response to the caller
 	io.WriteString(w, fmt.Sprintf("Hello world!\n"))
 }
@@ -50,8 +49,8 @@ func hello(w http.ResponseWriter, r *http.Request) {
 // bigJob is going to take a long time and do lots of interesting work. It
 // should get its own span.
 func bigJob(ctx context.Context) {
-	ctx = beeline.StartSpan(ctx, "bigJob")
-	defer beeline.FinishSpan(ctx)
+	ctx, span := beeline.StartSpan(ctx, "bigJob")
+	defer span.Finish()
 	beeline.AddField(ctx, "m1", 5.67)
 	beeline.AddField(ctx, "m2", 8.90)
 	time.Sleep(600 * time.Millisecond)
@@ -59,23 +58,23 @@ func bigJob(ctx context.Context) {
 	beeline.AddFieldToTrace(ctx, "vip_user", true)
 }
 
-// outboundCall demonstrates wrapping an outbound HTTP client
-func outboundCall(ctx context.Context) {
-	// let's make an outbound HTTP call
-	client := &http.Client{
-		Transport: hnynethttp.WrapRoundTripper(http.DefaultTransport),
-		Timeout:   time.Second * 5,
-	}
-	req, _ := http.NewRequest(http.MethodGet, "http://scooterlabs.com/echo.json", strings.NewReader(""))
-	req = req.WithContext(ctx)
-	resp, err := client.Do(req)
-	if err == nil {
-		defer resp.Body.Close()
-		bod, _ := ioutil.ReadAll(resp.Body)
-		// data, _ := base64.StdEncoding.DecodeString(string(bod))
-		beeline.AddField(ctx, "resp.body", bod)
-	}
-}
+// // outboundCall demonstrates wrapping an outbound HTTP client
+// func outboundCall(ctx context.Context) {
+// 	// let's make an outbound HTTP call
+// 	client := &http.Client{
+// 		Transport: hnynethttp.WrapRoundTripper(http.DefaultTransport),
+// 		Timeout:   time.Second * 5,
+// 	}
+// 	req, _ := http.NewRequest(http.MethodGet, "http://scooterlabs.com/echo.json", strings.NewReader(""))
+// 	req = req.WithContext(ctx)
+// 	resp, err := client.Do(req)
+// 	if err == nil {
+// 		defer resp.Body.Close()
+// 		bod, _ := ioutil.ReadAll(resp.Body)
+// 		// data, _ := base64.StdEncoding.DecodeString(string(bod))
+// 		beeline.AddField(ctx, "resp.body", bod)
+// 	}
+// }
 
 func presend(fields map[string]interface{}) {
 	// If the email address field exists, add a field representing the

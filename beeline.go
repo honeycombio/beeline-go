@@ -7,6 +7,7 @@ import (
 
 	internal "github.com/honeycombio/beeline-go/internal"
 	"github.com/honeycombio/beeline-go/internal/sample"
+	"github.com/honeycombio/beeline-go/trace"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
@@ -126,15 +127,15 @@ func Init(config Config) {
 // functions finish to ensure events get sent before AWS freezes the function.
 // Flush implicitly ends all currently active spans.
 func Flush(ctx context.Context) {
-	trace := internal.GetTraceFromContext(ctx)
-	trace.Send()
+	tr := trace.GetTraceFromContext(ctx)
+	tr.Send()
 	libhoney.Flush()
 }
 
-// Close shuts down the beeline. Closing flushes any pending events and blocks
-// until they have been sent. It is optional to close the beeline, and
-// prohibited to try and send an event after the beeline has been closed.
-// Close implicitly ends all currently active spans.
+// Close shuts down the beeline. Closing does not send any pending traces but
+// does flush any pending libhoney events and blocks until they have been sent.
+// It is optional to close the beeline, and prohibited to try and send an event
+// after the beeline has been closed.
 func Close() {
 	libhoney.Close()
 }
@@ -147,7 +148,7 @@ func Close() {
 // to a specific function call, etc. Fields added here are prefixed with `app.`
 func AddField(ctx context.Context, key string, val interface{}) {
 	namespacedKey := fmt.Sprintf("app.%s", key)
-	span := internal.CurrentSpan(ctx)
+	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
 		span.AddField(namespacedKey, val)
 	}
@@ -162,9 +163,9 @@ func AddField(ctx context.Context, key string, val interface{}) {
 // are prefixed with `global.`
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	namespacedKey := fmt.Sprintf("global.%s", key)
-	trace := internal.GetTraceFromContext(ctx)
-	if trace != nil {
-		trace.AddField(namespacedKey, val)
+	tr := trace.GetTraceFromContext(ctx)
+	if tr != nil {
+		tr.AddField(namespacedKey, val)
 	}
 }
 
@@ -172,23 +173,25 @@ func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 // handler. If there isn't an existing wrapped handler in the context when this
 // is called, it will start a new trace. Spans automatically get a `duration_ms`
 // field when they are ended; you should not explicitly set the duration unless
-// you want to override it. The name argument will be the primary way the span
-// is identified in the trace view within Honeycomb. You must use the returned
-// context to ensure attributes are added to the correct span.
-func StartSpan(ctx context.Context, name string) context.Context {
-	ctx, _ = internal.StartSpan(ctx, name)
-	return ctx
-}
-
-// FinishSpan finishes the currently active span. It should only be called for
-// spans created with StartTraceWithIDs, StartSpan, or StartAsyncSpan. Use the
-// context returned by finish span in order to ensure operations on the
-// "current" span continue to work correctly. The only time you should ignore
-// the context returned by this function is when using it as a defer to finish a
-// span also started in this scope; in that case when the function finishes the
-// previously scoped context will still have the right span marked as current.
-func FinishSpan(ctx context.Context) context.Context {
-	return internal.FinishSpan(ctx)
+// you want to override it. The name argument will be the primary way the span'
+// is identified in the trace view within Honeycomb. You get back a fresh
+// context with the new span in it as well as the actual span that was just
+// created. You should call `span.Finish()` when the span should be finished.
+// You should pass the returned context downstream.
+func StartSpan(ctx context.Context, name string) (context.Context, trace.Span) {
+	span := trace.GetSpanFromContext(ctx)
+	var newSpan trace.Span
+	if span != nil {
+		ctx, newSpan = span.ChildSpan(ctx)
+	} else {
+		// there is no trace active; we should make one, but use the root span
+		// as the "new" span instead of creating a child of this mostly empty
+		// span
+		ctx, _ := trace.NewTrace(ctx, "")
+		newSpan = trace.GetSpanFromContext(ctx)
+	}
+	newSpan.AddField("name", name)
+	return ctx, newSpan
 }
 
 // readResponses pulls from the response queue and spits them to STDOUT for
@@ -222,7 +225,7 @@ func readResponses(responses chan libhoney.Response) {
 // fields on the root span are prefixed with `totals.app.`
 func AddRollupField(ctx context.Context, key string, val float64) {
 	namespacedKey := fmt.Sprintf("app.%s", key)
-	span := internal.CurrentSpan(ctx)
+	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
 		span.AddRollupField(namespacedKey, val)
 	}

@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -28,6 +27,11 @@ const (
 	TracePropagationVersion    = 1
 )
 
+type TraceHeader struct {
+	TraceID  string
+	ParentID string
+}
+
 type Propagation struct {
 	TraceHeader
 	TraceContext       map[string]interface{}
@@ -46,26 +50,26 @@ func (p *PropagationError) Error() string {
 	return fmt.Sprintf(p.message, p.wrappedError)
 }
 
-func MarshalTraceContext(ctx context.Context) string {
-	currentSpan := CurrentSpan(ctx)
+// func MarshalTraceContext(ctx context.Context) string {
+// 	currentSpan := CurrentSpan(ctx)
 
-	var prop = &Propagation{}
-	prop.Source = HeaderSourceBeeline
-	prop.TraceID = currentSpan.trace.headers.TraceID
-	prop.ParentID = currentSpan.spanID
-	prop.TraceContext = currentSpan.trace.traceLevelFields
+// 	var prop = &Propagation{}
+// 	prop.Source = HeaderSourceBeeline
+// 	prop.TraceID = currentSpan.trace.headers.TraceID
+// 	prop.ParentID = currentSpan.spanID
+// 	prop.TraceContext = currentSpan.trace.traceLevelFields
 
-	tcJSON, err := json.Marshal(prop.TraceContext)
-	if err != nil {
-		// if we couldn't marshal the trace level fields, leave it blank
-		tcJSON = []byte("")
-	}
+// 	tcJSON, err := json.Marshal(prop.TraceContext)
+// 	if err != nil {
+// 		// if we couldn't marshal the trace level fields, leave it blank
+// 		tcJSON = []byte("")
+// 	}
 
-	tcB64 := base64.StdEncoding.EncodeToString(tcJSON)
+// 	tcB64 := base64.StdEncoding.EncodeToString(tcJSON)
 
-	return fmt.Sprintf("%d;trace_id=%s,parent_id=%s,context=%s",
-		TracePropagationVersion, prop.TraceID, prop.ParentID, tcB64)
-}
+// 	return fmt.Sprintf("%d;trace_id=%s,parent_id=%s,context=%s",
+// 		TracePropagationVersion, prop.TraceID, prop.ParentID, tcB64)
+// }
 
 func UnmarshalTraceContext(header string) (*TraceHeader, map[string]interface{}, error) {
 	// pull the version out of the header
@@ -82,7 +86,7 @@ func UnmarshalTraceContext(header string) (*TraceHeader, map[string]interface{},
 func UnmarshalTraceContextV1(header string) (*TraceHeader, map[string]interface{}, error) {
 	clauses := strings.Split(header, ",")
 	var prop = &Propagation{}
-	prop.Source = HeaderSourceBeeline
+	// prop.Source = HeaderSourceBeeline
 	for _, clause := range clauses {
 		keyval := strings.SplitN(clause, "=", 2)
 		switch keyval[0] {

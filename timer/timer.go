@@ -33,7 +33,10 @@ func Start() Timer {
 }
 
 // Finish closes off a started timer. It returns the duration timed in
-// milliseconds.
+// milliseconds. Will return zero for timers that were never started.
 func (t timer) Finish() float64 {
+	if t.start.IsZero() {
+		return 0
+	}
 	return float64(time.Since(t.start)) / float64(time.Millisecond)
 }
