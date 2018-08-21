@@ -3,11 +3,14 @@ package common
 import (
 	"context"
 	"net/http"
+	"runtime"
+	"strings"
 
 	"github.com/felixge/httpsnoop"
 	"github.com/honeycombio/beeline-go/propagation"
+	"github.com/honeycombio/beeline-go/timer"
 	"github.com/honeycombio/beeline-go/trace"
-	"github.com/honeycombio/beeline-go/wrappers/common"
+	libhoney "github.com/honeycombio/libhoney-go"
 )
 
 type ResponseWriter struct {
@@ -44,7 +47,7 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	return reqProps
 }
 
-func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
+func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, trace.Span) {
 	ctx := r.Context()
 	span := trace.GetSpanFromContext(ctx)
 	if span == nil {
@@ -58,8 +61,86 @@ func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
 		ctx, span = span.ChildSpan(ctx)
 	}
 	// go get any common HTTP headers and attributes to add to the span
-	for k, v := range common.GetRequestProps(r) {
+	for k, v := range GetRequestProps(r) {
 		span.AddField(k, v)
 	}
 	return ctx, span
+}
+
+// BuildDBEvent tries to bring together most of the things that need to happen
+// for an event to wrap a DB call in bot the sql and sqlx packages. It returns a
+// function which, when called, dispatches the event that it created. This lets
+// it finish a timer around the call automatically. This function is only used
+// when no context (and therefore no beeline trace) is available to the caller -
+// if context is available, use BuildDBSpan() instead to tie it in to the active
+// trace.
+func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
+	timer := timer.Start()
+	ev := bld.NewEvent()
+	fn := func(err error) {
+		duration := timer.Finish()
+		// rollup(ctx, ev, duration)
+		ev.AddField("duration_ms", duration)
+		if err != nil {
+			ev.AddField("db.error", err)
+		}
+		ev.Metadata, _ = ev.Fields()["name"]
+		ev.Send()
+	}
+
+	// get the name of the function that called this one. Strip the package and type
+	pc, _, _, _ := runtime.Caller(1)
+	callName := runtime.FuncForPC(pc).Name()
+	callNameChunks := strings.Split(callName, ".")
+	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
+	ev.AddField("name", callNameChunks[len(callNameChunks)-1])
+
+	if query != "" {
+		ev.AddField("db.query", query)
+	}
+	if args != nil {
+		ev.AddField("db.query_args", args)
+	}
+	return ev, fn
+}
+
+// BuildDBSpan does the same things as BuildDBEvent except that it has access to
+// a trace from the context and takes advantage of that to add the DB events
+// into the trace.
+func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (context.Context, trace.Span, func(error)) {
+	timer := timer.Start()
+	parentSpan := trace.GetSpanFromContext(ctx)
+	if parentSpan == nil {
+		// if we have no trace or we're supposed to drop this trace, return a noop fn
+		return ctx, nil, func(err error) {}
+	}
+	ctx, span := parentSpan.ChildSpan(ctx)
+
+	ev := bld.NewEvent()
+	for k, v := range ev.Fields() {
+		span.AddField(k, v)
+	}
+	fn := func(err error) {
+		duration := timer.Finish()
+		if err != nil {
+			span.AddField("db.error", err)
+		}
+		span.AddRollupField("db.duration_ms", duration)
+		span.AddRollupField("db.call_count", 1)
+		span.Finish()
+	}
+	// get the name of the function that called this one. Strip the package and type
+	pc, _, _, _ := runtime.Caller(1)
+	callName := runtime.FuncForPC(pc).Name()
+	callNameChunks := strings.Split(callName, ".")
+	span.AddField("db.call", callNameChunks[len(callNameChunks)-1])
+	span.AddField("name", callNameChunks[len(callNameChunks)-1])
+
+	if query != "" {
+		span.AddField("db.query", query)
+	}
+	if args != nil {
+		span.AddField("db.query_args", args)
+	}
+	return ctx, span, fn
 }

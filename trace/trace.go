@@ -52,6 +52,7 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 		}
 	}
 	rootSpan := newSpan().(*SyncSpan)
+	rootSpan.amRoot = true
 	rootSpan.ev = trace.builder.NewEvent()
 	rootSpan.trace = trace
 	trace.rootSpan = rootSpan
