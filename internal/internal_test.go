@@ -19,3 +19,20 @@ func TestParseTraceHeader(t *testing.T) {
 	assert.Equal(t, "1-67891233-abcdef012345678912345678", fs["request.header.aws_trace_id.Root"])
 	assert.Equal(t, "app", fs["request.header.aws_trace_id.CalledFrom"])
 }
+
+func TestHostHeader(t *testing.T) {
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("Host", "example.com")
+	ev := libhoney.NewEvent()
+	AddRequestProps(req, ev)
+	fs := ev.Fields()
+	assert.Equal(t, "example.com", fs["request.host"])
+}
+
+func TestURLHostHeader(t *testing.T) {
+	req := httptest.NewRequest("GET", "https://example.com/", nil)
+	ev := libhoney.NewEvent()
+	AddRequestProps(req, ev)
+	fs := ev.Fields()
+	assert.Equal(t, "example.com", fs["request.host"])
+}
