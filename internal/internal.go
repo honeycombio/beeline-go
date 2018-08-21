@@ -38,7 +38,7 @@ func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 	// and method, to any created libhoney event.
 	ev.AddField("request.method", req.Method)
 	ev.AddField("request.path", req.URL.Path)
-	ev.AddField("request.host", req.URL.Host)
+	ev.AddField("request.host", req.Host)
 	ev.AddField("request.http_version", req.Proto)
 	ev.AddField("request.content_length", req.ContentLength)
 	ev.AddField("request.remote_addr", req.RemoteAddr)
