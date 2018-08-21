@@ -5,8 +5,7 @@ import (
 	"reflect"
 	"runtime"
 
-	"github.com/honeycombio/beeline-go"
-	"github.com/honeycombio/beeline-go/internal"
+	"github.com/honeycombio/beeline-go/wrappers/common"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -14,34 +13,13 @@ import (
 // parameters, it can add those values to the event it generates.
 func Middleware(handle httprouter.Handle) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		ctx := r.Context()
-		var span *internal.Span
-		if !beeline.HasTrace(r.Context()) {
-			// pick up any trace context from our caller, if present
-			traceHeaders, traceContext, _ := internal.FindTraceHeaders(r)
-			// use the trace IDs found to spin up a new trace
-			ctx, span = internal.StartTraceWithIDs(r.Context(),
-				traceHeaders.TraceID, traceHeaders.ParentID, "")
-			trace := internal.GetTraceFromContext(ctx)
-			// add any additional context to the trace
-			for k, v := range traceContext {
-				trace.AddField(k, v)
-			}
-			// and make sure it gets completely sent when we're done.
-			defer trace.Send()
-		} else {
-			// if we're not the root span, just add another layer to our trace.
-			ctx, span = internal.StartSpan(r.Context(), "")
-		}
-		defer span.Finish(ctx)
-		// push the context with our trace on to the request
+		ctx, span := common.StartSpanOrTraceFromHTTP(r)
+		defer span.Finish()
+		// push the context with our trace and span on to the request
 		r = r.WithContext(ctx)
-		// go get any common HTTP headers and attributes to add to the span
-		for k, v := range internal.GetRequestProps(r) {
-			span.AddField(k, v)
-		}
+
 		// replace the writer with our wrapper to catch the status code
-		wrappedWriter := internal.NewResponseWriter(w)
+		wrappedWriter := common.NewResponseWriter(w)
 
 		// pull out any variables in the URL, add the thing we're matching, etc.
 		for _, param := range ps {

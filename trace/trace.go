@@ -2,13 +2,10 @@ package trace
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/honeycombio/beeline-go/internal"
+	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/timer"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
@@ -45,11 +42,11 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 	if serializedHeaders == "" {
 		trace.traceID = uuid.Must(uuid.NewRandom()).String()
 	} else {
-		heads, fields, err := internal.UnmarshalTraceContext(serializedHeaders)
+		prop, err := propagation.UnmarshalTraceContext(serializedHeaders)
 		if err == nil {
-			trace.traceID = heads.TraceID
-			trace.parentID = heads.ParentID
-			for k, v := range fields {
+			trace.traceID = prop.TraceID
+			trace.parentID = prop.ParentID
+			for k, v := range prop.TraceContext {
 				trace.traceLevelFields[k] = v
 			}
 		}
@@ -94,10 +91,11 @@ type Span interface {
 	AddRollupField(string, float64)
 	AddTraceField(string, interface{})
 	AmAsync() bool
+	ChildAsyncSpan(context.Context) (context.Context, Span)
+	ChildSpan(context.Context) (context.Context, Span)
 	Finish()
 	GetParent() Span
-	ChildSpan(context.Context) (context.Context, Span)
-	ChildAsyncSpan(context.Context) (context.Context, Span)
+	SerializeHeaders() string
 }
 
 // SyncSpan is the default span type.
@@ -226,22 +224,14 @@ func (s *SyncSpan) ChildSpan(ctx context.Context) (context.Context, Span) {
 }
 
 func (s *SyncSpan) SerializeHeaders() string {
-	var prop = &internal.Propagation{}
-	// prop.Source = HeaderSourceBeeline
-	prop.TraceID = s.trace.traceID
-	prop.ParentID = s.spanID
-	prop.TraceContext = s.trace.traceLevelFields
-
-	tcJSON, err := json.Marshal(prop.TraceContext)
-	if err != nil {
-		// if we couldn't marshal the trace level fields, leave it blank
-		tcJSON = []byte("")
+	var prop = &propagation.Propagation{
+		TraceID:      s.trace.traceID,
+		ParentID:     s.spanID,
+		TraceContext: s.trace.traceLevelFields,
 	}
+	// prop.Source = HeaderSourceBeeline
 
-	tcB64 := base64.StdEncoding.EncodeToString(tcJSON)
-
-	return fmt.Sprintf("%d;trace_id=%s,parent_id=%s,context=%s",
-		internal.TracePropagationVersion, prop.TraceID, prop.ParentID, tcB64)
+	return propagation.MarshalTraceContext(prop)
 }
 
 // send gets all the trace level fields and does pre-send hooks, then sends the
@@ -279,7 +269,9 @@ func recursiveSend(s *SyncSpan) {
 	if !s.amAsync {
 		s.send()
 		for _, childSpan := range s.children {
-			recursiveSend(childSpan.(*SyncSpan))
+			if !childSpan.AmAsync() {
+				recursiveSend(childSpan.(*SyncSpan))
+			}
 		}
 	}
 }
@@ -291,13 +283,18 @@ type AsyncSpan struct {
 }
 
 // Send sends this span and any synchronous span children. Any AsyncSpan
-// children must still be sent manually.
+// children must still be sent manually. TODO it's likely that using an
+// interface and two different types here is a terrible idea and syncness should
+// just be an attribute of Span rather than a separate type. Send on a sync span
+// would ... be a noop? not sure.
 func (a *AsyncSpan) Send() {
 	if !a.amFinished {
 		a.Finish()
 	}
 	a.send()
 	for _, childSpan := range a.children {
-		recursiveSend(childSpan.(*SyncSpan))
+		if !childSpan.AmAsync() {
+			recursiveSend(childSpan.(*SyncSpan))
+		}
 	}
 }

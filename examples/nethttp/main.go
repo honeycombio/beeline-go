@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -41,7 +42,7 @@ func main() {
 func hello(w http.ResponseWriter, r *http.Request) {
 	beeline.AddField(r.Context(), "email", "one@two.com")
 	bigJob(r.Context())
-	// outboundCall(r.Context())
+	outboundCall(r.Context())
 	// send our response to the caller
 	io.WriteString(w, fmt.Sprintf("Hello world!\n"))
 }
@@ -58,23 +59,23 @@ func bigJob(ctx context.Context) {
 	beeline.AddFieldToTrace(ctx, "vip_user", true)
 }
 
-// // outboundCall demonstrates wrapping an outbound HTTP client
-// func outboundCall(ctx context.Context) {
-// 	// let's make an outbound HTTP call
-// 	client := &http.Client{
-// 		Transport: hnynethttp.WrapRoundTripper(http.DefaultTransport),
-// 		Timeout:   time.Second * 5,
-// 	}
-// 	req, _ := http.NewRequest(http.MethodGet, "http://scooterlabs.com/echo.json", strings.NewReader(""))
-// 	req = req.WithContext(ctx)
-// 	resp, err := client.Do(req)
-// 	if err == nil {
-// 		defer resp.Body.Close()
-// 		bod, _ := ioutil.ReadAll(resp.Body)
-// 		// data, _ := base64.StdEncoding.DecodeString(string(bod))
-// 		beeline.AddField(ctx, "resp.body", bod)
-// 	}
-// }
+// outboundCall demonstrates wrapping an outbound HTTP client
+func outboundCall(ctx context.Context) {
+	// let's make an outbound HTTP call
+	client := &http.Client{
+		// Transport: hnynethttp.WrapRoundTripper(http.DefaultTransport),
+		Timeout: time.Second * 5,
+	}
+	req, _ := http.NewRequest(http.MethodGet, "http://scooterlabs.com/echo.json", strings.NewReader(""))
+	req = req.WithContext(ctx)
+	resp, err := client.Do(req)
+	if err == nil {
+		defer resp.Body.Close()
+		bod, _ := ioutil.ReadAll(resp.Body)
+		// data, _ := base64.StdEncoding.DecodeString(string(bod))
+		beeline.AddField(ctx, "resp.body", string(bod))
+	}
+}
 
 func presend(fields map[string]interface{}) {
 	// If the email address field exists, add a field representing the

@@ -1,9 +1,13 @@
 package common
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/felixge/httpsnoop"
+	"github.com/honeycombio/beeline-go/propagation"
+	"github.com/honeycombio/beeline-go/trace"
+	"github.com/honeycombio/beeline-go/wrappers/common"
 )
 
 type ResponseWriter struct {
@@ -38,4 +42,24 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	reqProps["request.remote_addr"] = req.RemoteAddr
 	reqProps["request.header.user_agent"] = req.UserAgent()
 	return reqProps
+}
+
+func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
+	ctx := r.Context()
+	span := trace.GetSpanFromContext(ctx)
+	if span == nil {
+		// there is no trace yet. We should make one! and use the root span.
+		beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
+		var tr *trace.Trace
+		ctx, tr = trace.NewTrace(ctx, beelineHeader)
+		span = tr.GetRootSpan()
+	} else {
+		// we had a parent! let's make a new child for this handler
+		ctx, span = span.ChildSpan(ctx)
+	}
+	// go get any common HTTP headers and attributes to add to the span
+	for k, v := range common.GetRequestProps(r) {
+		span.AddField(k, v)
+	}
+	return ctx, span
 }

@@ -5,9 +5,11 @@ import (
 	"reflect"
 	"runtime"
 
-	"github.com/honeycombio/beeline-go/internal"
+	"github.com/honeycombio/beeline-go/propagation"
+	"github.com/honeycombio/beeline-go/timer"
 	"github.com/honeycombio/beeline-go/trace"
 	"github.com/honeycombio/beeline-go/wrappers/common"
+	libhoney "github.com/honeycombio/libhoney-go"
 )
 
 // WrapHandler will create a Honeycomb event per invocation of this handler with
@@ -18,26 +20,10 @@ func WrapHandler(handler http.Handler) http.Handler {
 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		span := trace.GetSpanFromContext(ctx)
-		if span == nil {
-			// there is no trace yet. We should make one! and use the root span.
-			beelineHeader := r.Header.Get(internal.TracePropagationHTTPHeader)
-			var tr *trace.Trace
-			ctx, tr = trace.NewTrace(ctx, beelineHeader)
-			defer tr.Send()
-			span = tr.GetRootSpan()
-		} else {
-			// we had a parent! let's make a new child for this handler
-			ctx, span = span.ChildSpan(ctx)
-		}
+		ctx, span := common.StartSpanOrTraceFromHTTP(r)
 		defer span.Finish()
 		// push the context with our trace and span on to the request
 		r = r.WithContext(ctx)
-		// go get any common HTTP headers and attributes to add to the span
-		for k, v := range common.GetRequestProps(r) {
-			span.AddField(k, v)
-		}
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := common.NewResponseWriter(w)
 
@@ -74,26 +60,10 @@ func WrapHandler(handler http.Handler) http.Handler {
 func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
 	handlerFuncName := runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		span := trace.GetSpanFromContext(ctx)
-		if span == nil {
-			// there is no trace yet. We should make one! and use the root span.
-			beelineHeader := r.Header.Get(internal.TracePropagationHTTPHeader)
-			var tr *trace.Trace
-			ctx, tr = trace.NewTrace(ctx, beelineHeader)
-			defer tr.Send()
-			span = tr.GetRootSpan()
-		} else {
-			// we had a parent! let's make a new child for this handler
-			ctx, span = span.ChildSpan(ctx)
-		}
+		ctx, span := common.StartSpanOrTraceFromHTTP(r)
 		defer span.Finish()
-		// push the context with our trace on to the request
+		// push the context with our trace and span on to the request
 		r = r.WithContext(ctx)
-		// add some common fields from the request to our event
-		for k, v := range common.GetRequestProps(r) {
-			span.AddField(k, v)
-		}
 		// replace the writer with our wrapper to catch the status code
 		wrappedWriter := common.NewResponseWriter(w)
 		// add the name of the handler func we're about to invoke
@@ -110,64 +80,65 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 	}
 }
 
-// type hnyTripper struct {
-// 	// wrt is the wrapped round tripper
-// 	wrt http.RoundTripper
-// }
+type hnyTripper struct {
+	// wrt is the wrapped round tripper
+	wrt http.RoundTripper
+}
 
-// func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
-// 	ctx := r.Context()
-// 	// if there's no trace in the context, just send an event
-// 	if !beeline.HasTrace(ctx) {
-// 		tm := timer.Start()
-// 		ev := libhoney.NewEvent()
-// 		defer ev.Send()
+func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	ctx := r.Context()
+	span := trace.GetSpanFromContext(ctx)
+	if span == nil {
+		// if there's no trace in the context, just send an event
+		tm := timer.Start()
+		ev := libhoney.NewEvent()
+		defer ev.Send()
 
-// 		ev.AddField("meta.type", "http_client")
+		ev.AddField("meta.type", "http_client")
 
-// 		resp, err := ht.wrt.RoundTrip(r)
+		resp, err := ht.wrt.RoundTrip(r)
 
-// 		if err != nil {
-// 			// TODO should this error field be namespaced somehow
-// 			ev.AddField("error", err.Error())
-// 		}
-// 		dur := tm.Finish()
-// 		ev.AddField("duration_ms", dur)
-// 		return resp, err
-// 	}
-// 	// we have a trace, let's use it and pass along trace context in addition to
-// 	// making a span around this HTTP call
-// 	var span *internal.Span
-// 	ctx, span = internal.StartSpan(ctx, "http_client")
-// 	defer span.Finish(ctx)
-// 	r = r.WithContext(ctx)
-// 	span.AddField("meta.type", "http_client")
-// 	r.Header.Add(internal.TracePropagationHTTPHeader, internal.MarshalTraceContext(ctx))
+		if err != nil {
+			// TODO should this error field be namespaced somehow
+			ev.AddField("error", err.Error())
+		}
+		dur := tm.Finish()
+		ev.AddField("duration_ms", dur)
+		return resp, err
+	}
+	// we have a trace, let's use it and pass along trace context in addition to
+	// making a span around this HTTP call
+	ctx, span = span.ChildSpan(ctx)
+	defer span.Finish()
+	r = r.WithContext(ctx)
+	span.AddField("meta.type", "http_client")
+	span.AddField("name", "http_client")
+	r.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
 
-// 	// add in common request headers.
-// 	reqprops := internal.GetRequestProps(r)
-// 	for k, v := range reqprops {
-// 		span.AddField(k, v)
-// 	}
+	// add in common request headers.
+	reqprops := common.GetRequestProps(r)
+	for k, v := range reqprops {
+		span.AddField(k, v)
+	}
 
-// 	resp, err := ht.wrt.RoundTrip(r)
+	resp, err := ht.wrt.RoundTrip(r)
 
-// 	if err != nil {
-// 		// TODO should this error field be namespaced somehow
-// 		span.AddField("error", err.Error())
-// 	} else {
-// 		span.AddField("resp.status_code", resp.StatusCode)
+	if err != nil {
+		// TODO should this error field be namespaced somehow
+		span.AddField("error", err.Error())
+	} else {
+		span.AddField("resp.status_code", resp.StatusCode)
 
-// 	}
-// 	return resp, err
-// }
+	}
+	return resp, err
+}
 
-// // WrapRoundTripper wraps an http transport for outgoing HTTP calls. Using a
-// // wrapped transport will send an event to Honeycomb for each outbound HTTP call
-// // you make. Include a context with outbound requests when possible to enable
-// // correlation
-// func WrapRoundTripper(r http.RoundTripper) http.RoundTripper {
-// 	return &hnyTripper{
-// 		wrt: r,
-// 	}
-// }
+// WrapRoundTripper wraps an http transport for outgoing HTTP calls. Using a
+// wrapped transport will send an event to Honeycomb for each outbound HTTP call
+// you make. Include a context with outbound requests when possible to enable
+// correlation
+func WrapRoundTripper(r http.RoundTripper) http.RoundTripper {
+	return &hnyTripper{
+		wrt: r,
+	}
+}
