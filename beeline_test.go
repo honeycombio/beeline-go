@@ -69,9 +69,9 @@ func TestBasicSpanAttributes(t *testing.T) {
 	)
 	ctx, span := StartSpan(context.Background(), "start")
 	AddField(ctx, "start_col", 1)
-	ctxmid, spanmid := StartSpan(ctx, "middle")
-	AddField(ctxmid, "mid_col", 1)
-	spanmid.Finish()
+	ctxLeaf, spanLeaf := StartSpan(ctx, "leaf")
+	AddField(ctxLeaf, "leaf_col", 1)
+	spanLeaf.Finish()
 	span.Finish()
 
 	events := mo.Events()
@@ -82,17 +82,20 @@ func TestBasicSpanAttributes(t *testing.T) {
 		fields := ev.Fields()
 		name, ok := fields["name"]
 		assert.True(t, ok, "failed to find name")
+		_, ok = fields["duration_ms"]
+		assert.True(t, ok, "failed to find duration_ms")
 		_, ok = fields["trace.trace_id"]
 		assert.True(t, ok, fmt.Sprintf("failed to find trace ID for span %s", name))
 		_, ok = fields["trace.span_id"]
 		assert.True(t, ok, fmt.Sprintf("failed to find span ID for span %s", name))
 
-		rootSpan, ok := fields["meta.root_span"]
+		spanType, ok := fields["meta.span_type"]
 		if ok {
-			rootSpanBool, ok := rootSpan.(bool)
-			assert.True(t, ok, "root span field meta.root_span should be boolean")
-			assert.True(t, rootSpanBool, "root span should have a meta.root_span field that's true")
-			foundRoot = true
+			spanTypeStr, ok := spanType.(string)
+			assert.True(t, ok, "span field meta.span_type should be string")
+			if spanTypeStr == "root" {
+				foundRoot = true
+			}
 		} else {
 			// non-root spans should have a parent ID
 			_, ok = fields["trace.parent_id"]

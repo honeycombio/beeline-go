@@ -54,7 +54,6 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 	rootSpan := newSpan()
 	rootSpan.amRoot = true
 	rootSpan.ev = trace.builder.NewEvent()
-	rootSpan.AddField("meta.root_span", true)
 	rootSpan.trace = trace
 	trace.rootSpan = rootSpan
 
@@ -162,8 +161,6 @@ func (s *Span) Finish() {
 	for k, v := range s.rollupFields {
 		s.ev.AddField(k, v)
 	}
-	// TODO finish all unfinished non-async children; identify they were
-	// finished by the parent rather than themselves
 	for _, child := range s.children {
 		if !child.AmAsync() {
 			if !child.amFinished {
@@ -234,6 +231,24 @@ func (s *Span) send() {
 		s.AddField(k, v)
 	}
 	s.trace.tlfLock.Unlock()
+
+	// classify span type
+	var spanType string
+	switch {
+	case s.amRoot:
+		if s.parentID == "" {
+			spanType = "root"
+		} else {
+			spanType = "subroot"
+		}
+	case s.amAsync:
+		spanType = "async"
+	case len(s.children) == 0:
+		spanType = "leaf"
+	default:
+		spanType = "mid"
+	}
+	s.AddField("meta.span_type", spanType)
 
 	// run hooks
 	var shouldKeep = true

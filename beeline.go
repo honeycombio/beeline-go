@@ -36,7 +36,10 @@ type Config struct {
 	// SamplerHook is a function that will get run with the contents of each
 	// event just before sending the event to Honeycomb. Register a function
 	// with this config option to have manual control over sampling within the
-	// beeline. Runs before the PresendHook.
+	// beeline. The function should return true if the event should be kept and
+	// false if it should be dropped.  If it should be kept, the returned
+	// integer is the sample rate that has been applied. Runs before the
+	// PresendHook.
 	SamplerHook func(map[string]interface{}) (bool, int)
 	// PresendHook is a function call that will get run with the contents of
 	// each event just before sending them to Honeycomb. The function registered
@@ -127,7 +130,9 @@ func Init(config Config) {
 // Flush implicitly ends all currently active spans.
 func Flush(ctx context.Context) {
 	tr := trace.GetTraceFromContext(ctx)
-	tr.Send()
+	if tr != nil {
+		tr.Send()
+	}
 	libhoney.Flush()
 }
 
@@ -150,8 +155,6 @@ func AddField(ctx context.Context, key string, val interface{}) {
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
 		span.AddField(namespacedKey, val)
-	} else {
-		fmt.Println("span is nil")
 	}
 }
 
@@ -161,9 +164,9 @@ func AddField(ctx context.Context, key string, val interface{}) {
 // processes if they are also using a beeline. This function is good for adding
 // context that is better scoped to the request than this specific unit of work,
 // eg user IDs, globally relevant feature flags, errors, etc. Fields added here
-// are prefixed with `global.`
+// are prefixed with `app.`
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
-	namespacedKey := fmt.Sprintf("global.%s", key)
+	namespacedKey := fmt.Sprintf("app.%s", key)
 	tr := trace.GetTraceFromContext(ctx)
 	if tr != nil {
 		tr.AddField(namespacedKey, val)
@@ -174,7 +177,7 @@ func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 // handler. If there isn't an existing wrapped handler in the context when this
 // is called, it will start a new trace. Spans automatically get a `duration_ms`
 // field when they are ended; you should not explicitly set the duration unless
-// you want to override it. The name argument will be the primary way the span'
+// you want to override it. The name argument will be the primary way the span
 // is identified in the trace view within Honeycomb. You get back a fresh
 // context with the new span in it as well as the actual span that was just
 // created. You should call `span.Finish()` when the span should be finished.
@@ -191,7 +194,9 @@ func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) 
 		ctx, _ = trace.NewTrace(ctx, "")
 		newSpan = trace.GetSpanFromContext(ctx)
 	}
-	newSpan.AddField("name", name)
+	if newSpan != nil {
+		newSpan.AddField("name", name)
+	}
 	return ctx, newSpan
 }
 
