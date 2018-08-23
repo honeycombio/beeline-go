@@ -34,8 +34,8 @@ func Example() {
 	// replace it with a wrapped hnysql.DB
 	db := hnysql.WrapDB(odb)
 	// and start up a trace to capture all the calls
-	ctx := beeline.StartSpan(context.Background(), "start")
-	defer beeline.FinishSpan(ctx)
+	ctx, span := beeline.StartSpan(context.Background(), "start")
+	defer span.Finish()
 
 	// from here on, all SQL calls will emit events.
 

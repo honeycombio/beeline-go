@@ -94,6 +94,11 @@ func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 		ev := libhoney.NewEvent()
 		defer ev.Send()
 
+		// add in common request headers.
+		for k, v := range common.GetRequestProps(r) {
+			span.AddField(k, v)
+		}
+
 		ev.AddField("meta.type", "http_client")
 
 		resp, err := ht.wrt.RoundTrip(r)
@@ -111,15 +116,13 @@ func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	ctx, span = span.ChildSpan(ctx)
 	defer span.Finish()
 	r = r.WithContext(ctx)
+	// add in common request headers.
+	for k, v := range common.GetRequestProps(r) {
+		span.AddField(k, v)
+	}
 	span.AddField("meta.type", "http_client")
 	span.AddField("name", "http_client")
 	r.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
-
-	// add in common request headers.
-	reqprops := common.GetRequestProps(r)
-	for k, v := range reqprops {
-		span.AddField(k, v)
-	}
 
 	resp, err := ht.wrt.RoundTrip(r)
 

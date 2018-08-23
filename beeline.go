@@ -141,15 +141,17 @@ func Close() {
 
 // AddField allows you to add a single field to an event anywhere downstream of
 // an instrumented request. After adding the appropriate middleware or wrapping
-// a Handler, feel free to call AddFieldToSpan freely within your code. Pass it
-// the context from the request (`r.Context()`) and the key and value you wish
-// to add.This function is good for span-level data, eg timers or the arguments
-// to a specific function call, etc. Fields added here are prefixed with `app.`
+// a Handler, feel free to call AddField freely within your code. Pass it the
+// context from the request (`r.Context()`) and the key and value you wish to
+// add.This function is good for span-level data, eg timers or the arguments to
+// a specific function call, etc. Fields added here are prefixed with `app.`
 func AddField(ctx context.Context, key string, val interface{}) {
 	namespacedKey := fmt.Sprintf("app.%s", key)
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
 		span.AddField(namespacedKey, val)
+	} else {
+		fmt.Println("span is nil")
 	}
 }
 
@@ -186,7 +188,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) 
 		// there is no trace active; we should make one, but use the root span
 		// as the "new" span instead of creating a child of this mostly empty
 		// span
-		ctx, _ := trace.NewTrace(ctx, "")
+		ctx, _ = trace.NewTrace(ctx, "")
 		newSpan = trace.GetSpanFromContext(ctx)
 	}
 	newSpan.AddField("name", name)

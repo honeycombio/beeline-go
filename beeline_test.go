@@ -24,18 +24,17 @@ func TestNestedSpans(t *testing.T) {
 			Output:   mo,
 		},
 	)
-	ctx := StartSpan(context.Background(), "start")
-	AddField(ctx, "start_col", 1)
-	ctx = StartSpan(ctx, "middle")
-	AddField(ctx, "mid_col", 1)
-	ctx = StartSpan(ctx, "leaf")
-	AddField(ctx, "leaf_col", 1)
-	ctx = FinishSpan(ctx)             // finishing leaf span
-	AddField(ctx, "after_mid_col", 1) // adding to middle span
-	ctx = FinishSpan(ctx)             // finishing middle span
-	AddField(ctx, "end_start_col", 1) // adding to start span
-	ctx = FinishSpan(ctx)             // finishing start span
-	Flush(ctx)
+	ctxroot, spanroot := StartSpan(context.Background(), "start")
+	AddField(ctxroot, "start_col", 1)
+	ctxmid, spanmid := StartSpan(ctxroot, "middle")
+	AddField(ctxmid, "mid_col", 1)
+	ctxleaf, spanleaf := StartSpan(ctxmid, "leaf")
+	AddField(ctxleaf, "leaf_col", 1)
+	spanleaf.Finish()                     // finishing leaf span
+	AddField(ctxmid, "after_mid_col", 1)  // adding to middle span
+	spanmid.Finish()                      // finishing middle span
+	AddField(ctxroot, "end_start_col", 1) // adding to start span
+	spanroot.Finish()                     // finishing start span
 
 	events := mo.Events()
 	assert.Equal(t, 3, len(events), "should have sent 3 events")
@@ -68,13 +67,12 @@ func TestBasicSpanAttributes(t *testing.T) {
 			Output:   mo,
 		},
 	)
-	ctx := StartSpan(context.Background(), "start")
+	ctx, span := StartSpan(context.Background(), "start")
 	AddField(ctx, "start_col", 1)
-	ctx = StartSpan(ctx, "middle")
-	AddField(ctx, "mid_col", 1)
-	ctx = FinishSpan(ctx)
-	ctx = FinishSpan(ctx)
-	Flush(ctx)
+	ctxmid, spanmid := StartSpan(ctx, "middle")
+	AddField(ctxmid, "mid_col", 1)
+	spanmid.Finish()
+	span.Finish()
 
 	events := mo.Events()
 	assert.Equal(t, 2, len(events), "should have sent 2 events")
