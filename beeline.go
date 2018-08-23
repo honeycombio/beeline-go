@@ -177,9 +177,9 @@ func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 // context with the new span in it as well as the actual span that was just
 // created. You should call `span.Finish()` when the span should be finished.
 // You should pass the returned context downstream.
-func StartSpan(ctx context.Context, name string) (context.Context, trace.Span) {
+func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) {
 	span := trace.GetSpanFromContext(ctx)
-	var newSpan trace.Span
+	var newSpan *trace.Span
 	if span != nil {
 		ctx, newSpan = span.ChildSpan(ctx)
 	} else {

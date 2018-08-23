@@ -29,15 +29,11 @@ func PutTraceInContext(ctx context.Context, trace *Trace) context.Context {
 
 // GetSpanFromContext identifies the currently active span via the span context
 // key. It returns that span, and access to the trace is available via the span
-// or from the context directly. The returned span will either be a SyncSpan or
-// AsyncSpan
-func GetSpanFromContext(ctx context.Context) Span {
+// or from the context directly.
+func GetSpanFromContext(ctx context.Context) *Span {
 	if ctx != nil {
 		if val := ctx.Value(honeySpanContextKey); val != nil {
-			if span, ok := val.(*SyncSpan); ok {
-				return span
-			}
-			if span, ok := val.(*AsyncSpan); ok {
+			if span, ok := val.(*Span); ok {
 				return span
 			}
 		}
@@ -45,6 +41,6 @@ func GetSpanFromContext(ctx context.Context) Span {
 	return nil
 }
 
-func PutSpanInContext(ctx context.Context, span Span) context.Context {
+func PutSpanInContext(ctx context.Context, span *Span) context.Context {
 	return context.WithValue(ctx, honeySpanContextKey, span)
 }

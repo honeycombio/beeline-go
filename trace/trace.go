@@ -25,7 +25,7 @@ type Trace struct {
 	parentID         string
 	rollupFields     map[string]float64
 	rollupLock       sync.Mutex
-	rootSpan         Span
+	rootSpan         *Span
 	tlfLock          sync.Mutex
 	traceLevelFields map[string]interface{}
 }
@@ -51,9 +51,10 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 			}
 		}
 	}
-	rootSpan := newSpan().(*SyncSpan)
+	rootSpan := newSpan()
 	rootSpan.amRoot = true
 	rootSpan.ev = trace.builder.NewEvent()
+	rootSpan.AddField("meta.root_span", true)
 	rootSpan.trace = trace
 	trace.rootSpan = rootSpan
 
@@ -71,14 +72,14 @@ func (t *Trace) AddField(key string, val interface{}) {
 	}
 }
 
-func (t *Trace) GetRootSpan() Span {
+func (t *Trace) GetRootSpan() *Span {
 	return t.rootSpan
 }
 
 func (t *Trace) Send() {
 	// TODO add sampling
 	// make sure all sync spans are finished
-	rs := t.rootSpan.(*SyncSpan)
+	rs := t.rootSpan
 	if !rs.amFinished {
 		rs.Finish()
 	}
@@ -86,31 +87,19 @@ func (t *Trace) Send() {
 	recursiveSend(rs)
 }
 
-// Span is fulfilled by both synchronous and asynchronous spans
-type Span interface {
-	AddField(string, interface{})
-	AddRollupField(string, float64)
-	AddTraceField(string, interface{})
-	AmAsync() bool
-	ChildAsyncSpan(context.Context) (context.Context, Span)
-	ChildSpan(context.Context) (context.Context, Span)
-	Finish()
-	GetParent() Span
-	SerializeHeaders() string
-}
-
-// SyncSpan is the default span type.
-type SyncSpan struct {
+// Span is the default span type.
+type Span struct {
 	amAsync      bool
 	amFinished   bool
 	amRoot       bool
-	children     []Span
+	children     []*Span
 	ev           *libhoney.Event
 	spanID       string
 	parentID     string
-	parent       Span
+	parent       *Span
 	rollupFields map[string]float64
 	rollupLock   sync.Mutex
+	sent         bool // records whether this span has already been sent.
 	timer        timer.Timer
 	trace        *Trace
 }
@@ -118,22 +107,22 @@ type SyncSpan struct {
 // TODO don't do this - initialize all of them each place you need to; this just sets traps.
 // newSpan conveniently initializes some (but not all) things that would
 // otherwise be nil
-func newSpan() Span {
-	return &SyncSpan{
+func newSpan() *Span {
+	return &Span{
 		spanID:       uuid.Must(uuid.NewRandom()).String(),
 		timer:        timer.Start(),
-		children:     make([]Span, 0),
+		children:     make([]*Span, 0),
 		rollupFields: make(map[string]float64),
 	}
 }
 
-func (s *SyncSpan) AddField(key string, val interface{}) {
+func (s *Span) AddField(key string, val interface{}) {
 	if s.ev != nil {
 		s.ev.AddField(key, val)
 	}
 }
 
-func (s *SyncSpan) AddRollupField(key string, val float64) {
+func (s *Span) AddRollupField(key string, val float64) {
 	s.rollupLock.Lock()
 	if s.rollupFields != nil {
 		s.rollupFields[key] += val
@@ -146,7 +135,7 @@ func (s *SyncSpan) AddRollupField(key string, val float64) {
 	}
 }
 
-func (s *SyncSpan) AddTraceField(key string, val interface{}) {
+func (s *Span) AddTraceField(key string, val interface{}) {
 	// these get added to this span when it gets sent, so don't bother adding
 	// them here
 	if s.trace != nil {
@@ -154,7 +143,7 @@ func (s *SyncSpan) AddTraceField(key string, val interface{}) {
 	}
 }
 
-func (s *SyncSpan) Finish() {
+func (s *Span) Finish() {
 	if s.ev == nil {
 		return
 	}
@@ -177,10 +166,9 @@ func (s *SyncSpan) Finish() {
 	// finished by the parent rather than themselves
 	for _, child := range s.children {
 		if !child.AmAsync() {
-			childSpan := child.(*SyncSpan)
-			if !childSpan.amFinished {
-				childSpan.AddField("meta.finished_by_parent", true)
-				childSpan.Finish()
+			if !child.amFinished {
+				child.AddField("meta.finished_by_parent", true)
+				child.Finish()
 			}
 		}
 	}
@@ -191,30 +179,27 @@ func (s *SyncSpan) Finish() {
 	}
 }
 
-func (s *SyncSpan) AmAsync() bool {
+func (s *Span) AmAsync() bool {
 	return s.amAsync
 }
 
-func (s *SyncSpan) GetParent() Span {
+func (s *Span) GetParent() *Span {
 	return s.parent
 }
 
-// AsyncSpan creates a child of the current span that is expected to outlive
-// the current span (and trace). Async spans must be manually sent using the
-// `Send()` method but are otherwise identical to normal spans.
-func (s *SyncSpan) ChildAsyncSpan(ctx context.Context) (context.Context, Span) {
-	ctx, syncChild := s.ChildSpan(ctx)
-	newSpan := &AsyncSpan{
-		SyncSpan: *(syncChild.(*SyncSpan)),
-	}
+// ChildAsyncSpan creates a child of the current span that is expected to
+// outlive the current span (and trace). Async spans must be manually sent using
+// the `Send()` method but are otherwise identical to normal spans.
+func (s *Span) ChildAsyncSpan(ctx context.Context) (context.Context, *Span) {
+	ctx, newSpan := s.ChildSpan(ctx)
 	newSpan.amAsync = true
-	ctx = PutSpanInContext(ctx, newSpan)
 	return ctx, newSpan
 }
 
-// Span creates a child of the current span. Spans must finish before their parents.
-func (s *SyncSpan) ChildSpan(ctx context.Context) (context.Context, Span) {
-	newSpan := newSpan().(*SyncSpan)
+// Span creates a child of the current span. Spans must finish before their
+// parents.
+func (s *Span) ChildSpan(ctx context.Context) (context.Context, *Span) {
+	newSpan := newSpan()
 	newSpan.parent = s
 	newSpan.parentID = s.spanID
 	newSpan.trace = s.trace
@@ -224,7 +209,7 @@ func (s *SyncSpan) ChildSpan(ctx context.Context) (context.Context, Span) {
 	return ctx, newSpan
 }
 
-func (s *SyncSpan) SerializeHeaders() string {
+func (s *Span) SerializeHeaders() string {
 	var prop = &propagation.Propagation{
 		TraceID:      s.trace.traceID,
 		ParentID:     s.spanID,
@@ -237,7 +222,11 @@ func (s *SyncSpan) SerializeHeaders() string {
 
 // send gets all the trace level fields and does pre-send hooks, then sends the
 // span.
-func (s *SyncSpan) send() {
+func (s *Span) send() {
+	// don't send already sent spans
+	if s.sent {
+		return
+	}
 	// add all the trace level fields to the event as late as possible - when
 	// the trace is all getting sent
 	s.trace.tlfLock.Lock()
@@ -264,36 +253,27 @@ func (s *SyncSpan) send() {
 
 // recursiveSend sends this span and then all its children; async spans don't
 // get sent here
-func recursiveSend(s *SyncSpan) {
-	if !s.amAsync {
+func recursiveSend(s *Span) {
+	if !s.sent {
 		s.send()
-		for _, childSpan := range s.children {
-			if !childSpan.AmAsync() {
-				recursiveSend(childSpan.(*SyncSpan))
-			}
-		}
 	}
-}
-
-// AsyncSpan does all the things a span does except get sent when the trace
-// finishes. You must explicitly send AsyncSpans when they are ready
-type AsyncSpan struct {
-	SyncSpan
-}
-
-// Send sends this span and any synchronous span children. Any AsyncSpan
-// children must still be sent manually. TODO it's likely that using an
-// interface and two different types here is a terrible idea and syncness should
-// just be an attribute of Span rather than a separate type. Send on a sync span
-// would ... be a noop? not sure.
-func (a *AsyncSpan) Send() {
-	if !a.amFinished {
-		a.Finish()
-	}
-	a.send()
-	for _, childSpan := range a.children {
+	for _, childSpan := range s.children {
 		if !childSpan.AmAsync() {
-			recursiveSend(childSpan.(*SyncSpan))
+			recursiveSend(childSpan)
 		}
 	}
+	s.sent = true
+}
+
+// Send sends this span and any synchronous span children. Does not send any
+// async children. Primarily used on async spans. While you can call `Send` on a
+// synchronous (normal) span, doing so prevents the span from getting any trace
+// level fields added after it is sent. Synchronous spans get automatically sent
+// when the trace finishes; it should never be necessary to call `Send` on a
+// synchronous span. (but if you do, it will in fact get sent.)
+func (s *Span) Send() {
+	if !s.amFinished {
+		s.Finish()
+	}
+	recursiveSend(s)
 }

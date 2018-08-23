@@ -47,7 +47,7 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	return reqProps
 }
 
-func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, trace.Span) {
+func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
 	ctx := r.Context()
 	span := trace.GetSpanFromContext(ctx)
 	if span == nil {
@@ -107,7 +107,7 @@ func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*li
 // BuildDBSpan does the same things as BuildDBEvent except that it has access to
 // a trace from the context and takes advantage of that to add the DB events
 // into the trace.
-func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (context.Context, trace.Span, func(error)) {
+func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (context.Context, *trace.Span, func(error)) {
 	timer := timer.Start()
 	parentSpan := trace.GetSpanFromContext(ctx)
 	if parentSpan == nil {
