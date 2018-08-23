@@ -38,13 +38,14 @@ type Config struct {
 	// with this config option to have manual control over sampling within the
 	// beeline. The function should return true if the event should be kept and
 	// false if it should be dropped.  If it should be kept, the returned
-	// integer is the sample rate that has been applied. Runs before the
-	// PresendHook.
+	// integer is the sample rate that has been applied. The SamplerHook
+	// overrides the default sampler. Runs before the PresendHook.
 	SamplerHook func(map[string]interface{}) (bool, int)
 	// PresendHook is a function call that will get run with the contents of
 	// each event just before sending them to Honeycomb. The function registered
 	// here may mutate the map passed in to add, change, or drop fields from the
-	// event before it gets sent to Honeycomb. Runs after the SamplerHook.
+	// event before it gets sent to Honeycomb. Does not get invoked if the event
+	// is going to be dropped because of sampling. Runs after the SamplerHook.
 	PresendHook func(map[string]interface{})
 	// APIHost is the hostname for the Honeycomb API server to which to send
 	// this event. default: https://api.honeycomb.io/
@@ -110,8 +111,8 @@ func Init(config Config) {
 	if config.SamplerHook != nil {
 		trace.GlobalConfig.SamplerHook = config.SamplerHook
 	} else {
-		// configure and set a global sampler so sending traces can use it without
-		// threading it through
+		// configure and set a global sampler so sending traces can use it
+		// without threading it through
 		sampler, err := sample.NewDeterministicSampler(config.SampleRate)
 		if err == nil {
 			sample.GlobalSampler = sampler

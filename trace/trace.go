@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/honeycombio/beeline-go/propagation"
+	"github.com/honeycombio/beeline-go/sample"
 	"github.com/honeycombio/beeline-go/timer"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
@@ -256,12 +257,18 @@ func (s *Span) send() {
 		var sampleRate int
 		shouldKeep, sampleRate = GlobalConfig.SamplerHook(s.ev.Fields())
 		s.ev.SampleRate *= uint(sampleRate)
-	}
-	if GlobalConfig.PresendHook != nil {
-		// munge all the fields
-		GlobalConfig.PresendHook(s.ev.Fields())
+	} else {
+		// use the default sampler
+		if sample.GlobalSampler != nil {
+			shouldKeep = sample.GlobalSampler.Sample(s.trace.traceID)
+			s.ev.SampleRate = uint(sample.GlobalSampler.GetSampleRate())
+		}
 	}
 	if shouldKeep {
+		if GlobalConfig.PresendHook != nil {
+			// munge all the fields
+			GlobalConfig.PresendHook(s.ev.Fields())
+		}
 		s.ev.SendPresampled()
 	}
 }

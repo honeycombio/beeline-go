@@ -49,6 +49,9 @@ func bytesToUint32be(b []byte) uint32 {
 // Sample returns true when you should *keep* this sample. False when it should
 // be dropped.
 func (ds *DeterministicSampler) Sample(determinant string) bool {
+	if ds.sampleRate == 1 {
+		return true
+	}
 	sum := sha1.Sum([]byte(determinant))
 	v := bytesToUint32be(sum[:4])
 	return v <= ds.upperBound
