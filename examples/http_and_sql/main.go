@@ -94,8 +94,6 @@ func (a *app) hello(w http.ResponseWriter, r *http.Request) {
 //     "mux.handler.type": "http.HandlerFunc",
 //     "request.content_length": 0,
 //     "request.header.user_agent": "curl/7.54.0",
-//     "request.header.x_forwarded_for":"",
-//     "request.header.x_forwarded_proto":"",
 //     "request.host": "localhost:8080",
 //     "request.method": "GET",
 //     "request.path": "/hello/foo",
