@@ -45,7 +45,7 @@ func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 	ev.AddField("request.http_version", req.Proto)
 	ev.AddField("request.content_length", req.ContentLength)
 	ev.AddField("request.remote_addr", req.RemoteAddr)
-	// add useful headers fields if they exist
+	// add useful header fields if they exist
 	if userAgent != "" {
 		ev.AddField("request.header.user_agent", userAgent)
 	}
