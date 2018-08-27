@@ -36,3 +36,21 @@ func TestURLHostHeader(t *testing.T) {
 	fs := ev.Fields()
 	assert.Equal(t, "example.com", fs["request.host"])
 }
+
+func TestXForwardedForHeader(t *testing.T) {
+	req := httptest.NewRequest("GET", "https://example.com/", nil)
+	req.Header.Set("X-Forwarded-For", "1.2.3.4")
+	ev := libhoney.NewEvent()
+	AddRequestProps(req, ev)
+	fs := ev.Fields()
+	assert.Equal(t, "1.2.3.4", fs["request.header.x_forwarded_for"])
+}
+
+func TestXForwardedProtoHeader(t *testing.T) {
+	req := httptest.NewRequest("GET", "https://example.com/", nil)
+	req.Header.Set("X-Forwarded-Proto", "https")
+	ev := libhoney.NewEvent()
+	AddRequestProps(req, ev)
+	fs := ev.Fields()
+	assert.Equal(t, "https", fs["request.header.x_forwarded_proto"])
+}

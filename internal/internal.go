@@ -43,6 +43,8 @@ func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 	ev.AddField("request.content_length", req.ContentLength)
 	ev.AddField("request.remote_addr", req.RemoteAddr)
 	ev.AddField("request.header.user_agent", req.UserAgent())
+	ev.AddField("request.header.x_forwarded_for", req.Header.Get("x-forwarded-for"))
+	ev.AddField("request.header.x_forwarded_proto", req.Header.Get("x-forwarded-proto"))
 	// add any AWS trace headers that might be present
 	traceID := parseTraceHeader(req, ev)
 	ev.AddField("trace.trace_id", traceID)
