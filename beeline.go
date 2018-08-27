@@ -24,14 +24,15 @@ type Config struct {
 	// https://ui.honeycomb.io/account. default: writekey-placeholder
 	WriteKey string
 	// Dataset is the name of the Honeycomb dataset to which events will be
-	// sent. default: go-http
+	// sent. default: beeline-go
 	Dataset string
 	// Service Name identifies your application. While optional, setting this
 	// field is extremely valuable when you instrument multiple services. If set
 	// it will be added to all events as `service_name`
 	ServiceName string
 	// SamplRate is a positive integer indicating the rate at which to sample
-	// events. default: 1
+	// events. Default sampling is at the trace level - entire traces will be
+	// kept or dropped. default: 1 (meaning no sampling)
 	SampleRate uint
 	// SamplerHook is a function that will get run with the contents of each
 	// event just before sending the event to Honeycomb. Register a function
