@@ -840,6 +840,10 @@ type NamedStmt struct {
 	Builder *libhoney.Builder
 }
 
+func (n *NamedStmt) GetWrappedNamedStmt() *sqlx.NamedStmt {
+	return n.wns
+}
+
 func (n *NamedStmt) Close() error {
 	var err error
 	_, sender := common.BuildDBEvent(n.Builder, "")
@@ -1320,6 +1324,10 @@ type Tx struct {
 	wtx     *sqlx.Tx
 	Builder *libhoney.Builder
 	Mapper  *reflectx.Mapper
+}
+
+func (tx *Tx) GetWrappedTx() *sqlx.Tx {
+	return tx.wtx
 }
 
 func (tx *Tx) BindNamed(query string, arg interface{}) (string, []interface{}, error) {
