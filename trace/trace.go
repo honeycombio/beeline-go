@@ -19,6 +19,11 @@ type Config struct {
 	PresendHook func(map[string]interface{})
 }
 
+// Trace holds some trace level state and the root of the span tree that will be
+// the entire in-process trace. Traces are sent to Honeycomb when the root span
+// is finished. You can send a trace manually, and that will cause all
+// synchronous  spans in the trace to be finished and sent. Asynchronous spans
+// must still be sent manually
 type Trace struct {
 	// TODO add shouldDrop
 	builder          *libhoney.Builder
@@ -64,6 +69,10 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 	return ctx, trace
 }
 
+// AddField adds a field to the trace. Every span in the trace will have this
+// field added to it. It is useful to add fields here that pertain to the entire
+// trace, to aid in filtering spans at many different areas of the trace
+// together.
 func (t *Trace) AddField(key string, val interface{}) {
 	t.tlfLock.Lock()
 	defer t.tlfLock.Unlock()
@@ -72,10 +81,14 @@ func (t *Trace) AddField(key string, val interface{}) {
 	}
 }
 
+// GetRootSpan returns the root of the in-process trace. Finishing the root span
+// will send the entire trace to Honeycomb. From the root span you can walk the
+// entire span tree using GetChildren.
 func (t *Trace) GetRootSpan() *Span {
 	return t.rootSpan
 }
 
+// Send will finish and send the all synchronous spans in the trace to Honeycomb
 func (t *Trace) Send() {
 	// TODO add sampling
 	// make sure all sync spans are finished
@@ -87,7 +100,8 @@ func (t *Trace) Send() {
 	recursiveSend(rs)
 }
 
-// Span is the default span type.
+// Span represents a specific task or portion of an application. It has a time
+// and duration, and is linked to parent and children.
 type Span struct {
 	amAsync      bool
 	amFinished   bool
@@ -104,9 +118,11 @@ type Span struct {
 	trace        *Trace
 }
 
-// TODO don't do this - initialize all of them each place you need to; this just sets traps.
-// newSpan conveniently initializes some (but not all) things that would
-// otherwise be nil
+// newSpan takes care of *some* of the initialization necessary to create a new
+// span. IMPORTANT it is not all of the initialization! It does *not* set parent
+// ID or assign the pointer to the trace that contains this span. See existing
+// uses of this function to get an example of the other things necessary to
+// create a well formed span.
 func newSpan() *Span {
 	return &Span{
 		spanID:       uuid.Must(uuid.NewRandom()).String(),
@@ -116,12 +132,20 @@ func newSpan() *Span {
 	}
 }
 
+// AddField adds a key/value pair to this span
 func (s *Span) AddField(key string, val interface{}) {
 	if s.ev != nil {
 		s.ev.AddField(key, val)
 	}
 }
 
+// AddRollupField adds a key/value pair to this span. If it is called repeatedly
+// on the same span, the values will be summed together.  Additionally, this
+// field will be summed across all spans and added to the trace as a total. It
+// is especially useful for doing things like adding the duration spent talking
+// to a specific external service - eg database time. The root span will then
+// get a field that represents the total time spent talking to the database from
+// all of the spans that are part of the trace.
 func (s *Span) AddRollupField(key string, val float64) {
 	s.rollupLock.Lock()
 	if s.rollupFields != nil {
@@ -179,6 +203,10 @@ func (s *Span) Finish() {
 
 func (s *Span) AmAsync() bool {
 	return s.amAsync
+}
+
+func (s *Span) GetChildren() []*Span {
+	return s.children
 }
 
 func (s *Span) GetParent() *Span {

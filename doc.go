@@ -12,7 +12,9 @@
 // flows.
 //
 // The `trace` package offers more direct control over the generated events and
-// how they connect together to form traces.
+// how they connect together to form traces. It can be used if you need more
+// functionality (eg asynchronous spans, other field naming standards, trace
+// propagation).
 //
 // Regardless of which subpackages are used, there is a small amount of global
 // configuration to add to your application's startup process. At the bare
@@ -35,4 +37,8 @@
 // There are runnable examples at
 // https://github.com/honeycombio/beeline-go/tree/master/examples and examples
 // of each wrapper in the godoc.
+//
+// TODO create two comprehensive examples, one showing basic beeline use and the
+// other the more exciting things you can do with direct access to the trace and
+// span objects.
 package beeline
