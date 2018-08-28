@@ -36,3 +36,33 @@ func TestURLHostHeader(t *testing.T) {
 	fs := ev.Fields()
 	assert.Equal(t, "example.com", fs["request.host"])
 }
+
+func TestUserAgentHeader(t *testing.T) {
+	userAgent := "Lynx"
+	req := httptest.NewRequest("GET", "https://example.com/", nil)
+	req.Header.Set("User-Agent", userAgent)
+	ev := libhoney.NewEvent()
+	AddRequestProps(req, ev)
+	fs := ev.Fields()
+	assert.Equal(t, userAgent, fs["request.header.user_agent"])
+}
+
+func TestXForwardedForHeader(t *testing.T) {
+	xForwardedFor := "1.2.3.4"
+	req := httptest.NewRequest("GET", "https://example.com/", nil)
+	req.Header.Set("X-Forwarded-For", xForwardedFor)
+	ev := libhoney.NewEvent()
+	AddRequestProps(req, ev)
+	fs := ev.Fields()
+	assert.Equal(t, xForwardedFor, fs["request.header.x_forwarded_for"])
+}
+
+func TestXForwardedProtoHeader(t *testing.T) {
+	xForwardedProto := "https"
+	req := httptest.NewRequest("GET", "https://example.com/", nil)
+	req.Header.Set("X-Forwarded-Proto", xForwardedProto)
+	ev := libhoney.NewEvent()
+	AddRequestProps(req, ev)
+	fs := ev.Fields()
+	assert.Equal(t, xForwardedProto, fs["request.header.x_forwarded_proto"])
+}

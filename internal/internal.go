@@ -32,6 +32,9 @@ func (h *ResponseWriter) WriteHeader(statusCode int) {
 }
 
 func AddRequestProps(req *http.Request, ev *libhoney.Event) {
+	userAgent := req.UserAgent()
+	xForwardedFor := req.Header.Get("x-forwarded-for")
+	xForwardedProto := req.Header.Get("x-forwarded-proto")
 	// identify the type of event
 	ev.AddField("meta.type", "http")
 	// Add a variety of details about the HTTP request, such as user agent
@@ -42,7 +45,17 @@ func AddRequestProps(req *http.Request, ev *libhoney.Event) {
 	ev.AddField("request.http_version", req.Proto)
 	ev.AddField("request.content_length", req.ContentLength)
 	ev.AddField("request.remote_addr", req.RemoteAddr)
-	ev.AddField("request.header.user_agent", req.UserAgent())
+	// add useful header fields if they exist
+	if userAgent != "" {
+		ev.AddField("request.header.user_agent", userAgent)
+	}
+	if xForwardedFor != "" {
+		ev.AddField("request.header.x_forwarded_for", xForwardedFor)
+	}
+	if xForwardedProto != "" {
+		ev.AddField("request.header.x_forwarded_proto", xForwardedProto)
+
+	}
 	// add any AWS trace headers that might be present
 	traceID := parseTraceHeader(req, ev)
 	ev.AddField("trace.trace_id", traceID)
