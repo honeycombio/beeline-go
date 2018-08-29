@@ -52,6 +52,10 @@ func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
 // GetRequestProps is a convenient method to grab all common http request
 // properties and get them back as a map.
 func GetRequestProps(req *http.Request) map[string]interface{} {
+	userAgent := req.UserAgent()
+	xForwardedFor := req.Header.Get("x-forwarded-for")
+	xForwardedProto := req.Header.Get("x-forwarded-proto")
+
 	reqProps := make(map[string]interface{})
 	// identify the type of event
 	reqProps["meta.type"] = "http_request"
@@ -63,9 +67,15 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	reqProps["request.http_version"] = req.Proto
 	reqProps["request.content_length"] = req.ContentLength
 	reqProps["request.remote_addr"] = req.RemoteAddr
-	reqProps["request.header.user_agent"] = req.UserAgent()
-	reqProps["request.header.x_forwarded_for"] = req.Header.Get("x-forwarded-for")
-	reqProps["request.header.x_forwarded_proto"] = req.Header.Get("x-forwarded-proto")
+	if userAgent != "" {
+		reqProps["request.header.user_agent"] = userAgent
+	}
+	if xForwardedFor != "" {
+		reqProps["request.header.x_forwarded_for"] = xForwardedFor
+	}
+	if xForwardedProto != "" {
+		reqProps["request.header.x_forwarded_proto"] = xForwardedProto
+	}
 	return reqProps
 }
 
