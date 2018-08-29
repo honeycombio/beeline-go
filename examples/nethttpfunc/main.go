@@ -22,8 +22,9 @@ func main() {
 		STDOUT: true,
 	})
 
+	// here only the /hello handler is wrapped, no other endpoints.
 	http.HandleFunc("/hello", hnynethttp.WrapHandlerFunc(helloServer))
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe("localhost:8080", nil))
 
 }
 

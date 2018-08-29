@@ -16,6 +16,9 @@ import (
 // id field, a flavor field, and an updated field. It should have a few
 // records in there for good measure.
 
+// the example counts how many rows are in the DB, adds a new one, then counts
+// again.
+
 type flavor struct {
 	ID      int    `db:"id"`
 	Flavor  string `db:"flavor"`

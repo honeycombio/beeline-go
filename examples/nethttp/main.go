@@ -24,8 +24,8 @@ func main() {
 		WriteKey:    "abcabc123123abcabc",
 		Dataset:     "http+sql",
 		ServiceName: "sample app",
-		SamplerHook: sampler,
-		PresendHook: presend,
+		// SamplerHook: sampler,
+		// PresendHook: presend,
 		// for demonstration, send the event to STDOUT instead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
 		STDOUT: true,
@@ -36,7 +36,7 @@ func main() {
 
 	// wrap the globalmux with the honeycomb middleware to send one event per
 	// request
-	log.Fatal(http.ListenAndServe(":8080", hnynethttp.WrapHandler(globalmux)))
+	log.Fatal(http.ListenAndServe("localhost:8080", hnynethttp.WrapHandler(globalmux)))
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
@@ -63,8 +63,8 @@ func bigJob(ctx context.Context) {
 func outboundCall(ctx context.Context) {
 	// let's make an outbound HTTP call
 	client := &http.Client{
-		// Transport: hnynethttp.WrapRoundTripper(http.DefaultTransport),
-		Timeout: time.Second * 5,
+		Transport: hnynethttp.WrapRoundTripper(http.DefaultTransport),
+		Timeout:   time.Second * 5,
 	}
 	req, _ := http.NewRequest(http.MethodGet, "http://scooterlabs.com/echo.json", strings.NewReader(""))
 	req = req.WithContext(ctx)

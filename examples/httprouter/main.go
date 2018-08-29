@@ -31,7 +31,7 @@ func main() {
 	router.GET("/", hnyhttprouter.Middleware(Index))
 
 	// wrap the main router to set everything up for instrumenting
-	log.Fatal(http.ListenAndServe(":8080", hnynethttp.WrapHandler(router)))
+	log.Fatal(http.ListenAndServe("localhost:8080", hnynethttp.WrapHandler(router)))
 }
 
 func Index(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {

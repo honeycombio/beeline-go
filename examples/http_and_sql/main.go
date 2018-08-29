@@ -41,7 +41,7 @@ func main() {
 
 	// wrap the globalmux with the honeycomb middleware to send one event per
 	// request
-	log.Fatal(http.ListenAndServe(":8080", hnynethttp.WrapHandler(globalmux)))
+	log.Fatal(http.ListenAndServe("localhost:8080", hnynethttp.WrapHandler(globalmux)))
 }
 
 type app struct {

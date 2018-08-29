@@ -30,7 +30,7 @@ func main() {
 	r.HandleFunc("/hello/{person}", HelloHandler)
 
 	// Bind to a port and pass our router in
-	log.Fatal(http.ListenAndServe(":8080", hnynethttp.WrapHandler(r)))
+	log.Fatal(http.ListenAndServe("localhost:8080", hnynethttp.WrapHandler(r)))
 }
 
 func YourHandler(w http.ResponseWriter, r *http.Request) {
