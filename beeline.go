@@ -153,10 +153,18 @@ func Close() {
 // add.This function is good for span-level data, eg timers or the arguments to
 // a specific function call, etc. Fields added here are prefixed with `app.`
 func AddField(ctx context.Context, key string, val interface{}) {
-	namespacedKey := fmt.Sprintf("app.%s", key)
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
-		span.AddField(namespacedKey, val)
+		if val != nil {
+			namespacedKey := fmt.Sprintf("app.%s", key)
+			if valErr, ok := val.(error); ok {
+				// treat errors specially because it's a pain to have to
+				// remember to stringify them
+				span.AddField(namespacedKey, valErr.Error())
+			} else {
+				span.AddField(namespacedKey, val)
+			}
+		}
 	}
 }
 
