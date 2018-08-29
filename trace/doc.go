@@ -30,5 +30,53 @@
 // useful to use your own naming scheme. Adding fields directly to the span or
 // trace objects allows you to specify the full field name with no prefix.
 //
-// Enjoy!
+// Lifecycle
+//
+// A trace is made up of spans. A span represents a single unit of work (what
+// makes up a unit of work is up to the application). Spans come in two flavors,
+// synchronous (the default) and asynchronous. Synchronous spans finish before
+// their parents, async spans don't. Which you should use depends on the
+// structure of code - if the outer function will block until the inner function
+// returns, a sync span is appropriate. If the inner function is called in a
+// goroutine and expected to outlive the outer function, an async span fits
+// better.
+//
+// Spans should be created as children from an existing span. If there is no
+// current span, first create a new trace then get its root span and use that to
+// create subsequent spans. The beeline `StartSpan()` takes care of all of this
+// for you, but if you're using the trace package directly you need to manage
+// that bookkeeping.
+//
+// When should you create a new span? There are no strict rules, but there are a
+// few heuristics. If there is a process that will repeat in a loop (a batch or
+// something) and each run through the loop is important, make a span. If the
+// code being instrumented has enough attributes that are relevant to it
+// directly to warrant its own bag of data, make a new span. If all you're
+// interested in is a simple timer, it's often cleaner to add that timer to the
+// current existing span instead and save the overhead of a new span.
+//
+// Synchronous spans need to be `Finish()`ed, and will get sent when the entire
+// trace is done (aka the root span finishes). Async spans must be explicitly
+// sent using the `Send()` method.
+//
+// Any span that calls out to a third party service can serialize the current
+// state of the trace into a string suitable for including as an HTTP header (or
+// other similar method for encoding as part of a message). That serialized form
+// can be fed into the downstream service that will use it to start a new trace
+// using the same trace ID. When you look at one of these traces in Honeycomb,
+// you will see any spans created by the downstream service appear as children
+// of the span that serialized its state. The serialized state includes the
+// trace ID and the ID of the span that serialized state, as well as an encoded
+// form of all trace level fields.
+//
+// Sampling
+//
+// The default sampling applied by the beeline samples entire traces. For
+// example, if you set a sample rate to 10, then one out of 10 traces will be
+// sent, and all spans in that trace will be sent (or none at all). If you take
+// advantage of the SamplerHook, it is up to you and your implementation to
+// decide whether to sample entire traces or individual spans. If traces are
+// incomplete (i.e. some spans are kept and others dropped), the Honeycomb UI
+// will show missing traces where there are gaps.
+//
 package trace
