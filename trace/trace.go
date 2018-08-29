@@ -70,9 +70,9 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 }
 
 // AddField adds a field to the trace. Every span in the trace will have this
-// field added to it. It is useful to add fields here that pertain to the entire
-// trace, to aid in filtering spans at many different areas of the trace
-// together.
+// field added to it. These fields are also passed along to downstream services.
+// It is useful to add fields here that pertain to the entire trace, to aid in
+// filtering spans at many different areas of the trace together.
 func (t *Trace) AddField(key string, val interface{}) {
 	t.tlfLock.Lock()
 	defer t.tlfLock.Unlock()
@@ -159,6 +159,9 @@ func (s *Span) AddRollupField(key string, val float64) {
 	}
 }
 
+// AddTraceField adds a key/value pair to this span and all others involved in
+// this trace. These fields are also passed along to downstream services. This
+// method is functionally identical to `Trace.AddField()`.
 func (s *Span) AddTraceField(key string, val interface{}) {
 	// these get added to this span when it gets sent, so don't bother adding
 	// them here
@@ -167,6 +170,11 @@ func (s *Span) AddTraceField(key string, val interface{}) {
 	}
 }
 
+// Finish marks a span complete. It does not actually send the span to
+// Honeycomb; spans stick around until the entire trace is complete and then get
+// dispatched to Honeycomb. Finishing a span also triggers finishing all
+// synchronous child spans - in other words, if any synchronous child span has
+// not yet been finished, finishing the parent will finish the children as well.
 func (s *Span) Finish() {
 	if s.ev == nil {
 		return
@@ -201,14 +209,18 @@ func (s *Span) Finish() {
 	}
 }
 
+// AmAsync reveals whether the span is asynchronous (true) or synchronous (false).
 func (s *Span) AmAsync() bool {
 	return s.amAsync
 }
 
+// GetChildren returns a list of all child spans (both synchronous and
+// asynchronous).
 func (s *Span) GetChildren() []*Span {
 	return s.children
 }
 
+// Get Parent returns this span's parent.
 func (s *Span) GetParent() *Span {
 	return s.parent
 }
@@ -222,8 +234,8 @@ func (s *Span) ChildAsyncSpan(ctx context.Context) (context.Context, *Span) {
 	return ctx, newSpan
 }
 
-// Span creates a child of the current span. Spans must finish before their
-// parents.
+// Span creates a synchronous child of the current span. Spans must finish
+// before their parents.
 func (s *Span) ChildSpan(ctx context.Context) (context.Context, *Span) {
 	newSpan := newSpan()
 	newSpan.parent = s
@@ -235,6 +247,12 @@ func (s *Span) ChildSpan(ctx context.Context) (context.Context, *Span) {
 	return ctx, newSpan
 }
 
+// SerializeHeaders returns the trace ID, current span ID as parent ID, and an
+// encoded form of all trace level fields. This serialized header is intended to
+// be put in an HTTP (or other protocol) header to transmit to downstream
+// services so they may start a new trace that will be connected to this trace.
+// The serialized form may be passed to NewTrace() in order to create a new
+// trace that will be connected to this trace.
 func (s *Span) SerializeHeaders() string {
 	var prop = &propagation.Propagation{
 		TraceID:      s.trace.traceID,
@@ -244,6 +262,20 @@ func (s *Span) SerializeHeaders() string {
 	// prop.Source = HeaderSourceBeeline
 
 	return propagation.MarshalTraceContext(prop)
+}
+
+// Send sends this span and any synchronous span children. Does not send any
+// async children. Primarily used on asynchronous spans - you must call `Send()`
+// on an asynchronous span in order for it to get sent to Honeycomb. Normally,
+// this function is not used for synchronous spans; they all get sent when the
+// root span gets `Finish()`ed. While you can call `Send` on a synchronous
+// (normal) span, doing so prevents the span from getting any trace level fields
+// added after it is sent.
+func (s *Span) Send() {
+	if !s.amFinished {
+		s.Finish()
+	}
+	recursiveSend(s)
 }
 
 // send gets all the trace level fields and does pre-send hooks, then sends the
@@ -313,17 +345,4 @@ func recursiveSend(s *Span) {
 		}
 	}
 	s.sent = true
-}
-
-// Send sends this span and any synchronous span children. Does not send any
-// async children. Primarily used on async spans. While you can call `Send` on a
-// synchronous (normal) span, doing so prevents the span from getting any trace
-// level fields added after it is sent. Synchronous spans get automatically sent
-// when the trace finishes; it should never be necessary to call `Send` on a
-// synchronous span. (but if you do, it will in fact get sent.)
-func (s *Span) Send() {
-	if !s.amFinished {
-		s.Finish()
-	}
-	recursiveSend(s)
 }
