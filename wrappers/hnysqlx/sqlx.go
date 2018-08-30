@@ -1299,6 +1299,24 @@ func (tx *Tx) Commit() error {
 	err = tx.wtx.Commit()
 	return err
 }
+
+// Commitx adds a commit that can be passed a context in order
+// to ensure that commits show up as part of a parent trace
+func (tx *Tx) Commitx(ctx context.Context) error {
+	var err error
+	_, sender := internal.BuildDBEvent(ctx, tx.Builder, "")
+	defer sender(err)
+
+	// ensure any changes to the Mapper get passed along
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
+
+	// do DB call
+	err = tx.wtx.Commit()
+	return err
+}
+
 func (tx *Tx) DriverName() string {
 	var err error
 	_, sender := internal.BuildDBEvent(context.Background(), tx.Builder, "")
