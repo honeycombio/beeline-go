@@ -1363,7 +1363,7 @@ func (tx *Tx) Commit() error {
 // to ensure that commits show up as part of a parent trace
 func (tx *Tx) CommitContext(ctx context.Context) error {
 	var err error
-	_, sender := internal.BuildDBEvent(ctx, tx.Builder, "")
+	_, _, sender := common.BuildDBSpan(ctx, tx.Builder, "")
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
@@ -1923,7 +1923,7 @@ func (tx *Tx) Rollback() error {
 
 func (tx *Tx) RollbackContext(ctx context.Context) error {
 	var err error
-	_, sender := internal.BuildDBEvent(ctx, tx.Builder, "")
+	_, _, sender := common.BuildDBSpan(ctx, tx.Builder, "")
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
