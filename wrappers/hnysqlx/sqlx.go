@@ -1300,9 +1300,9 @@ func (tx *Tx) Commit() error {
 	return err
 }
 
-// Commitx is the same as `Commit`, but is passed a context
+// CommitContext is the same as `Commit`, but is passed a context
 // to ensure that commits show up as part of a parent trace
-func (tx *Tx) Commitx(ctx context.Context) error {
+func (tx *Tx) CommitContext(ctx context.Context) error {
 	var err error
 	_, sender := internal.BuildDBEvent(ctx, tx.Builder, "")
 	defer sender(err)
@@ -1842,7 +1842,7 @@ func (tx *Tx) Rollback() error {
 	return err
 }
 
-func (tx *Tx) Rollbackx(ctx context.Context) error {
+func (tx *Tx) RollbackContext(ctx context.Context) error {
 	var err error
 	_, sender := internal.BuildDBEvent(ctx, tx.Builder, "")
 	defer sender(err)
