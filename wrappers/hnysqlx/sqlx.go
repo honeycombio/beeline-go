@@ -1299,6 +1299,24 @@ func (tx *Tx) Commit() error {
 	err = tx.wtx.Commit()
 	return err
 }
+
+// CommitContext is the same as `Commit`, but is passed a context
+// to ensure that commits show up as part of a parent trace
+func (tx *Tx) CommitContext(ctx context.Context) error {
+	var err error
+	_, sender := internal.BuildDBEvent(ctx, tx.Builder, "")
+	defer sender(err)
+
+	// ensure any changes to the Mapper get passed along
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
+
+	// do DB call
+	err = tx.wtx.Commit()
+	return err
+}
+
 func (tx *Tx) DriverName() string {
 	var err error
 	_, sender := internal.BuildDBEvent(context.Background(), tx.Builder, "")
@@ -1812,6 +1830,21 @@ func (tx *Tx) Rebind(query string) string {
 func (tx *Tx) Rollback() error {
 	var err error
 	_, sender := internal.BuildDBEvent(context.Background(), tx.Builder, "")
+	defer sender(err)
+
+	// ensure any changes to the Mapper get passed along
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
+
+	// do DB call
+	err = tx.wtx.Rollback()
+	return err
+}
+
+func (tx *Tx) RollbackContext(ctx context.Context) error {
+	var err error
+	_, sender := internal.BuildDBEvent(ctx, tx.Builder, "")
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
