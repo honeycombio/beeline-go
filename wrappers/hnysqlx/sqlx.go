@@ -1842,6 +1842,21 @@ func (tx *Tx) Rollback() error {
 	return err
 }
 
+func (tx *Tx) Rollbackx(ctx context.Context) error {
+	var err error
+	_, sender := internal.BuildDBEvent(ctx, tx.Builder, "")
+	defer sender(err)
+
+	// ensure any changes to the Mapper get passed along
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
+
+	// do DB call
+	err = tx.wtx.Rollback()
+	return err
+}
+
 func (tx *Tx) Select(dest interface{}, query string, args ...interface{}) error {
 	var err error
 	ev, sender := internal.BuildDBEvent(context.Background(), tx.Builder, query, args...)
