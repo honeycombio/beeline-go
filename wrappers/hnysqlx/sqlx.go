@@ -1300,7 +1300,7 @@ func (tx *Tx) Commit() error {
 	return err
 }
 
-// Commitx adds a commit that can be passed a context in order
+// Commitx is the same as `Commit`, but is passed a context
 // to ensure that commits show up as part of a parent trace
 func (tx *Tx) Commitx(ctx context.Context) error {
 	var err error
