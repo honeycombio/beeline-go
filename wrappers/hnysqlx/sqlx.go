@@ -1235,7 +1235,7 @@ func (s *Stmt) Select(dest interface{}, args ...interface{}) error {
 
 func (s *Stmt) SelectContext(ctx context.Context, dest interface{}, args ...interface{}) error {
 	var err error
-	ev, sender := internal.BuildDBEvent(context.Background(), s.Builder, "", args...)
+	ev, sender := internal.BuildDBEvent(ctx, s.Builder, "", args...)
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
@@ -1752,7 +1752,7 @@ func (tx *Tx) QueryRowx(query string, args ...interface{}) *sqlx.Row {
 
 func (tx *Tx) QueryRowxContext(ctx context.Context, query string, args ...interface{}) *sqlx.Row {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), tx.Builder, query, args...)
+	_, sender := internal.BuildDBEvent(ctx, tx.Builder, query, args...)
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
@@ -1782,7 +1782,7 @@ func (tx *Tx) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 
 func (tx *Tx) QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error) {
 	var err error
-	_, sender := internal.BuildDBEvent(context.Background(), tx.Builder, query, args...)
+	_, sender := internal.BuildDBEvent(ctx, tx.Builder, query, args...)
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
@@ -1842,7 +1842,7 @@ func (tx *Tx) Select(dest interface{}, query string, args ...interface{}) error 
 
 func (tx *Tx) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	var err error
-	ev, sender := internal.BuildDBEvent(context.Background(), tx.Builder, query, args...)
+	ev, sender := internal.BuildDBEvent(ctx, tx.Builder, query, args...)
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
