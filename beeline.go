@@ -230,19 +230,3 @@ func readResponses(responses chan libhoney.Response) {
 		}
 	}
 }
-
-// --------    remove from the main beeline package -----
-
-// AddRollupFieldToSpan allows you to add a numeric field to the current span,
-// and, when called on multiple spans within a trace, the sum of the field will
-// be added to the root span. Use this when doing an action many times or on
-// many spans and you want the sum of all those actions to be represented on the
-// root span. Fields added here are prefixed with `app.` and the rolled up
-// fields on the root span are prefixed with `totals.app.`
-func AddRollupField(ctx context.Context, key string, val float64) {
-	namespacedKey := fmt.Sprintf("app.%s", key)
-	span := trace.GetSpanFromContext(ctx)
-	if span != nil {
-		span.AddRollupField(namespacedKey, val)
-	}
-}

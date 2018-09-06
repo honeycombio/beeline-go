@@ -14,8 +14,11 @@ import (
 var GlobalConfig Config
 
 type Config struct {
-	// TODO describe what these are and the return values
+	// SamplerHook is a function to manage sampling on this trace. See the docs
+	// for `beeline.Config` for a full description.
 	SamplerHook func(map[string]interface{}) (bool, int)
+	// PresendHook is a function to mutate spans just before they are sent to
+	// Honeycomb. See the docs for `beeline.Config` for a full description.
 	PresendHook func(map[string]interface{})
 }
 
@@ -79,6 +82,30 @@ func (t *Trace) AddField(key string, val interface{}) {
 	if t.traceLevelFields != nil {
 		t.traceLevelFields[key] = val
 	}
+}
+
+// addRollupField is here to let a span contribute a field to the trace while
+// keeping the trace's locks private.
+func (t *Trace) addRollupField(key string, val float64) {
+	t.rollupLock.Lock()
+	defer t.rollupLock.Unlock()
+	if t.rollupFields != nil {
+		t.rollupFields[key] += val
+	}
+}
+
+// getTraceLevelFields is here to let a span retrieve trace level fields to add
+// them to itself just before sending while keeping the trace's locks around
+// that field private.
+func (t *Trace) getTraceLevelFields() map[string]interface{} {
+	t.tlfLock.Lock()
+	defer t.tlfLock.Unlock()
+	// return a copy of trace level fields
+	retVals := make(map[string]interface{})
+	for k, v := range t.traceLevelFields {
+		retVals[k] = v
+	}
+	return retVals
 }
 
 // GetRootSpan returns the root of the in-process trace. Finishing the root span
@@ -147,15 +174,13 @@ func (s *Span) AddField(key string, val interface{}) {
 // get a field that represents the total time spent talking to the database from
 // all of the spans that are part of the trace.
 func (s *Span) AddRollupField(key string, val float64) {
+	if s.trace != nil {
+		s.trace.addRollupField(key, val)
+	}
 	s.rollupLock.Lock()
+	defer s.rollupLock.Unlock()
 	if s.rollupFields != nil {
 		s.rollupFields[key] += val
-	}
-	s.rollupLock.Unlock()
-	if s.trace != nil {
-		s.trace.rollupLock.Lock()
-		defer s.trace.rollupLock.Unlock()
-		s.trace.rollupFields[key] += val
 	}
 }
 
@@ -287,11 +312,9 @@ func (s *Span) send() {
 	}
 	// add all the trace level fields to the event as late as possible - when
 	// the trace is all getting sent
-	s.trace.tlfLock.Lock()
-	for k, v := range s.trace.traceLevelFields {
+	for k, v := range s.trace.getTraceLevelFields() {
 		s.AddField(k, v)
 	}
-	s.trace.tlfLock.Unlock()
 
 	// classify span type
 	var spanType string
