@@ -196,7 +196,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) 
 	span := trace.GetSpanFromContext(ctx)
 	var newSpan *trace.Span
 	if span != nil {
-		ctx, newSpan = span.ChildSpan(ctx)
+		ctx, newSpan = span.CreateChild(ctx)
 	} else {
 		// there is no trace active; we should make one, but use the root span
 		// as the "new" span instead of creating a child of this mostly empty

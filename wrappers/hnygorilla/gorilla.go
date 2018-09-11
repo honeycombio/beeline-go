@@ -13,6 +13,7 @@ import (
 // gorilla muxer.
 func Middleware(handler http.Handler) http.Handler {
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
+		// get a new context with our trace from the request, and add common fields
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)
 		defer span.Finish()
 		// push the context with our trace and span on to the request

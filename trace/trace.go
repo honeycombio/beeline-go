@@ -20,6 +20,12 @@ type Config struct {
 	// PresendHook is a function to mutate spans just before they are sent to
 	// Honeycomb. See the docs for `beeline.Config` for a full description.
 	PresendHook func(map[string]interface{})
+	// SendBehavior controls when a trace gets sent to Honeycomb. Options are
+	// - `immediate` in which each span gets sent as soon as it finishes
+	// - `sync` in which all synchronous spans in the trace get sent when the root span finishes
+	// - `all` in which the trace won't be sent until all spans (both sync and async) finish
+	// - `timer` in which the trace will get sent a given time after the root span finishes
+	// - `combined` in which the trace get sent when either the timer fires or all spans are finished, whichever happens first
 }
 
 // Trace holds some trace level state and the root of the span tree that will be
@@ -28,7 +34,6 @@ type Config struct {
 // synchronous  spans in the trace to be finished and sent. Asynchronous spans
 // must still be sent manually
 type Trace struct {
-	// TODO add shouldDrop
 	builder          *libhoney.Builder
 	traceID          string
 	parentID         string
@@ -130,7 +135,7 @@ func (t *Trace) Send() {
 // Span represents a specific task or portion of an application. It has a time
 // and duration, and is linked to parent and children.
 type Span struct {
-	amAsync      bool
+	isAsync      bool
 	amFinished   bool
 	amRoot       bool
 	children     []*Span
@@ -220,7 +225,7 @@ func (s *Span) Finish() {
 		s.ev.AddField(k, v)
 	}
 	for _, child := range s.children {
-		if !child.AmAsync() {
+		if !child.IsAsync() {
 			if !child.amFinished {
 				child.AddField("meta.finished_by_parent", true)
 				child.Finish()
@@ -234,9 +239,9 @@ func (s *Span) Finish() {
 	}
 }
 
-// AmAsync reveals whether the span is asynchronous (true) or synchronous (false).
-func (s *Span) AmAsync() bool {
-	return s.amAsync
+// IsAsync reveals whether the span is asynchronous (true) or synchronous (false).
+func (s *Span) IsAsync() bool {
+	return s.isAsync
 }
 
 // GetChildren returns a list of all child spans (both synchronous and
@@ -250,18 +255,18 @@ func (s *Span) GetParent() *Span {
 	return s.parent
 }
 
-// ChildAsyncSpan creates a child of the current span that is expected to
+// CreateAsyncChild creates a child of the current span that is expected to
 // outlive the current span (and trace). Async spans must be manually sent using
 // the `Send()` method but are otherwise identical to normal spans.
-func (s *Span) ChildAsyncSpan(ctx context.Context) (context.Context, *Span) {
-	ctx, newSpan := s.ChildSpan(ctx)
-	newSpan.amAsync = true
+func (s *Span) CreateAsyncChild(ctx context.Context) (context.Context, *Span) {
+	ctx, newSpan := s.CreateChild(ctx)
+	newSpan.isAsync = true
 	return ctx, newSpan
 }
 
 // Span creates a synchronous child of the current span. Spans must finish
 // before their parents.
-func (s *Span) ChildSpan(ctx context.Context) (context.Context, *Span) {
+func (s *Span) CreateChild(ctx context.Context) (context.Context, *Span) {
 	newSpan := newSpan()
 	newSpan.parent = s
 	newSpan.parentID = s.spanID
@@ -284,18 +289,20 @@ func (s *Span) SerializeHeaders() string {
 		ParentID:     s.spanID,
 		TraceContext: s.trace.traceLevelFields,
 	}
-	// prop.Source = HeaderSourceBeeline
-
 	return propagation.MarshalTraceContext(prop)
 }
 
 // Send sends this span and any synchronous span children. Does not send any
-// async children. Primarily used on asynchronous spans - you must call `Send()`
-// on an asynchronous span in order for it to get sent to Honeycomb. Normally,
-// this function is not used for synchronous spans; they all get sent when the
-// root span gets `Finish()`ed. While you can call `Send` on a synchronous
-// (normal) span, doing so prevents the span from getting any trace level fields
-// added after it is sent.
+// async children.
+//
+// Normally only used on asynchronous spans - you must call `Send()` on an
+// asynchronous span in order for it to get sent to Honeycomb.
+//
+// It is unusual to call `Send()` on a synchronous span. Doing so will
+// immediately send the span and all its synchronous children. Under
+// circumstances where you really want to transmit a part of a trace early, this
+// will let you do so. Of course spans sent this way will not get any trace
+// level fields added after they are sent.
 func (s *Span) Send() {
 	if !s.amFinished {
 		s.Finish()
@@ -325,7 +332,7 @@ func (s *Span) send() {
 		} else {
 			spanType = "subroot"
 		}
-	case s.amAsync:
+	case s.isAsync:
 		spanType = "async"
 	case len(s.children) == 0:
 		spanType = "leaf"
@@ -363,7 +370,7 @@ func recursiveSend(s *Span) {
 		s.send()
 	}
 	for _, childSpan := range s.children {
-		if !childSpan.AmAsync() {
+		if !childSpan.IsAsync() {
 			recursiveSend(childSpan)
 		}
 	}

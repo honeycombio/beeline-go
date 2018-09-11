@@ -6,29 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// var testHeaders = TraceHeader{
-// 	Source:   HeaderSourceBeeline,
-// 	TraceID:  "abcdef123456",
-// 	ParentID: "0102030405",
-// }
-// var testTrace = &Trace{
-// 	headers: testHeaders,
-// 	spans:   []*Span{},
-
-// 	traceLevelFields: map[string]interface{}{
-// "userID":   float64(1),
-// "errorMsg": "failed to sign on",
-// "toRetry":  true,
-// 	},
-// }
-// var testSpan = &Span{spanID: "0102030405"}
-
-// func init() {
-// 	// set up the links correctly
-// 	testTrace.AddSpan(testSpan)
-// 	testSpan.trace = testTrace
-// }
-
 func TestMarshalTraceContext(t *testing.T) {
 	prop := &Propagation{
 		TraceID:  "abcdef123456",

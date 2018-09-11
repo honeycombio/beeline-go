@@ -74,7 +74,6 @@ func UnmarshalTraceContextV1(header string) (*Propagation, error) {
 	clauses := strings.Split(header, ",")
 	var prop = &Propagation{}
 	var tcB64 string
-	// prop.Source = HeaderSourceBeeline
 	for _, clause := range clauses {
 		keyval := strings.SplitN(clause, "=", 2)
 		switch keyval[0] {

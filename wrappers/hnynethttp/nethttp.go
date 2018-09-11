@@ -1,6 +1,7 @@
 package hnynethttp
 
 import (
+	"context"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -20,6 +21,7 @@ func WrapHandler(handler http.Handler) http.Handler {
 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
+		// get a new context with our trace from the request, and add common fields
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)
 		defer span.Finish()
 		// push the context with our trace and span on to the request
@@ -60,6 +62,7 @@ func WrapHandler(handler http.Handler) http.Handler {
 func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
 	handlerFuncName := runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name()
 	return func(w http.ResponseWriter, r *http.Request) {
+		// get a new context with our trace from the request, and add common fields
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)
 		defer span.Finish()
 		// push the context with our trace and span on to the request
@@ -89,32 +92,42 @@ func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	ctx := r.Context()
 	span := trace.GetSpanFromContext(ctx)
 	if span == nil {
-		// if there's no trace in the context, just send an event
-		tm := timer.Start()
-		ev := libhoney.NewEvent()
-		defer ev.Send()
-
-		// add in common request headers.
-		for k, v := range common.GetRequestProps(r) {
-			span.AddField(k, v)
-		}
-
-		ev.AddField("meta.type", "http_client")
-
-		resp, err := ht.wrt.RoundTrip(r)
-
-		if err != nil {
-			// TODO should this error field be namespaced somehow
-			ev.AddField("error", err.Error())
-		}
-		dur := tm.Finish()
-		ev.AddField("duration_ms", dur)
-		return resp, err
+		return ht.eventRoundTrip(r)
 	}
+	return ht.spanRoundTrip(ctx, span, r)
+}
+
+func (ht *hnyTripper) eventRoundTrip(r *http.Request) (*http.Response, error) {
+	// if there's no trace in the context, just send an event
+	tm := timer.Start()
+	ev := libhoney.NewEvent()
+	defer ev.Send()
+
+	// add in common request headers.
+	for k, v := range common.GetRequestProps(r) {
+		ev.AddField(k, v)
+	}
+
+	ev.AddField("meta.type", "http_client")
+
+	resp, err := ht.wrt.RoundTrip(r)
+
+	if err != nil {
+		// TODO should this error field be namespaced somehow
+		ev.AddField("error", err.Error())
+	}
+	dur := tm.Finish()
+	ev.AddField("duration_ms", dur)
+	return resp, err
+
+}
+
+func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *http.Request) (*http.Response, error) {
 	// we have a trace, let's use it and pass along trace context in addition to
 	// making a span around this HTTP call
-	ctx, span = span.ChildSpan(ctx)
+	ctx, span = span.CreateChild(ctx)
 	defer span.Finish()
+
 	r = r.WithContext(ctx)
 	// add in common request headers.
 	for k, v := range common.GetRequestProps(r) {

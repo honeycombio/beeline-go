@@ -40,7 +40,7 @@ func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
 		span = tr.GetRootSpan()
 	} else {
 		// we had a parent! let's make a new child for this handler
-		ctx, span = span.ChildSpan(ctx)
+		ctx, span = span.CreateChild(ctx)
 	}
 	// go get any common HTTP headers and attributes to add to the span
 	for k, v := range GetRequestProps(r) {
@@ -79,29 +79,10 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	return reqProps
 }
 
-// BuildDBEvent tries to bring together most of the things that need to happen
-// for an event to wrap a DB call in bot the sql and sqlx packages. It returns a
-// function which, when called, dispatches the event that it created. This lets
-// it finish a timer around the call automatically. This function is only used
-// when no context (and therefore no beeline trace) is available to the caller -
-// if context is available, use BuildDBSpan() instead to tie it in to the active
-// trace.
-func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
-	timer := timer.Start()
+func sharedDBEvent(bld *libhoney.Builder, query string, args ...interface{}) *libhoney.Event {
 	ev := bld.NewEvent()
-	fn := func(err error) {
-		duration := timer.Finish()
-		// rollup(ctx, ev, duration)
-		ev.AddField("duration_ms", duration)
-		if err != nil {
-			ev.AddField("db.error", err)
-		}
-		ev.Metadata, _ = ev.Fields()["name"]
-		ev.Send()
-	}
-
 	// get the name of the function that called this one. Strip the package and type
-	pc, _, _, _ := runtime.Caller(1)
+	pc, _, _, _ := runtime.Caller(2)
 	callName := runtime.FuncForPC(pc).Name()
 	callNameChunks := strings.Split(callName, ".")
 	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
@@ -113,6 +94,29 @@ func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*li
 	if args != nil {
 		ev.AddField("db.query_args", args)
 	}
+	return ev
+}
+
+// BuildDBEvent tries to bring together most of the things that need to happen
+// for an event to wrap a DB call in bot the sql and sqlx packages. It returns a
+// function which, when called, dispatches the event that it created. This lets
+// it finish a timer around the call automatically. This function is only used
+// when no context (and therefore no beeline trace) is available to the caller -
+// if context is available, use BuildDBSpan() instead to tie it in to the active
+// trace.
+func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
+	timer := timer.Start()
+	ev := sharedDBEvent(bld, query, args)
+	fn := func(err error) {
+		duration := timer.Finish()
+		// rollup(ctx, ev, duration)
+		ev.AddField("duration_ms", duration)
+		if err != nil {
+			ev.AddField("db.error", err)
+		}
+		ev.Metadata, _ = ev.Fields()["name"]
+		ev.Send()
+	}
 	return ev, fn
 }
 
@@ -122,13 +126,20 @@ func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*li
 func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (context.Context, *trace.Span, func(error)) {
 	timer := timer.Start()
 	parentSpan := trace.GetSpanFromContext(ctx)
+	var span *trace.Span
 	if parentSpan == nil {
-		// if we have no trace or we're supposed to drop this trace, return a noop fn
-		return ctx, nil, func(err error) {}
+		// if we have no trace, make a new one. This is unfortunate but the
+		// least confusing possibility. Would be nice to indicate this had
+		// happened in a better way than yet another meta. field.
+		var tr *trace.Trace
+		ctx, tr = trace.NewTrace(ctx, "")
+		span = tr.GetRootSpan()
+		span.AddField("meta.orphaned", true)
+	} else {
+		ctx, span = parentSpan.CreateChild(ctx)
 	}
-	ctx, span := parentSpan.ChildSpan(ctx)
 
-	ev := bld.NewEvent()
+	ev := sharedDBEvent(bld, query, args...)
 	for k, v := range ev.Fields() {
 		span.AddField(k, v)
 	}
@@ -140,19 +151,6 @@ func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args 
 		span.AddRollupField("db.duration_ms", duration)
 		span.AddRollupField("db.call_count", 1)
 		span.Finish()
-	}
-	// get the name of the function that called this one. Strip the package and type
-	pc, _, _, _ := runtime.Caller(1)
-	callName := runtime.FuncForPC(pc).Name()
-	callNameChunks := strings.Split(callName, ".")
-	span.AddField("db.call", callNameChunks[len(callNameChunks)-1])
-	span.AddField("name", callNameChunks[len(callNameChunks)-1])
-
-	if query != "" {
-		span.AddField("db.query", query)
-	}
-	if args != nil {
-		span.AddField("db.query_args", args)
 	}
 	return ctx, span, fn
 }
