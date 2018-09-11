@@ -1624,9 +1624,9 @@ func (tx *Tx) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
 	return rows, err
 }
 
-func (tx *Tx) NamedQueryContext(context.Context, query string, arg interface{}) (*sqlx.Rows, error) {
+func (tx *Tx) NamedQueryContext(ctx context.Context, query string, arg interface{}) (*sqlx.Rows, error) {
 	var err error
-	ctx, _, sender := common.BuildDBSpan(ctx, db.Builder, query, arg)
+	ctx, _, sender := common.BuildDBSpan(ctx, tx.Builder, query, arg)
 	defer sender(err)
 
 	// ensure any changes to the Mapper get passed along
@@ -1634,8 +1634,8 @@ func (tx *Tx) NamedQueryContext(context.Context, query string, arg interface{}) 
 		tx.wtx.Mapper = tx.Mapper
 	}
 
-	// do DB call
-	rows, err := tx.wtx.NamedQueryContext(ctx, query, arg)
+	// do DB call - sqlx doesn't have a NamedQueryContext on a transaction.
+	rows, err := tx.wtx.NamedQuery(query, arg)
 	return rows, err
 }
 
