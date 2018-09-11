@@ -22,7 +22,7 @@ func GetTraceFromContext(ctx context.Context) *Trace {
 
 // PutTraceInContext takes an existing context and a trace and pushes the trace
 // into the context.  It will replace any traces that already exist in the
-// context.
+// context. Traces put in context are retrieved using GetTraceFromContext.
 func PutTraceInContext(ctx context.Context, trace *Trace) context.Context {
 	return context.WithValue(ctx, honeyTraceContextKey, trace)
 }
@@ -30,7 +30,7 @@ func PutTraceInContext(ctx context.Context, trace *Trace) context.Context {
 // GetSpanFromContext identifies the currently active span via the span context
 // key. It returns that span, and access to the trace is available via the span
 // or from the context directly. It will return nil if there is no span
-// available
+// available.
 func GetSpanFromContext(ctx context.Context) *Span {
 	if ctx != nil {
 		if val := ctx.Value(honeySpanContextKey); val != nil {
@@ -44,7 +44,7 @@ func GetSpanFromContext(ctx context.Context) *Span {
 
 // PutSpanInContext takes an existing context and a span and pushes the span
 // into the context.  It will replace any spans that already exist in the
-// context.
+// context. Spans put in context are retrieved using GetSpanFromContext.
 func PutSpanInContext(ctx context.Context, span *Span) context.Context {
 	return context.WithValue(ctx, honeySpanContextKey, span)
 }
