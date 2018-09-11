@@ -59,15 +59,30 @@
 // trace is done (aka the root span finishes). Async spans must be explicitly
 // sent using the `Send()` method.
 //
-// Any span that calls out to a third party service can serialize the current
-// state of the trace into a string suitable for including as an HTTP header (or
-// other similar method for encoding as part of a message). That serialized form
-// can be fed into the downstream service that will use it to start a new trace
+// Any span that calls out to another service can serialize the current state of
+// the trace into a string suitable for including as an HTTP header (or other
+// similar method for encoding as part of a message). That serialized form can
+// be fed into the downstream service that will use it to start a new trace
 // using the same trace ID. When you look at one of these traces in Honeycomb,
 // you will see any spans created by the downstream service appear as children
 // of the span that serialized its state. The serialized state includes the
 // trace ID and the ID of the span that serialized state, as well as an encoded
 // form of all trace level fields.
+//
+// Putting all this together, this is a visualization of a request that spawns
+// two goroutines, each of which must return before the root span can return.
+// Each of those also has a synchronous span as a child. One of those also kicks
+// off an async span to save some state and it does not block returning the
+// result to the original caller. Most of the trace will be sent when the root
+// span finishes - the async span will get sent a little bit later when it
+// finishes its work.
+//
+//    |----------- root span -----------|
+//       \---- sync child ----|
+//          \----|
+//                      \------ async child ---------|
+//       \--- sync child -------|
+//            \-------------|
 //
 // Sampling
 //
@@ -80,4 +95,41 @@
 // will show missing traces where there are children of dropped spans. Any
 // dropped spans that have no children will be entirely absent from the UI.
 //
+// Use
+//
+// While easiest to use the `beeline` package and existing wrappers to do most
+// of the legwork for you, here is the general flow of interaction with traces.
+//
+// - start of the request
+//
+// When a request starts or program execution begins, create a trace with
+// `NewTrace`. If the program is downstream of something that is also traced,
+// capture the serialized trace headers and pass them in to the trace creation
+// to connect the two. The `NewTrace` function puts the trace and root span in
+// the context for you.
+//
+// - during work
+//
+// As your program flows the most common pattern will be to start a span at the
+// beginning of a function and then immediately defer finishing that span.
+//
+//     func myFunc(ctx context.Context) {
+//         ctx, span := beeline.StartSpan(ctx)                          // use the beeline if you can
+//         // parentSpan := trace.GetSpanFromContext(ctx).CreateChild() // or do it manually
+//         // not shown here - if you do it manually, check for nil to avoid panic
+//         defer span.Finish()
+//         ...
+//         span.AddField("app.fancy_feast_flavor", "paté")
+//         ...
+//     }
+//
+// - wrapping up
+//
+// When the root span finishes, the whole trace will get sent. Any synchronous
+// spans that were still unfinished at this point will get finished by the trace
+// getting sent and will have an additional field
+// (`meta.finished_by_parent`) added to indicate that they were unfinished.
+// Sending unfinished spans is likely indicative of either an opportunity to use
+// an async span or a bug in the program where a span accidentally does not get
+// finished.
 package trace

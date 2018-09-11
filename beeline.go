@@ -204,9 +204,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) 
 		ctx, _ = trace.NewTrace(ctx, "")
 		newSpan = trace.GetSpanFromContext(ctx)
 	}
-	if newSpan != nil {
-		newSpan.AddField("name", name)
-	}
+	newSpan.AddField("name", name)
 	return ctx, newSpan
 }
 

@@ -1624,6 +1624,21 @@ func (tx *Tx) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
 	return rows, err
 }
 
+func (tx *Tx) NamedQueryContext(context.Context, query string, arg interface{}) (*sqlx.Rows, error) {
+	var err error
+	ctx, _, sender := common.BuildDBSpan(ctx, db.Builder, query, arg)
+	defer sender(err)
+
+	// ensure any changes to the Mapper get passed along
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
+
+	// do DB call
+	rows, err := tx.wtx.NamedQueryContext(ctx, query, arg)
+	return rows, err
+}
+
 func (tx *Tx) NamedStmt(stmt *NamedStmt) *NamedStmt {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, "")
