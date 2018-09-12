@@ -11,9 +11,9 @@ import (
 
 // TestNestedSpans tests that if you open and close several spans in the same
 // function that fields added after the inner spans have closed are correctly
-// added to the outer spans.  If you don't keep the context from finishing the
+// added to the outer spans.  If you don't keep the context from sending the
 // spans or somehow break re-inserting the parent span into the context after
-// finishing a child span, this test will fail.
+// sending a child span, this test will fail.
 func TestNestedSpans(t *testing.T) {
 	mo := &libhoney.MockOutput{}
 	libhoney.Init(
@@ -30,11 +30,11 @@ func TestNestedSpans(t *testing.T) {
 	AddField(ctxmid, "mid_col", 1)
 	ctxleaf, spanleaf := StartSpan(ctxmid, "leaf")
 	AddField(ctxleaf, "leaf_col", 1)
-	spanleaf.Finish()                     // finishing leaf span
+	spanleaf.Send()                       // sending leaf span
 	AddField(ctxmid, "after_mid_col", 1)  // adding to middle span
-	spanmid.Finish()                      // finishing middle span
+	spanmid.Send()                        // sending middle span
 	AddField(ctxroot, "end_start_col", 1) // adding to start span
-	spanroot.Finish()                     // finishing start span
+	spanroot.Send()                       // sending start span
 
 	events := mo.Events()
 	assert.Equal(t, 3, len(events), "should have sent 3 events")
@@ -54,7 +54,7 @@ func TestNestedSpans(t *testing.T) {
 	assert.True(t, foundMiddle, "didn't find the middle span")
 }
 
-// TestBasicSpanAttributes verifies that creating and finishing a span gives it
+// TestBasicSpanAttributes verifies that creating and sending a span gives it
 // all the basic required attributes: duration, trace, span, and parentIDs, and
 // name.
 func TestBasicSpanAttributes(t *testing.T) {
@@ -71,8 +71,8 @@ func TestBasicSpanAttributes(t *testing.T) {
 	AddField(ctx, "start_col", 1)
 	ctxLeaf, spanLeaf := StartSpan(ctx, "leaf")
 	AddField(ctxLeaf, "leaf_col", 1)
-	spanLeaf.Finish()
-	span.Finish()
+	spanLeaf.Send()
+	span.Send()
 
 	events := mo.Events()
 	assert.Equal(t, 2, len(events), "should have sent 2 events")

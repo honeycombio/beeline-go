@@ -150,7 +150,7 @@ func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args 
 		}
 		span.AddRollupField("db.duration_ms", duration)
 		span.AddRollupField("db.call_count", 1)
-		span.Finish()
+		span.Send()
 	}
 	return ctx, span, fn
 }

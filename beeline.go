@@ -11,17 +11,17 @@ import (
 )
 
 const (
-	defaultWriteKey   = "writekey-placeholder"
+	defaultWriteKey   = "apikey-placeholder"
 	defaultDataset    = "beeline-go"
 	defaultSampleRate = 1
 )
 
 // Config is the place where you configure your Honeycomb write key and dataset
-// name. WriteKey is the only required field in order to acutally send events to
+// name. WriteKey is the only required field in order to actually send events to
 // Honeycomb.
 type Config struct {
 	// Writekey is your Honeycomb authentication token, available from
-	// https://ui.honeycomb.io/account. default: writekey-placeholder
+	// https://ui.honeycomb.io/account. default: apikey-placeholder
 	WriteKey string
 	// Dataset is the name of the Honeycomb dataset to which events will be
 	// sent. default: beeline-go
@@ -186,12 +186,12 @@ func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 // StartSpan lets you start a new span as a child of an already instrumented
 // handler. If there isn't an existing wrapped handler in the context when this
 // is called, it will start a new trace. Spans automatically get a `duration_ms`
-// field when they are ended; you should not explicitly set the duration unless
-// you want to override it. The name argument will be the primary way the span
-// is identified in the trace view within Honeycomb. You get back a fresh
-// context with the new span in it as well as the actual span that was just
-// created. You should call `span.Finish()` when the span should be finished.
-// You should pass the returned context downstream.
+// field when they are ended; you should not explicitly set the duration. The
+// name argument will be the primary way the span is identified in the trace
+// view within Honeycomb. You get back a fresh context with the new span in it
+// as well as the actual span that was just created. You should call
+// `span.Send()` when the span should be sent (often in a defer immediately
+// after creation). You should pass the returned context downstream.
 func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) {
 	span := trace.GetSpanFromContext(ctx)
 	var newSpan *trace.Span

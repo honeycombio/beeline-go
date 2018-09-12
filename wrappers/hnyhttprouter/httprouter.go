@@ -15,7 +15,7 @@ func Middleware(handle httprouter.Handle) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		// get a new context with our trace from the request, and add common fields
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)
-		defer span.Finish()
+		defer span.Send()
 		// push the context with our trace and span on to the request
 		r = r.WithContext(ctx)
 

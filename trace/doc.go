@@ -55,9 +55,12 @@
 // interested in is a simple timer, it's often cleaner to add that timer to the
 // current existing span.
 //
-// Synchronous spans need to be `Finish()`ed, and will get sent when the entire
-// trace is done (aka the root span finishes). Async spans must be explicitly
-// sent using the `Send()` method.
+// Spans must have `Send()` called in order to be sent to Honeycomb. Every span
+// that is created should have a corresponding `Send()` call. When `Send()` is
+// called a few things happen. First, there is some trace-level accounting that
+// is done (eg adding trace level fields, determining position in the trace,
+// finishing the running timer, etc.). When that finishes the presend and
+// sampler hooks are called. Finally, the span is dispatched to Honeycomb.
 //
 // Any span that calls out to another service can serialize the current state of
 // the trace into a string suitable for including as an HTTP header (or other
@@ -73,9 +76,7 @@
 // two goroutines, each of which must return before the root span can return.
 // Each of those also has a synchronous span as a child. One of those also kicks
 // off an async span to save some state and it does not block returning the
-// result to the original caller. Most of the trace will be sent when the root
-// span finishes - the async span will get sent a little bit later when it
-// finishes its work.
+// result to the original caller.
 //
 //    |----------- root span -----------|
 //       \---- sync child ----|
@@ -111,13 +112,13 @@
 // - during work
 //
 // As your program flows the most common pattern will be to start a span at the
-// beginning of a function and then immediately defer finishing that span.
+// beginning of a function and then immediately defer sending that span.
 //
 //     func myFunc(ctx context.Context) {
 //         ctx, span := beeline.StartSpan(ctx)                          // use the beeline if you can
 //         // parentSpan := trace.GetSpanFromContext(ctx).CreateChild() // or do it manually
 //         // not shown here - if you do it manually, check for nil to avoid panic
-//         defer span.Finish()
+//         defer span.Send()
 //         ...
 //         span.AddField("app.fancy_feast_flavor", "paté")
 //         ...
@@ -125,11 +126,10 @@
 //
 // - wrapping up
 //
-// When the root span finishes, the whole trace will get sent. Any synchronous
-// spans that were still unfinished at this point will get finished by the trace
-// getting sent and will have an additional field
-// (`meta.finished_by_parent`) added to indicate that they were unfinished.
-// Sending unfinished spans is likely indicative of either an opportunity to use
-// an async span or a bug in the program where a span accidentally does not get
-// finished.
+// When each span finishes and gets sent, it also sends any synchronous
+// children. Any synchronous spans that were unsent when their parent finished
+// will get sent by the parent and will have an additional field
+// (`meta.sent_by_parent`) added to indicate that they were unsent. Sending
+// unsent spans is likely indicative of either an opportunity to use an async
+// span or a bug in the program where a span accidentally does not get sent.
 package trace

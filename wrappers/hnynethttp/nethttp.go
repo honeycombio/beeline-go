@@ -23,7 +23,7 @@ func WrapHandler(handler http.Handler) http.Handler {
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		// get a new context with our trace from the request, and add common fields
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)
-		defer span.Finish()
+		defer span.Send()
 		// push the context with our trace and span on to the request
 		r = r.WithContext(ctx)
 		// replace the writer with our wrapper to catch the status code
@@ -64,7 +64,7 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 	return func(w http.ResponseWriter, r *http.Request) {
 		// get a new context with our trace from the request, and add common fields
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)
-		defer span.Finish()
+		defer span.Send()
 		// push the context with our trace and span on to the request
 		r = r.WithContext(ctx)
 		// replace the writer with our wrapper to catch the status code
@@ -126,7 +126,7 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 	// we have a trace, let's use it and pass along trace context in addition to
 	// making a span around this HTTP call
 	ctx, span = span.CreateChild(ctx)
-	defer span.Finish()
+	defer span.Send()
 
 	r = r.WithContext(ctx)
 	// add in common request headers.
