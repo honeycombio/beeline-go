@@ -60,7 +60,7 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 		}
 	}
 	rootSpan := newSpan()
-	rootSpan.amRoot = true
+	rootSpan.isRoot = true
 	rootSpan.ev = trace.builder.NewEvent()
 	rootSpan.trace = trace
 	trace.rootSpan = rootSpan
@@ -118,7 +118,7 @@ func (t *Trace) GetRootSpan() *Span {
 // Send will finish and send all the synchronous spans in the trace to Honeycomb
 func (t *Trace) Send() {
 	rs := t.rootSpan
-	if !rs.amSent {
+	if !rs.isSent {
 		rs.Send()
 		// sending the span will also send all its children
 	}
@@ -128,8 +128,8 @@ func (t *Trace) Send() {
 // and duration, and is linked to parent and children.
 type Span struct {
 	isAsync      bool
-	amSent       bool
-	amRoot       bool
+	isSent       bool
+	isRoot       bool
 	children     []*Span
 	ev           *libhoney.Event
 	spanID       string
@@ -137,7 +137,6 @@ type Span struct {
 	parent       *Span
 	rollupFields map[string]float64
 	rollupLock   sync.Mutex
-	sent         bool // records whether this span has already been sent.
 	timer        timer.Timer
 	trace        *Trace
 }
@@ -217,15 +216,15 @@ func (s *Span) Send() {
 	}
 	for _, child := range s.children {
 		if !child.IsAsync() {
-			if !child.amSent {
+			if !child.isSent {
 				child.AddField("meta.sent_by_parent", true)
 				child.Send()
 			}
 		}
 	}
-	s.amSent = true
 	// now that we're all sent, send the span and all its children.
 	s.send()
+	s.isSent = true
 }
 
 // IsAsync reveals whether the span is asynchronous (true) or synchronous (false).
@@ -285,7 +284,7 @@ func (s *Span) SerializeHeaders() string {
 // span.
 func (s *Span) send() {
 	// don't send already sent spans
-	if s.sent {
+	if s.isSent {
 		return
 	}
 	// add all the trace level fields to the event as late as possible - when
@@ -297,7 +296,7 @@ func (s *Span) send() {
 	// classify span type
 	var spanType string
 	switch {
-	case s.amRoot:
+	case s.isRoot:
 		if s.parentID == "" {
 			spanType = "root"
 		} else {
