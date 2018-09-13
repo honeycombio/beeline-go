@@ -16,6 +16,10 @@ representing a trace.
 * adds trace-aware deterministic sampling as the default
 * adds a sampler hook to manually manage sampling if necessary
 
+### Breaking Changes
+
+* removed `ContextEvent` and `ContextWithEvent` functions; replaced by spans
+
 ### Wrapper Changes
 * augment the net/http wrapper to wrap `RoundTripper`s and handle outbound HTTP calls
 * adding a wrapper for the `pop` package
