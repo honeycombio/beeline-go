@@ -5,11 +5,8 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
-	"time"
 
-	"github.com/honeycombio/beeline-go"
-	"github.com/honeycombio/beeline-go/internal"
-	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/honeycombio/beeline-go/wrappers/common"
 	"goji.io/middleware"
 	"goji.io/pat"
 )
@@ -18,33 +15,26 @@ import (
 // inserting middleware
 func Middleware(handler http.Handler) http.Handler {
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		// TODO find out if we're a sub-handler and don't stomp the parent
-		// event, or at least get parent/child IDs and intentionally send a
-		// subevent or something
-		start := time.Now()
-		ev := beeline.ContextEvent(ctx)
-		if ev == nil {
-			ev = libhoney.NewEvent()
-			defer ev.Send()
-			// put the event on the context for everybody downsteam to use
-			r = r.WithContext(beeline.ContextWithEvent(ctx, ev))
-		}
-		// add some common fields from the request to our event
-		internal.AddRequestProps(r, ev)
+		// get a new context with our trace from the request, and add common fields
+		ctx, span := common.StartSpanOrTraceFromHTTP(r)
+		defer span.Send()
+		// push the context with our trace and span on to the request
+		r = r.WithContext(ctx)
+
 		// replace the writer with our wrapper to catch the status code
-		wrappedWriter := internal.NewResponseWriter(w)
+		wrappedWriter := common.NewResponseWriter(w)
+
 		// get bits about the handler
 		handler := middleware.Handler(ctx)
 		if handler == nil {
-			ev.AddField("handler.name", "http.NotFound")
+			span.AddField("handler.name", "http.NotFound")
 			handler = http.NotFoundHandler()
 		} else {
 			hType := reflect.TypeOf(handler)
-			ev.AddField("handler.type", hType.String())
+			span.AddField("handler.type", hType.String())
 			name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
-			ev.AddField("handler.name", name)
-			ev.AddField("name", name)
+			span.AddField("handler.name", name)
+			span.AddField("name", name)
 		}
 		// find any matched patterns
 		pm := middleware.Pattern(ctx)
@@ -53,13 +43,13 @@ func Middleware(handler http.Handler) http.Handler {
 			// use those instead of trying to pull them out of the pattern some
 			// other way
 			if p, ok := pm.(*pat.Pattern); ok {
-				ev.AddField("goji.pat", p.String())
-				ev.AddField("goji.methods", p.HTTPMethods())
-				ev.AddField("goji.path_prefix", p.PathPrefix())
+				span.AddField("goji.pat", p.String())
+				span.AddField("goji.methods", p.HTTPMethods())
+				span.AddField("goji.path_prefix", p.PathPrefix())
 				patvar := strings.TrimPrefix(p.String(), p.PathPrefix()+":")
-				ev.AddField("goji.pat."+patvar, pat.Param(r, patvar))
+				span.AddField("goji.pat."+patvar, pat.Param(r, patvar))
 			} else {
-				ev.AddField("pat", "NOT pat.Pattern")
+				span.AddField("pat", "NOT pat.Pattern")
 
 			}
 		}
@@ -68,9 +58,7 @@ func Middleware(handler http.Handler) http.Handler {
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
-		ev.AddField("response.status_code", wrappedWriter.Status)
-		ev.AddField("duration_ms", float64(time.Since(start))/float64(time.Millisecond))
-		ev.Metadata, _ = ev.Fields()["name"]
+		span.AddField("response.status_code", wrappedWriter.Status)
 	}
 	return http.HandlerFunc(wrappedHandler)
 }

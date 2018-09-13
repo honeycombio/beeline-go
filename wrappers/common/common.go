@@ -1,0 +1,156 @@
+package common
+
+import (
+	"context"
+	"net/http"
+	"runtime"
+	"strings"
+
+	"github.com/felixge/httpsnoop"
+	"github.com/honeycombio/beeline-go/propagation"
+	"github.com/honeycombio/beeline-go/timer"
+	"github.com/honeycombio/beeline-go/trace"
+	libhoney "github.com/honeycombio/libhoney-go"
+)
+
+type ResponseWriter struct {
+	http.ResponseWriter
+	Status int
+}
+
+func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
+	return &ResponseWriter{
+		ResponseWriter: httpsnoop.Wrap(w, httpsnoop.Hooks{}),
+	}
+}
+
+func (h *ResponseWriter) WriteHeader(statusCode int) {
+	h.Status = statusCode
+	h.ResponseWriter.WriteHeader(statusCode)
+}
+
+func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
+	ctx := r.Context()
+	span := trace.GetSpanFromContext(ctx)
+	if span == nil {
+		// there is no trace yet. We should make one! and use the root span.
+		beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
+		var tr *trace.Trace
+		ctx, tr = trace.NewTrace(ctx, beelineHeader)
+		span = tr.GetRootSpan()
+	} else {
+		// we had a parent! let's make a new child for this handler
+		ctx, span = span.CreateChild(ctx)
+	}
+	// go get any common HTTP headers and attributes to add to the span
+	for k, v := range GetRequestProps(r) {
+		span.AddField(k, v)
+	}
+	return ctx, span
+}
+
+// GetRequestProps is a convenient method to grab all common http request
+// properties and get them back as a map.
+func GetRequestProps(req *http.Request) map[string]interface{} {
+	userAgent := req.UserAgent()
+	xForwardedFor := req.Header.Get("x-forwarded-for")
+	xForwardedProto := req.Header.Get("x-forwarded-proto")
+
+	reqProps := make(map[string]interface{})
+	// identify the type of event
+	reqProps["meta.type"] = "http_request"
+	// Add a variety of details about the HTTP request, such as user agent
+	// and method, to any created libhoney event.
+	reqProps["request.method"] = req.Method
+	reqProps["request.path"] = req.URL.Path
+	reqProps["request.host"] = req.Host
+	reqProps["request.http_version"] = req.Proto
+	reqProps["request.content_length"] = req.ContentLength
+	reqProps["request.remote_addr"] = req.RemoteAddr
+	if userAgent != "" {
+		reqProps["request.header.user_agent"] = userAgent
+	}
+	if xForwardedFor != "" {
+		reqProps["request.header.x_forwarded_for"] = xForwardedFor
+	}
+	if xForwardedProto != "" {
+		reqProps["request.header.x_forwarded_proto"] = xForwardedProto
+	}
+	return reqProps
+}
+
+func sharedDBEvent(bld *libhoney.Builder, query string, args ...interface{}) *libhoney.Event {
+	ev := bld.NewEvent()
+	// get the name of the function that called this one. Strip the package and type
+	pc, _, _, _ := runtime.Caller(2)
+	callName := runtime.FuncForPC(pc).Name()
+	callNameChunks := strings.Split(callName, ".")
+	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
+	ev.AddField("name", callNameChunks[len(callNameChunks)-1])
+
+	if query != "" {
+		ev.AddField("db.query", query)
+	}
+	if args != nil {
+		ev.AddField("db.query_args", args)
+	}
+	return ev
+}
+
+// BuildDBEvent tries to bring together most of the things that need to happen
+// for an event to wrap a DB call in bot the sql and sqlx packages. It returns a
+// function which, when called, dispatches the event that it created. This lets
+// it finish a timer around the call automatically. This function is only used
+// when no context (and therefore no beeline trace) is available to the caller -
+// if context is available, use BuildDBSpan() instead to tie it in to the active
+// trace.
+func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
+	timer := timer.Start()
+	ev := sharedDBEvent(bld, query, args)
+	fn := func(err error) {
+		duration := timer.Finish()
+		// rollup(ctx, ev, duration)
+		ev.AddField("duration_ms", duration)
+		if err != nil {
+			ev.AddField("db.error", err)
+		}
+		ev.Metadata, _ = ev.Fields()["name"]
+		ev.Send()
+	}
+	return ev, fn
+}
+
+// BuildDBSpan does the same things as BuildDBEvent except that it has access to
+// a trace from the context and takes advantage of that to add the DB events
+// into the trace.
+func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (context.Context, *trace.Span, func(error)) {
+	timer := timer.Start()
+	parentSpan := trace.GetSpanFromContext(ctx)
+	var span *trace.Span
+	if parentSpan == nil {
+		// if we have no trace, make a new one. This is unfortunate but the
+		// least confusing possibility. Would be nice to indicate this had
+		// happened in a better way than yet another meta. field.
+		var tr *trace.Trace
+		ctx, tr = trace.NewTrace(ctx, "")
+		span = tr.GetRootSpan()
+		span.AddField("meta.orphaned", true)
+	} else {
+		ctx, span = parentSpan.CreateChild(ctx)
+	}
+
+	ev := sharedDBEvent(bld, query, args...)
+	for k, v := range ev.Fields() {
+		span.AddField(k, v)
+	}
+	fn := func(err error) {
+		duration := timer.Finish()
+		if err != nil {
+			span.AddField("db.error", err)
+		}
+		span.AddRollupField("db.duration_ms", duration)
+		span.AddRollupField("db.call_count", 1)
+		span.Send()
+	}
+	return ctx, span, fn
+}

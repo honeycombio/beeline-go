@@ -168,6 +168,7 @@ Available DB wrappers:
 
 * [`hnysql`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnysql) (for `database/sql`)
 * [`hnysqlx`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/hnysqlx) (for `github.com/jmoiron/sqlx`)
+* [`pop`](https://godoc.org/github.com/honeycombio/beeline-go/wrappers/pop) (for `github.com/gobuffalo/pop`)
 
 ## Other HTTP Frameworks
 
@@ -208,7 +209,7 @@ what's getting sent and modify your code to get what you would like to see.
 
 ### The events I'm sending aren't being accepted by Honeycomb
 
-Use the `PrintResponses` flag in configuring the beeline. This will print the
+Use the `Debug` flag in configuring the beeline. This will print the
 responses that come back from Honeycomb to the terminal when sending events.
 These responses will have extra detail saying why events are being rejected (or
 that they are being accepted) by Honeycomb.

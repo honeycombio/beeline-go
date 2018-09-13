@@ -5,35 +5,49 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/honeycombio/beeline-go/sample"
+	"github.com/honeycombio/beeline-go/trace"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
 const (
-	defaultWriteKey   = "writekey-placeholder"
+	defaultWriteKey   = "apikey-placeholder"
 	defaultDataset    = "beeline-go"
 	defaultSampleRate = 1
-
-	honeyBuilderContextKey = "honeycombBuilderContextKey"
-	honeyEventContextKey   = "honeycombEventContextKey"
 )
 
 // Config is the place where you configure your Honeycomb write key and dataset
-// name. WriteKey is the only required field in order to acutally send events to
+// name. WriteKey is the only required field in order to actually send events to
 // Honeycomb.
 type Config struct {
 	// Writekey is your Honeycomb authentication token, available from
-	// https://ui.honeycomb.io/account. default: writekey-placeholder
+	// https://ui.honeycomb.io/account. default: apikey-placeholder
 	WriteKey string
 	// Dataset is the name of the Honeycomb dataset to which events will be
-	// sent. default: go-http
+	// sent. default: beeline-go
 	Dataset string
 	// Service Name identifies your application. While optional, setting this
 	// field is extremely valuable when you instrument multiple services. If set
 	// it will be added to all events as `service_name`
 	ServiceName string
 	// SamplRate is a positive integer indicating the rate at which to sample
-	// events. default: 1
+	// events. Default sampling is at the trace level - entire traces will be
+	// kept or dropped. default: 1 (meaning no sampling)
 	SampleRate uint
+	// SamplerHook is a function that will get run with the contents of each
+	// event just before sending the event to Honeycomb. Register a function
+	// with this config option to have manual control over sampling within the
+	// beeline. The function should return true if the event should be kept and
+	// false if it should be dropped.  If it should be kept, the returned
+	// integer is the sample rate that has been applied. The SamplerHook
+	// overrides the default sampler. Runs before the PresendHook.
+	SamplerHook func(map[string]interface{}) (bool, int)
+	// PresendHook is a function call that will get run with the contents of
+	// each event just before sending them to Honeycomb. The function registered
+	// here may mutate the map passed in to add, change, or drop fields from the
+	// event before it gets sent to Honeycomb. Does not get invoked if the event
+	// is going to be dropped because of sampling. Runs after the SamplerHook.
+	PresendHook func(map[string]interface{})
 	// APIHost is the hostname for the Honeycomb API server to which to send
 	// this event. default: https://api.honeycomb.io/
 	APIHost string
@@ -47,9 +61,6 @@ type Config struct {
 	// trouble getting the beeline to work, set this to true in a dev
 	// environment.
 	Debug bool
-
-	// disableTracing when set to true will suppress emitting trace.* fields
-	// disableTracing bool
 }
 
 // Init intializes the honeycomb instrumentation library.
@@ -71,10 +82,9 @@ func Init(config Config) {
 		output = &libhoney.DiscardOutput{}
 	}
 	libhconfig := libhoney.Config{
-		WriteKey:   config.WriteKey,
-		Dataset:    config.Dataset,
-		SampleRate: config.SampleRate,
-		Output:     output,
+		WriteKey: config.WriteKey,
+		Dataset:  config.Dataset,
+		Output:   output,
 	}
 	if config.APIHost != "" {
 		libhconfig.APIHost = config.APIHost
@@ -97,19 +107,41 @@ func Init(config Config) {
 		// TODO add more debugging than just the responses queue
 		go readResponses(libhoney.Responses())
 	}
+
+	// Use the sampler hook if it's defined, otherwise a deterministic sampler
+	if config.SamplerHook != nil {
+		trace.GlobalConfig.SamplerHook = config.SamplerHook
+	} else {
+		// configure and set a global sampler so sending traces can use it
+		// without threading it through
+		sampler, err := sample.NewDeterministicSampler(config.SampleRate)
+		if err == nil {
+			sample.GlobalSampler = sampler
+		}
+	}
+
+	if config.PresendHook != nil {
+		trace.GlobalConfig.PresendHook = config.PresendHook
+	}
 	return
 }
 
 // Flush sends any pending events to Honeycomb. This is optional; events will be
-// flushed on a timer otherwies. It is useful to flush befare AWS Lambda
+// flushed on a timer otherwise. It is useful to flush before AWS Lambda
 // functions finish to ensure events get sent before AWS freezes the function.
-func Flush() {
+// Flush implicitly ends all currently active spans.
+func Flush(ctx context.Context) {
+	tr := trace.GetTraceFromContext(ctx)
+	if tr != nil {
+		tr.Send()
+	}
 	libhoney.Flush()
 }
 
-// Close shuts down the beeline. Closing flushes any pending events and blocks
-// until they have been sent. It is optional to close the beeline, and
-// prohibited to try and send an event after the beeline has been closed.
+// Close shuts down the beeline. Closing does not send any pending traces but
+// does flush any pending libhoney events and blocks until they have been sent.
+// It is optional to close the beeline, and prohibited to try and send an event
+// after the beeline has been closed.
 func Close() {
 	libhoney.Close()
 }
@@ -118,44 +150,62 @@ func Close() {
 // an instrumented request. After adding the appropriate middleware or wrapping
 // a Handler, feel free to call AddField freely within your code. Pass it the
 // context from the request (`r.Context()`) and the key and value you wish to
-// add.
+// add.This function is good for span-level data, eg timers or the arguments to
+// a specific function call, etc. Fields added here are prefixed with `app.`
 func AddField(ctx context.Context, key string, val interface{}) {
-	ev := ContextEvent(ctx)
-	if ev == nil {
-		return
-	}
-	namespacedKey := fmt.Sprintf("app.%s", key)
-	ev.AddField(namespacedKey, val)
-}
-
-// ContextWithEvent returns a new context created from the passed context with a
-// Honeycomb event added to it. In most cases, the code adding the event to the
-// context should also be responsible for sending that event on to Honeycomb
-// when it's finished.
-func ContextWithEvent(ctx context.Context, ev *libhoney.Event) context.Context {
-	return context.WithValue(ctx, honeyEventContextKey, ev)
-}
-
-// ContextEvent retrieves the Honeycomb event from a context. You can add fields
-// to the event or override settings (eg sample rate) but should not Send() the
-// event; the wrapper that inserted the event into the Context is responsible
-// for sending it to Hnoeycomb
-func ContextEvent(ctx context.Context) *libhoney.Event {
-	if ctx != nil {
-		if evt, ok := ctx.Value(honeyEventContextKey).(*libhoney.Event); ok {
-			return evt
+	span := trace.GetSpanFromContext(ctx)
+	if span != nil {
+		if val != nil {
+			namespacedKey := fmt.Sprintf("app.%s", key)
+			if valErr, ok := val.(error); ok {
+				// treat errors specially because it's a pain to have to
+				// remember to stringify them
+				span.AddField(namespacedKey, valErr.Error())
+			} else {
+				span.AddField(namespacedKey, val)
+			}
 		}
 	}
-	return nil
 }
 
-// contextBuilder isn't used yet but matches ContextEvent. When it's useful,
-// export it, but until then it's just confusing.
-func contextBuilder(ctx context.Context) *libhoney.Builder {
-	if bldr, ok := ctx.Value(honeyBuilderContextKey).(*libhoney.Builder); ok {
-		return bldr
+// AddFieldToTrace adds the field to both the currently active span and all
+// other spans involved in this trace that occur within this process.
+// Additionally, these fields are packaged up and passed along to downstream
+// processes if they are also using a beeline. This function is good for adding
+// context that is better scoped to the request than this specific unit of work,
+// eg user IDs, globally relevant feature flags, errors, etc. Fields added here
+// are prefixed with `app.`
+func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
+	namespacedKey := fmt.Sprintf("app.%s", key)
+	tr := trace.GetTraceFromContext(ctx)
+	if tr != nil {
+		tr.AddField(namespacedKey, val)
 	}
-	return nil
+}
+
+// StartSpan lets you start a new span as a child of an already instrumented
+// handler. If there isn't an existing wrapped handler in the context when this
+// is called, it will start a new trace. Spans automatically get a `duration_ms`
+// field when they are ended; you should not explicitly set the duration. The
+// name argument will be the primary way the span is identified in the trace
+// view within Honeycomb. You get back a fresh context with the new span in it
+// as well as the actual span that was just created. You should call
+// `span.Send()` when the span should be sent (often in a defer immediately
+// after creation). You should pass the returned context downstream.
+func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) {
+	span := trace.GetSpanFromContext(ctx)
+	var newSpan *trace.Span
+	if span != nil {
+		ctx, newSpan = span.CreateChild(ctx)
+	} else {
+		// there is no trace active; we should make one, but use the root span
+		// as the "new" span instead of creating a child of this mostly empty
+		// span
+		ctx, _ = trace.NewTrace(ctx, "")
+		newSpan = trace.GetSpanFromContext(ctx)
+	}
+	newSpan.AddField("name", name)
+	return ctx, newSpan
 }
 
 // readResponses pulls from the response queue and spits them to STDOUT for
