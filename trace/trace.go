@@ -61,6 +61,9 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 	}
 	rootSpan := newSpan()
 	rootSpan.isRoot = true
+	if trace.parentID != "" {
+		rootSpan.parentID = trace.parentID
+	}
 	rootSpan.ev = trace.builder.NewEvent()
 	rootSpan.trace = trace
 	trace.rootSpan = rootSpan
