@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -22,7 +23,7 @@ func main() {
 	// Initialize beeline. The only required field is WriteKey.
 	beeline.Init(beeline.Config{
 		WriteKey:    "abcabc123123abcabc",
-		Dataset:     "http+sql",
+		Dataset:     "beeline-example",
 		ServiceName: "sample app",
 		// SamplerHook: sampler,
 		// PresendHook: presend,
@@ -54,7 +55,9 @@ func bigJob(ctx context.Context) {
 	defer span.Send()
 	beeline.AddField(ctx, "m1", 5.67)
 	beeline.AddField(ctx, "m2", 8.90)
-	time.Sleep(600 * time.Millisecond)
+	// bigJob will take ~300ms
+	sleepTime := math.Abs(200.0 + (rand.NormFloat64()*50 + 100))
+	time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 	// this job also discovered something that's relevant to the whole trace
 	beeline.AddFieldToTrace(ctx, "vip_user", true)
 }
