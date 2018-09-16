@@ -54,7 +54,7 @@ func Middleware(handler http.Handler) http.Handler {
 			}
 		}
 		// TODO get all the parameters and their values
-		handler.ServeHTTP(wrappedWriter, r)
+		handler.ServeHTTP(wrappedWriter.Wrapped, r)
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}

@@ -30,7 +30,7 @@ func Middleware(handle httprouter.Handle) httprouter.Handle {
 		span.AddField("handler.name", name)
 		span.AddField("name", name)
 
-		handle(wrappedWriter, r, ps)
+		handle(wrappedWriter.Wrapped, r, ps)
 
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200

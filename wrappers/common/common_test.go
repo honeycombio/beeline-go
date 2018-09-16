@@ -1,6 +1,8 @@
 package common
 
 import (
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -60,4 +62,46 @@ func TestSharedDBEvent(t *testing.T) {
 	var ev *libhoney.Event
 	func() { ev = sharedDBEvent(bld, query) }()
 	assert.Equal(t, "TestSharedDBEvent", ev.Fields()["name"], "should get a reasonable name")
+}
+func TestResponseWriter(t *testing.T) {
+	rr := httptest.NewRecorder()
+	wr := NewResponseWriter(rr)
+	wr.Wrapped.WriteHeader(222)
+	assert.Equal(t, 222, wr.Status)
+	wr.Wrapped.WriteHeader(333)
+	assert.Equal(t, 222, wr.Status)
+}
+
+func TestResponseWriterTypeAssertions(t *testing.T) {
+	// testResponseWriter implements common http.ResponseWriter optional interfaces
+	type testResponseWriter struct {
+		http.ResponseWriter
+		http.Hijacker
+		http.Flusher
+		http.CloseNotifier
+		http.Pusher
+		io.ReaderFrom
+	}
+
+	wr := NewResponseWriter(testResponseWriter{})
+
+	if _, ok := interface{}(wr).(http.ResponseWriter); ok {
+		t.Errorf("ResponseWriter improperly implements http.ResponseWriter")
+	}
+
+	if _, ok := wr.Wrapped.(http.Flusher); !ok {
+		t.Errorf("ResponseWriter does not implement http.Flusher")
+	}
+	if _, ok := wr.Wrapped.(http.CloseNotifier); !ok {
+		t.Errorf("ResponseWriter does not implement http.CloseNotifier")
+	}
+	if _, ok := wr.Wrapped.(http.Hijacker); !ok {
+		t.Errorf("ResponseWriter does not implement http.Hijacker")
+	}
+	if _, ok := wr.Wrapped.(http.Pusher); !ok {
+		t.Errorf("ResponseWriter does not implement http.Pusher")
+	}
+	if _, ok := wr.Wrapped.(io.ReaderFrom); !ok {
+		t.Errorf("ResponseWriter does not implement io.ReaderFrom")
+	}
 }
