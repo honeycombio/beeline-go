@@ -213,7 +213,7 @@ func (s *Span) Send() {
 		s.ev.AddField("trace.parent_id", s.parentID)
 	}
 	s.ev.AddField("trace.span_id", s.spanID)
-	// add rollup fields to the event
+	// add this span's rollup fields to the event
 	for k, v := range s.rollupFields {
 		s.ev.AddField(k, v)
 	}
@@ -313,6 +313,13 @@ func (s *Span) send() {
 		spanType = "mid"
 	}
 	s.AddField("meta.span_type", spanType)
+
+	if spanType == "root" {
+		// add the trace's rollup fields to the root span
+		for k, v := range s.trace.rollupFields {
+			s.ev.AddField("rollup."+k, v)
+		}
+	}
 
 	// run hooks
 	var shouldKeep = true

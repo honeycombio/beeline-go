@@ -150,6 +150,7 @@ func TestSpan(t *testing.T) {
 	span.AddField("f1", "v1")
 	assert.Equal(t, "v1", span.ev.Fields()["f1"].(string), "after adding a field, field should exist on the span")
 
+	// add some rollup fields
 	span.AddRollupField("r1", 2)
 	span.AddRollupField("r1", 3)
 	asyncSpan.AddRollupField("r1", 7)
@@ -199,6 +200,7 @@ func TestSpan(t *testing.T) {
 		case "root":
 			foundRoot = true
 			assert.Nil(t, ev.Fields()["trace.parent_id"], "root span should have no parent ID")
+			assert.Equal(t, float64(12), ev.Fields()["rollup.r1"], "root span should have rolled up fields")
 		case "async":
 			foundAsync = true
 		case "leaf":
