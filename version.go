@@ -1,3 +1,3 @@
 package beeline
 
-const version = "0.2.3"
+const version = "0.2.2"
