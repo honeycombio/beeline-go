@@ -82,11 +82,21 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 func sharedDBEvent(bld *libhoney.Builder, query string, args ...interface{}) *libhoney.Event {
 	ev := bld.NewEvent()
 	// get the name of the function that called this one. Strip the package and type
-	pc, _, _, _ := runtime.Caller(2)
-	callName := runtime.FuncForPC(pc).Name()
-	callNameChunks := strings.Split(callName, ".")
-	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
-	ev.AddField("name", callNameChunks[len(callNameChunks)-1])
+	pc, _, _, ok := runtime.Caller(2)
+	if ok {
+		callName := runtime.FuncForPC(pc).Name()
+		callNameChunks := strings.Split(callName, ".")
+		ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
+		ev.AddField("name", callNameChunks[len(callNameChunks)-1])
+	}
+
+	// and two levels up
+	pc, _, _, ok = runtime.Caller(3)
+	if ok {
+		callName := runtime.FuncForPC(pc).Name()
+		callNameChunks := strings.Split(callName, ".")
+		ev.AddField("db.caller", callNameChunks[len(callNameChunks)-1])
+	}
 
 	if query != "" {
 		ev.AddField("db.query", query)
