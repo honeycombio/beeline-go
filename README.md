@@ -3,19 +3,18 @@
 [![Build Status](https://travis-ci.org/honeycombio/beeline-go.svg?branch=master)](https://travis-ci.org/honeycombio/beeline-go)
 [![GoDoc](https://godoc.org/github.com/honeycombio/beeline-go?status.svg)](https://godoc.org/github.com/honeycombio/beeline-go)
 
-This package and its subpackages contain bits of code to use to make your life
-easier when instrumenting a Go app to send events to Honeycomb. The wrappers
-here will collect a handful of useful fields about HTTP requests and SQL calls
-in addition to establishing easy patterns to augment this data as your
-application runs.
+This package instruments your Go app to send useful events to [Honeycomb](https://www.honeycomb.io), a service for debugging your software in production.
+- [Usage and Examples](https://docs.honeycomb.io/getting-data-in/beelines/go-beeline/)
+- [API Reference](https://godoc.org/github.com/honeycombio/beeline-go)
 
-Documentation and examples are available via [godoc](https://godoc.org/github.com/honeycombio/beeline-go).
+The wrappers here will collect a handful of useful fields about HTTP requests and SQL calls
+in addition to establishing easy patterns to augment this data as your application runs.
 
 Sign up for a [Honeycomb trial](https://ui.honeycomb.io/signup) to obtain a write key before starting.
 
 # Examples
 
-For each of the [wrappers](wrappers/), documentation is found in godoc rather than the github README files. Each package has a fully functional example in the godoc as well, to show all the pieces fit together.
+For each of the [wrappers](wrappers/), documentation is found in [godoc](https://godoc.org/github.com/honeycombio/beeline-go) rather than the github README files. Each package has a fully functional example in the godoc as well, to show all the pieces fit together.
 
 # Installation
 
