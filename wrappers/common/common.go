@@ -79,14 +79,44 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	return reqProps
 }
 
+// getCallersNames grabs the current call stack, skips up a few levels, then
+// grabs as many function names as depth. Suggested use is something like 1, 2
+// meaning "get my parent and its parent". skip=0 means the function calling
+// this one.
+func getCallersNames(skip, depth int) []string {
+	callers := make([]string, 0, depth)
+	callerPcs := make([]uintptr, depth)
+	// add 2 to skip to account for runtime.Callers and getCallersNames
+	numCallers := runtime.Callers(skip+2, callerPcs)
+	// If there are no callers, the entire stacktrace is nil
+	if numCallers == 0 {
+		return callers
+	}
+	callersFrames := runtime.CallersFrames(callerPcs)
+	for i := 0; i < depth; i++ {
+		fr, more := callersFrames.Next()
+		// store the function's name
+		nameParts := strings.Split(fr.Function, ".")
+		callers = append(callers, nameParts[len(nameParts)-1])
+		if !more {
+			break
+		}
+	}
+	return callers
+}
+
 func sharedDBEvent(bld *libhoney.Builder, query string, args ...interface{}) *libhoney.Event {
 	ev := bld.NewEvent()
-	// get the name of the function that called this one. Strip the package and type
-	pc, _, _, _ := runtime.Caller(2)
-	callName := runtime.FuncForPC(pc).Name()
-	callNameChunks := strings.Split(callName, ".")
-	ev.AddField("db.call", callNameChunks[len(callNameChunks)-1])
-	ev.AddField("name", callNameChunks[len(callNameChunks)-1])
+
+	// skip 2 - this one and the buildDB*, so we get the sqlx function and its parent
+	callerNames := getCallersNames(2, 2)
+	switch len(callerNames) {
+	case 2:
+		ev.AddField("db.call", callerNames[0])
+		ev.AddField("db.caller", callerNames[1])
+	case 1:
+		ev.AddField("db.call", callerNames[0])
+	}
 
 	if query != "" {
 		ev.AddField("db.query", query)
