@@ -1,3 +1,24 @@
+Release v0.2.3 (2018-09-14)
+===
+
+### Bug Fixes
+* rollup fields were not getting the rolled up values added to the root span
+
+### New Field
+* sql and sqlx wrappers get both the DB call being made (eg Select) as well as the name of the function making the call (eg FetchThingsByID)
+
+Release v0.2.2 (2018-09-1)
+===
+
+### Bug Fixes
+* fix version number inconsistency with a patch bump
+
+Release v0.2.1 (2018-09-14)
+===
+
+### Bug Fixes
+* fix propagation bug when an incoming request has a serialized beeline trace header
+
 Release v0.2.0 (2018-09-12)
 ===
 
