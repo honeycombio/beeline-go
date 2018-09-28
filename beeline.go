@@ -89,6 +89,9 @@ func Init(config Config) {
 	if config.APIHost != "" {
 		libhconfig.APIHost = config.APIHost
 	}
+	if config.Debug {
+		libhconfig.Logger = &libhoney.DefaultLogger{}
+	}
 	libhoney.Init(libhconfig)
 
 	// set the version in both the useragent and in all events
