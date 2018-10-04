@@ -113,9 +113,13 @@ func sharedDBEvent(bld *libhoney.Builder, query string, args ...interface{}) *li
 	switch len(callerNames) {
 	case 2:
 		ev.AddField("db.call", callerNames[0])
+		ev.AddField("name", callerNames[0])
 		ev.AddField("db.caller", callerNames[1])
 	case 1:
 		ev.AddField("db.call", callerNames[0])
+		ev.AddField("name", callerNames[0])
+	default:
+		ev.AddField("name", "db")
 	}
 
 	if query != "" {
