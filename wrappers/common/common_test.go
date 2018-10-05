@@ -4,6 +4,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,4 +50,14 @@ func TestXForwardedProtoHeader(t *testing.T) {
 	req.Header.Set("X-Forwarded-Proto", xForwardedProto)
 	props := GetRequestProps(req)
 	assert.Equal(t, xForwardedProto, props["request.header.x_forwarded_proto"])
+}
+
+// TestSharedDBEvent verifies that the name field is set to something
+func TestSharedDBEvent(t *testing.T) {
+	bld := libhoney.NewBuilder()
+	query := "this is sql really promise"
+	// wrap it in another function to get the expected nesting right
+	var ev *libhoney.Event
+	func() { ev = sharedDBEvent(bld, query) }()
+	assert.Equal(t, "TestSharedDBEvent", ev.Fields()["name"], "should get a reasonable name")
 }
