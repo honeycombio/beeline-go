@@ -61,6 +61,15 @@ type Config struct {
 	// trouble getting the beeline to work, set this to true in a dev
 	// environment.
 	Debug bool
+	// MaxConcurrentBatches, if set, will override the default number of
+	// goroutines (20) that are used to send batches of events in parallel.
+	MaxConcurrentBatches uint
+	// MaxBatchSize, if set, will override the default number of events
+	// (50) that are sent per batch.
+	MaxBatchSize uint
+	// PendingWorkCapacity overrides the default event queue size (1000).
+	// If the queue is full, events will be dropped.
+	PendingWorkCapacity uint
 }
 
 // Init intializes the honeycomb instrumentation library.
@@ -81,10 +90,22 @@ func Init(config Config) {
 	if config.Mute == true {
 		output = &libhoney.DiscardOutput{}
 	}
+	if config.MaxConcurrentBatches == 0 {
+		config.MaxConcurrentBatches = 20
+	}
+	if config.MaxBatchSize == 0 {
+		config.MaxBatchSize = 50
+	}
+	if config.PendingWorkCapacity == 0 {
+		config.PendingWorkCapacity = 1000
+	}
 	libhconfig := libhoney.Config{
-		WriteKey: config.WriteKey,
-		Dataset:  config.Dataset,
-		Output:   output,
+		WriteKey:             config.WriteKey,
+		Dataset:              config.Dataset,
+		Output:               output,
+		MaxConcurrentBatches: config.MaxConcurrentBatches,
+		MaxBatchSize:         config.MaxBatchSize,
+		PendingWorkCapacity:  config.PendingWorkCapacity,
 	}
 	if config.APIHost != "" {
 		libhconfig.APIHost = config.APIHost
