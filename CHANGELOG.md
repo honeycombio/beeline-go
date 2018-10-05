@@ -1,3 +1,11 @@
+Release v0.2.4 (2018-10-05)
+===
+
+### Minor Changes
+
+* Allow override of MaxConcurrentBatches, MaxBatchSize, and PendingWorkCapacity in `beeline.Config`
+* Sets default value for MaxConcurrentBatches to 20 (from 80), and PendingWorkCapacity to 1000 (from 10000).
+
 Release v0.2.3 (2018-09-14)
 ===
 
