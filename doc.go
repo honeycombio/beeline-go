@@ -32,7 +32,7 @@
 // events.
 //
 //   func main() {
-//     beeline.Init(&beeline.Config{
+//     beeline.Init(beeline.Config{
 //       WriteKey: "abcabc123123defdef456456",
 //       Dataset: "myapp",
 //     })
