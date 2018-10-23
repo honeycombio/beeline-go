@@ -1,3 +1,24 @@
+Release v0.3.0 (2018-10-23)
+==
+
+### Breaking Changes
+
+* `NewResponseWriter` no longer returns a concrete type directly usable as an `http.ResponseWriter`.  It now exposes the wrapped `http.ResponseWriter` through the field `Wrapped`.
+
+Code that would have previously looked like:
+
+```
+wrappedWriter := common.NewResponseWriter(w)
+handler.ServeHTTP(wrappedWriter, r)
+```
+
+now looks like:
+
+```
+wrappedWriter := common.NewResponseWriter(w)
+handler.ServeHTTP(wrappedWriter.Wrapped, r)
+```
+
 Release v0.2.4 (2018-10-05)
 ===
 
