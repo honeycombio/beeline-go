@@ -54,7 +54,7 @@ func Middleware(handler http.Handler) http.Handler {
 				span.AddField("handler.route", path)
 			}
 		}
-		handler.ServeHTTP(wrappedWriter, r)
+		handler.ServeHTTP(wrappedWriter.Wrapped, r)
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}

@@ -14,19 +14,31 @@ import (
 )
 
 type ResponseWriter struct {
-	http.ResponseWriter
-	Status int
+	// Wrapped is not embedded to prevent ResponseWriter from directly
+	// fulfilling the http.ResponseWriter interface. Wrapping in this
+	// way would obscure optional http.ResponseWriter interfaces.
+	Wrapped http.ResponseWriter
+	Status  int
 }
 
 func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
-	return &ResponseWriter{
-		ResponseWriter: httpsnoop.Wrap(w, httpsnoop.Hooks{}),
-	}
-}
+	var rw ResponseWriter
 
-func (h *ResponseWriter) WriteHeader(statusCode int) {
-	h.Status = statusCode
-	h.ResponseWriter.WriteHeader(statusCode)
+	rw.Wrapped = httpsnoop.Wrap(w, httpsnoop.Hooks{
+		WriteHeader: func(next httpsnoop.WriteHeaderFunc) httpsnoop.WriteHeaderFunc {
+			return func(code int) {
+				// The first call to WriteHeader sends the response header.
+				// Any subsequent calls are invalid. Only record the first
+				// code written.
+				if rw.Status == 0 {
+					rw.Status = code
+				}
+				next(code)
+			}
+		},
+	})
+
+	return &rw
 }
 
 func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {

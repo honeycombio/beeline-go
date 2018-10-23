@@ -48,7 +48,7 @@ func WrapHandler(handler http.Handler) http.Handler {
 			}
 		}
 
-		handler.ServeHTTP(wrappedWriter, r)
+		handler.ServeHTTP(wrappedWriter.Wrapped, r)
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
@@ -75,7 +75,7 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 			span.AddField("name", handlerFuncName)
 		}
 
-		hf(wrappedWriter, r)
+		hf(wrappedWriter.Wrapped, r)
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
