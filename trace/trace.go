@@ -142,6 +142,7 @@ type Span struct {
 	rollupLock   sync.Mutex
 	timer        timer.Timer
 	trace        *Trace
+	eventLock    sync.Mutex
 }
 
 // newSpan takes care of *some* of the initialization necessary to create a new
@@ -160,6 +161,10 @@ func newSpan() *Span {
 
 // AddField adds a key/value pair to this span
 func (s *Span) AddField(key string, val interface{}) {
+	// The call to event's AddField is protected by a lock, but this is not always sufficient
+	// See send for why this lock exists
+	s.eventLock.Lock()
+	defer s.eventLock.Unlock()
 	if s.ev != nil {
 		s.ev.AddField(key, val)
 	}
@@ -321,6 +326,12 @@ func (s *Span) send() {
 		}
 	}
 
+	// Because we hand a raw map over to the Sampler and Presend hooks, it's
+	// possible for the user to modify/iterate over the map in these hooks and
+	// still modify the event somewhere else with AddEvent. We lock here to
+	// prevent this from causing an unnecessary panic.
+	s.eventLock.Lock()
+	defer s.eventLock.Unlock()
 	// run hooks
 	var shouldKeep = true
 	if GlobalConfig.SamplerHook != nil {
