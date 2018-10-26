@@ -110,6 +110,16 @@ func (t *Trace) getTraceLevelFields() map[string]interface{} {
 	return retVals
 }
 
+func (t *Trace) getRollupFields() map[string]interface{} {
+	t.rollupLock.Lock()
+	defer t.rollupLock.Unlock()
+	rollupFields := make(map[string]interface{})
+	for k, v := range t.rollupFields {
+		rollupFields[k] = v
+	}
+	return rollupFields
+}
+
 // GetRootSpan returns the root of the in-process trace. Sending the root span
 // will send the entire trace to Honeycomb. From the root span you can walk the
 // entire span tree using GetChildren (and recursively calling GetChildren on
@@ -210,18 +220,20 @@ func (s *Span) Send() {
 	// finish the timer for this span
 	if s.timer != nil {
 		dur := s.timer.Finish()
-		s.ev.AddField("duration_ms", dur)
+		s.AddField("duration_ms", dur)
 	}
 	// set trace IDs for this span
 	s.ev.AddField("trace.trace_id", s.trace.traceID)
 	if s.parentID != "" {
-		s.ev.AddField("trace.parent_id", s.parentID)
+		s.AddField("trace.parent_id", s.parentID)
 	}
 	s.ev.AddField("trace.span_id", s.spanID)
 	// add this span's rollup fields to the event
+	s.rollupLock.Lock()
 	for k, v := range s.rollupFields {
-		s.ev.AddField(k, v)
+		s.AddField(k, v)
 	}
+	s.rollupLock.Unlock()
 	for _, child := range s.children {
 		if !child.IsAsync() {
 			if !child.isSent {
@@ -321,14 +333,14 @@ func (s *Span) send() {
 
 	if spanType == "root" {
 		// add the trace's rollup fields to the root span
-		for k, v := range s.trace.rollupFields {
-			s.ev.AddField("rollup."+k, v)
+		for k, v := range s.trace.getRollupFields() {
+			s.AddField("rollup."+k, v)
 		}
 	}
 
 	// Because we hand a raw map over to the Sampler and Presend hooks, it's
 	// possible for the user to modify/iterate over the map in these hooks and
-	// still modify the event somewhere else with AddEvent. We lock here to
+	// still modify the event somewhere else with AddField. We lock here to
 	// prevent this from causing an unnecessary panic.
 	s.eventLock.Lock()
 	defer s.eventLock.Unlock()
