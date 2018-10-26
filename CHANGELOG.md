@@ -1,3 +1,10 @@
+Release v0.3.1 (2018-10-25)
+==
+
+### Bugfixes
+
+* Fix race condition on map access that can occur with Sampler and Presend hooks when AddField is called concurrently with Send.
+
 Release v0.3.0 (2018-10-23)
 ==
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/stretchr/testify/assert"
@@ -214,6 +215,45 @@ func TestSpan(t *testing.T) {
 		[]bool{foundRoot, foundAsync, foundSpan},
 		"all three spans should be sent")
 
+}
+
+func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
+	samplerHook := func(fields map[string]interface{}) (bool, int) {
+		for range fields {
+			// do nothing, we just want to iterate
+		}
+
+		return true, 1
+	}
+
+	setupLibhoney()
+	GlobalConfig.SamplerHook = samplerHook
+	defer func() {
+		GlobalConfig.SamplerHook = nil
+	}()
+
+	run := make(chan *Span)
+
+	go func() {
+		for s := range run {
+			time.Sleep(time.Microsecond)
+			s.Send()
+		}
+	}()
+
+	ctx, tr := NewTrace(context.Background(), "")
+	rs := tr.GetRootSpan()
+
+	for i := 0; i < 100; i++ {
+		_, s := rs.CreateChild(ctx)
+		s.AddField("a", i)
+		run <- s
+		time.Sleep(time.Microsecond)
+		for j := 0; j < 100; j++ {
+			s.AddField("b", j)
+		}
+	}
+	close(run)
 }
 
 func setupLibhoney() *libhoney.MockOutput {
