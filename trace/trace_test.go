@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -215,6 +216,24 @@ func TestSpan(t *testing.T) {
 		[]bool{foundRoot, foundAsync, foundSpan},
 		"all three spans should be sent")
 
+}
+
+func TestCreateAsyncSpanDoesNotCauseRaceInSend(t *testing.T) {
+	setupLibhoney()
+	ctx, tr := NewTrace(context.Background(), t.Name())
+	rs := tr.GetRootSpan()
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		rs.Send()
+		wg.Done()
+	}()
+	go func() {
+		rs.CreateAsyncChild(ctx)
+		wg.Done()
+	}()
+	wg.Wait()
 }
 
 func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
