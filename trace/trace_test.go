@@ -253,11 +253,14 @@ func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 
 	run := make(chan *Span)
 
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
 		for s := range run {
 			time.Sleep(time.Microsecond)
 			s.Send()
 		}
+		wg.Done()
 	}()
 
 	ctx, tr := NewTrace(context.Background(), "")
@@ -273,6 +276,8 @@ func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 		}
 	}
 	close(run)
+	// need to wait here to avoid a race on resetting the SamplerHook
+	wg.Wait()
 }
 
 func setupLibhoney() *libhoney.MockOutput {
