@@ -144,6 +144,7 @@ type Span struct {
 	isSent       bool
 	isRoot       bool
 	children     []*Span
+	childrenLock sync.Mutex
 	ev           *libhoney.Event
 	spanID       string
 	parentID     string
@@ -234,6 +235,7 @@ func (s *Span) Send() {
 		s.AddField(k, v)
 	}
 	s.rollupLock.Unlock()
+	s.childrenLock.Lock()
 	for _, child := range s.children {
 		if !child.IsAsync() {
 			if !child.isSent {
@@ -242,6 +244,7 @@ func (s *Span) Send() {
 			}
 		}
 	}
+	s.childrenLock.Unlock()
 	// now that we're all sent, send the span and all its children.
 	s.send()
 	s.isSent = true
@@ -280,7 +283,9 @@ func (s *Span) CreateChild(ctx context.Context) (context.Context, *Span) {
 	newSpan.parentID = s.spanID
 	newSpan.trace = s.trace
 	newSpan.ev = s.trace.builder.NewEvent()
+	s.childrenLock.Lock()
 	s.children = append(s.children, newSpan)
+	s.childrenLock.Unlock()
 	ctx = PutSpanInContext(ctx, newSpan)
 	return ctx, newSpan
 }

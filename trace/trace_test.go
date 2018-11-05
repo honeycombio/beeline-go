@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -217,6 +218,24 @@ func TestSpan(t *testing.T) {
 
 }
 
+func TestCreateAsyncSpanDoesNotCauseRaceInSend(t *testing.T) {
+	setupLibhoney()
+	ctx, tr := NewTrace(context.Background(), t.Name())
+	rs := tr.GetRootSpan()
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		rs.Send()
+		wg.Done()
+	}()
+	go func() {
+		rs.CreateAsyncChild(ctx)
+		wg.Done()
+	}()
+	wg.Wait()
+}
+
 func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 	samplerHook := func(fields map[string]interface{}) (bool, int) {
 		for range fields {
@@ -234,11 +253,14 @@ func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 
 	run := make(chan *Span)
 
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
 		for s := range run {
 			time.Sleep(time.Microsecond)
 			s.Send()
 		}
+		wg.Done()
 	}()
 
 	ctx, tr := NewTrace(context.Background(), "")
@@ -254,6 +276,8 @@ func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 		}
 	}
 	close(run)
+	// need to wait here to avoid a race on resetting the SamplerHook
+	wg.Wait()
 }
 
 func setupLibhoney() *libhoney.MockOutput {
