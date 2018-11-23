@@ -270,24 +270,13 @@ func (s *Span) GetParent() *Span {
 // outlive the current span (and trace). Async spans are not automatically sent
 // when their parent finishes, but are otherwise identical to synchronous spans.
 func (s *Span) CreateAsyncChild(ctx context.Context) (context.Context, *Span) {
-	ctx, newSpan := s.CreateChild(ctx)
-	newSpan.isAsync = true
-	return ctx, newSpan
+	return s.createChildSpan(ctx, true)
 }
 
 // Span creates a synchronous child of the current span. Spans must finish
 // before their parents.
 func (s *Span) CreateChild(ctx context.Context) (context.Context, *Span) {
-	newSpan := newSpan()
-	newSpan.parent = s
-	newSpan.parentID = s.spanID
-	newSpan.trace = s.trace
-	newSpan.ev = s.trace.builder.NewEvent()
-	s.childrenLock.Lock()
-	s.children = append(s.children, newSpan)
-	s.childrenLock.Unlock()
-	ctx = PutSpanInContext(ctx, newSpan)
-	return ctx, newSpan
+	return s.createChildSpan(ctx, false)
 }
 
 // SerializeHeaders returns the trace ID, current span ID as parent ID, and an
@@ -369,4 +358,18 @@ func (s *Span) send() {
 		}
 		s.ev.SendPresampled()
 	}
+}
+
+func (s *Span) createChildSpan(ctx context.Context, async bool) (context.Context, *Span) {
+	newSpan := newSpan()
+	newSpan.parent = s
+	newSpan.parentID = s.spanID
+	newSpan.trace = s.trace
+	newSpan.ev = s.trace.builder.NewEvent()
+	newSpan.isAsync = async
+	s.childrenLock.Lock()
+	s.children = append(s.children, newSpan)
+	s.childrenLock.Unlock()
+	ctx = PutSpanInContext(ctx, newSpan)
+	return ctx, newSpan
 }
