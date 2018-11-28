@@ -1,3 +1,11 @@
+Release v0.3.2 (2018-11-28)
+==
+
+### Bugfixes
+
+* Fix multiple races when sending spans. (https://github.com/honeycombio/beeline-go/pull/39 and https://github.com/honeycombio/beeline-go/pull/40)
+
+
 Release v0.3.1 (2018-10-25)
 ==
 
