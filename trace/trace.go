@@ -154,6 +154,7 @@ type Span struct {
 	timer        timer.Timer
 	trace        *Trace
 	eventLock    sync.Mutex
+	sendLock     sync.RWMutex
 }
 
 // newSpan takes care of *some* of the initialization necessary to create a new
@@ -215,6 +216,13 @@ func (s *Span) AddTraceField(key string, val interface{}) {
 // child spans - in other words, if any synchronous child span has not yet been
 // sent, sending the parent will finish and send the children as well.
 func (s *Span) Send() {
+	s.sendLock.Lock()
+	defer s.sendLock.Unlock()
+	// don't send already sent spans
+	if s.isSent {
+		return
+	}
+
 	if s.ev == nil {
 		return
 	}
@@ -238,16 +246,20 @@ func (s *Span) Send() {
 	s.childrenLock.Lock()
 	for _, child := range s.children {
 		if !child.IsAsync() {
-			if !child.isSent {
+			child.sendLock.RLock()
+			isChildSent := child.isSent
+			child.sendLock.RUnlock()
+			if !isChildSent {
 				child.AddField("meta.sent_by_parent", true)
 				child.Send()
 			}
 		}
 	}
 	s.childrenLock.Unlock()
-	// now that we're all sent, send the span and all its children.
+
 	s.send()
 	s.isSent = true
+
 }
 
 // IsAsync reveals whether the span is asynchronous (true) or synchronous (false).
@@ -297,10 +309,6 @@ func (s *Span) SerializeHeaders() string {
 // send gets all the trace level fields and does pre-send hooks, then sends the
 // span.
 func (s *Span) send() {
-	// don't send already sent spans
-	if s.isSent {
-		return
-	}
 	// add all the trace level fields to the event as late as possible - when
 	// the trace is all getting sent
 	for k, v := range s.trace.getTraceLevelFields() {

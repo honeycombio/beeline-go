@@ -236,6 +236,34 @@ func TestCreateAsyncSpanDoesNotCauseRaceInSend(t *testing.T) {
 	wg.Wait()
 }
 
+func TestChildAndParentSendsDoNotRace(t *testing.T) {
+	setupLibhoney()
+
+	wg := &sync.WaitGroup{}
+	wg.Add(10)
+	for i := 0; i < 5; i++ {
+		ctx, tr := NewTrace(context.Background(), t.Name())
+		rs := tr.GetRootSpan()
+
+		go func() {
+			rs.Send()
+			wg.Done()
+		}()
+		go func() {
+			ct, sp1 := rs.CreateChild(ctx)
+			ct, sp2 := sp1.CreateChild(ct)
+			ct, sp3 := sp2.CreateChild(ct)
+			sp1.Send()
+			sp2.Send()
+			sp3.Send()
+
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+}
+
 func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 	samplerHook := func(fields map[string]interface{}) (bool, int) {
 		for range fields {
