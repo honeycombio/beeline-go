@@ -143,7 +143,7 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 		// TODO should this error field be namespaced somehow
 		span.AddField("error", err.Error())
 	} else {
-		span.AddField("resp.status_code", resp.StatusCode)
+		span.AddField("response.status_code", resp.StatusCode)
 
 	}
 	return resp, err
