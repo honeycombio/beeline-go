@@ -135,6 +135,12 @@ func TestSpan(t *testing.T) {
 	assert.NotNil(t, span.timer, "span should have an initialized timer")
 	assert.Equal(t, tr, span.trace, "span should have a pointer to trace")
 
+	_, childSpan := span.CreateChild(ctx)
+	assert.Equal(t, span.spanID, childSpan.parentID, "child span's parent ID should be parent's span ID")
+	assert.Equal(t, span, childSpan.parent, "child span should have a pointer to parent")
+	assert.Len(t, span.children, 1, "parent span should have a child")
+	assert.Equal(t, childSpan, span.children[0], "parent span's child should be child span")
+
 	ctx, asyncSpan := rs.CreateAsyncChild(ctx)
 	assert.Equal(t, true, asyncSpan.isAsync, "async span should not be async")
 	assert.Equal(t, true, asyncSpan.IsAsync(), "async span should not be async")
@@ -176,6 +182,11 @@ func TestSpan(t *testing.T) {
 	expectedHeader := fmt.Sprintf("1;trace_id=%s,parent_id=%s,context=eyJ0cjEiOiJ2cjEifQ==", tr.traceID, span.spanID)
 	assert.Equal(t, expectedHeader, headers, "serialized span should match expectations")
 
+	childSpan.Send()
+
+	assert.True(t, childSpan.isSent, "child span should now be sent")
+	assert.Len(t, span.children, 0, "child span should now be removed from the parent span's children since it's been sent")
+
 	// sending the root span should send span too
 	rs.Send()
 
@@ -190,8 +201,8 @@ func TestSpan(t *testing.T) {
 
 	// ok go through the actually sent events and check some stuff
 	events := mo.Events()
-	assert.Equal(t, 3, len(events), "should have sent 3 events, rs, c1, and c2")
-	var foundRoot, foundSpan, foundAsync bool
+	assert.Equal(t, 4, len(events), "should have sent 4 events, rs, c1, and c2")
+	var foundRoot, foundSpan, foundAsync int
 	for _, ev := range events {
 		// some things should be true for all spans
 		assert.IsType(t, float64(0), ev.Fields()["duration_ms"], "span should have a numeric duration")
@@ -200,21 +211,21 @@ func TestSpan(t *testing.T) {
 		// a few things are different on each of the three span types
 		switch ev.Fields()["meta.span_type"].(string) {
 		case "root":
-			foundRoot = true
+			foundRoot++
 			assert.Nil(t, ev.Fields()["trace.parent_id"], "root span should have no parent ID")
 			assert.Equal(t, float64(12), ev.Fields()["rollup.r1"], "root span should have rolled up fields")
 		case "async":
-			foundAsync = true
+			foundAsync++
 		case "leaf":
-			foundSpan = true
+			foundSpan++
 		default:
 			t.Error("unexpected event found")
 		}
 	}
 	assert.Equal(t,
-		[]bool{true, true, true},
-		[]bool{foundRoot, foundAsync, foundSpan},
-		"all three spans should be sent")
+		[]int{1, 1, 2},
+		[]int{foundRoot, foundAsync, foundSpan},
+		"all four spans should be sent")
 
 }
 

@@ -243,22 +243,44 @@ func (s *Span) Send() {
 		s.AddField(k, v)
 	}
 	s.rollupLock.Unlock()
+
 	s.childrenLock.Lock()
+	childrenToSend := make([]*Span, 0, len(s.children))
 	for _, child := range s.children {
 		if !child.IsAsync() {
 			child.sendLock.RLock()
 			isChildSent := child.isSent
 			child.sendLock.RUnlock()
 			if !isChildSent {
-				child.AddField("meta.sent_by_parent", true)
-				child.Send()
+				// queue children up to be sent. We'd deadlock if we actually sent the
+				// child here.
+				childrenToSend = append(childrenToSend, child)
 			}
 		}
 	}
 	s.childrenLock.Unlock()
 
+	for _, child := range childrenToSend {
+		child.AddField("meta.sent_by_parent", true)
+		child.Send()
+	}
+
 	s.send()
 	s.isSent = true
+
+	// Remove this span from its parent's children list so that it can be GC'd
+	if s.parent != nil {
+		s.parent.childrenLock.Lock()
+		children := make([]*Span, 0, len(s.parent.children)-1)
+		for _, child := range s.parent.children {
+			if child == s {
+				continue
+			}
+			children = append(children, child)
+		}
+		s.parent.children = children
+		s.parent.childrenLock.Unlock()
+	}
 
 }
 
