@@ -270,16 +270,7 @@ func (s *Span) Send() {
 
 	// Remove this span from its parent's children list so that it can be GC'd
 	if s.parent != nil {
-		s.parent.childrenLock.Lock()
-		children := make([]*Span, 0, len(s.parent.children)-1)
-		for _, child := range s.parent.children {
-			if child == s {
-				continue
-			}
-			children = append(children, child)
-		}
-		s.parent.children = children
-		s.parent.childrenLock.Unlock()
+		s.parent.removeSentSpan(s)
 	}
 
 }
@@ -326,6 +317,23 @@ func (s *Span) SerializeHeaders() string {
 		TraceContext: s.trace.traceLevelFields,
 	}
 	return propagation.MarshalTraceContext(prop)
+}
+
+// removeSentSpan remove a child which has been sent. It is intended to be
+// called after a child of this span has been sent.
+func (s *Span) removeSentSpan(sentSpan *Span) {
+	s.childrenLock.Lock()
+	defer s.childrenLock.Unlock()
+	var index *int
+	for i, child := range s.children {
+		i := i
+		if child == sentSpan {
+			index = &i
+		}
+	}
+	if index != nil {
+		s.children = append(s.children[:*index], s.children[*index+1:]...)
+	}
 }
 
 // send gets all the trace level fields and does pre-send hooks, then sends the
