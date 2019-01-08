@@ -34,7 +34,7 @@ type Trace struct {
 	rollupFields     map[string]float64
 	rollupLock       sync.Mutex
 	rootSpan         *Span
-	tlfLock          sync.Mutex
+	tlfLock          sync.RWMutex
 	traceLevelFields map[string]interface{}
 }
 
@@ -84,6 +84,23 @@ func (t *Trace) AddField(key string, val interface{}) {
 	if t.traceLevelFields != nil {
 		t.traceLevelFields[key] = val
 	}
+}
+
+// serializeHeaders returns the trace ID, given span ID as parent ID, and an
+// encoded form of all trace level fields. This serialized header is intended
+// to be put in an HTTP (or other protocol) header to transmit to downstream
+// services so they may start a new trace that will be connected to this trace.
+// The serialized form may be passed to NewTrace() in order to create a new
+// trace that will be connected to this trace.
+func (t *Trace) serializeHeaders(spanID string) string {
+	var prop = &propagation.Propagation{
+		TraceID:      t.traceID,
+		ParentID:     spanID,
+		TraceContext: t.traceLevelFields,
+	}
+	t.tlfLock.RLock()
+	defer t.tlfLock.RUnlock()
+	return propagation.MarshalTraceContext(prop)
 }
 
 // addRollupField is here to let a span contribute a field to the trace while
@@ -298,12 +315,7 @@ func (s *Span) CreateChild(ctx context.Context) (context.Context, *Span) {
 // The serialized form may be passed to NewTrace() in order to create a new
 // trace that will be connected to this trace.
 func (s *Span) SerializeHeaders() string {
-	var prop = &propagation.Propagation{
-		TraceID:      s.trace.traceID,
-		ParentID:     s.spanID,
-		TraceContext: s.trace.traceLevelFields,
-	}
-	return propagation.MarshalTraceContext(prop)
+	return s.trace.serializeHeaders(s.spanID)
 }
 
 // send gets all the trace level fields and does pre-send hooks, then sends the
