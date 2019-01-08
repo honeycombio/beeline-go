@@ -45,6 +45,9 @@ func WrapHandler(handler http.Handler) http.Handler {
 			if handlerName != "" {
 				span.AddField("handler.name", handlerName)
 				span.AddField("name", handlerName)
+			} else {
+				// we always want a name, even if it's kinda useless.
+				span.AddField("name", "handler")
 			}
 		}
 
