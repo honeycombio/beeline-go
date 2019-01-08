@@ -39,6 +39,20 @@ func TestNewTrace(t *testing.T) {
 	assert.Equal(t, float64(1), tr.traceLevelFields["userID"], "trace with headers should populate trace level fields")
 	assert.Equal(t, "failed to sign on", tr.traceLevelFields["errorMsg"], "trace with headers should populate trace level fields")
 	assert.Equal(t, true, tr.traceLevelFields["toRetry"], "trace with headers should populate trace level fields")
+
+	t.Run("Serializing headers does not race with adding trace level fields", func(t *testing.T) {
+		wg := &sync.WaitGroup{}
+		wg.Add(2)
+		go func() {
+			spFromContext.AddTraceField("race", "hope not")
+			wg.Done()
+		}()
+		go func() {
+			spFromContext.SerializeHeaders()
+			wg.Done()
+		}()
+		wg.Wait()
+	})
 }
 
 // TestAddField tests adding a field to a trace
