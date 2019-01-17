@@ -75,6 +75,10 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	// and method, to any created libhoney event.
 	reqProps["request.method"] = req.Method
 	reqProps["request.path"] = req.URL.Path
+	if req.URL.RawQuery != "" {
+		reqProps["request.query"] = req.URL.RawQuery
+	}
+	reqProps["request.url"] = req.URL.String()
 	reqProps["request.host"] = req.Host
 	reqProps["request.http_version"] = req.Proto
 	reqProps["request.content_length"] = req.ContentLength
