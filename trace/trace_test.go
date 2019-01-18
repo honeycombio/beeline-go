@@ -319,6 +319,21 @@ func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 	wg.Wait()
 }
 
+// BenchmarkSendChildSpans benchmarks creating and sending child spans in
+// parallel. We do a good bit of locking when spans are sent and we want to
+// check to ensure that we don't regress the performance of sending spans.
+func BenchmarkSendChildSpans(b *testing.B) {
+	setupLibhoney()
+	ctx, tr := NewTrace(context.Background(), b.Name())
+	rs := tr.GetRootSpan()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_, s := rs.CreateChild(ctx)
+			s.Send()
+		}
+	})
+}
+
 func setupLibhoney() *libhoney.MockOutput {
 	mo := &libhoney.MockOutput{}
 	libhoney.Init(
