@@ -270,7 +270,7 @@ func (s *Span) Send() {
 
 	// Remove this span from its parent's children list so that it can be GC'd
 	if s.parent != nil {
-		s.parent.removeSentSpan(s)
+		s.parent.removeChildSpan(s)
 	}
 
 }
@@ -319,9 +319,9 @@ func (s *Span) SerializeHeaders() string {
 	return propagation.MarshalTraceContext(prop)
 }
 
-// removeSentSpan remove a child which has been sent. It is intended to be
+// removeChildSpan remove a child which has been sent. It is intended to be
 // called after a child of this span has been sent.
-func (s *Span) removeSentSpan(sentSpan *Span) {
+func (s *Span) removeChildSpan(sentSpan *Span) {
 	s.childrenLock.Lock()
 	defer s.childrenLock.Unlock()
 	var index *int
