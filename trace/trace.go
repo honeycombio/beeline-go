@@ -260,22 +260,35 @@ func (s *Span) Send() {
 		s.AddField(k, v)
 	}
 	s.rollupLock.Unlock()
+
 	s.childrenLock.Lock()
+	childrenToSend := make([]*Span, 0, len(s.children))
 	for _, child := range s.children {
 		if !child.IsAsync() {
 			child.sendLock.RLock()
 			isChildSent := child.isSent
 			child.sendLock.RUnlock()
 			if !isChildSent {
-				child.AddField("meta.sent_by_parent", true)
-				child.Send()
+				// queue children up to be sent. We'd deadlock if we actually sent the
+				// child here.
+				childrenToSend = append(childrenToSend, child)
 			}
 		}
 	}
 	s.childrenLock.Unlock()
 
+	for _, child := range childrenToSend {
+		child.AddField("meta.sent_by_parent", true)
+		child.Send()
+	}
+
 	s.send()
 	s.isSent = true
+
+	// Remove this span from its parent's children list so that it can be GC'd
+	if s.parent != nil {
+		s.parent.removeChildSpan(s)
+	}
 
 }
 
@@ -316,6 +329,23 @@ func (s *Span) CreateChild(ctx context.Context) (context.Context, *Span) {
 // trace that will be connected to this trace.
 func (s *Span) SerializeHeaders() string {
 	return s.trace.serializeHeaders(s.spanID)
+}
+
+// removeChildSpan remove a child which has been sent. It is intended to be
+// called after a child of this span has been sent.
+func (s *Span) removeChildSpan(sentSpan *Span) {
+	s.childrenLock.Lock()
+	defer s.childrenLock.Unlock()
+	var index *int
+	for i, child := range s.children {
+		i := i
+		if child == sentSpan {
+			index = &i
+		}
+	}
+	if index != nil {
+		s.children = append(s.children[:*index], s.children[*index+1:]...)
+	}
 }
 
 // send gets all the trace level fields and does pre-send hooks, then sends the
