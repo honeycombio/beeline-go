@@ -57,6 +57,9 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 			for k, v := range prop.TraceContext {
 				trace.traceLevelFields[k] = v
 			}
+			if prop.Dataset != "" {
+				trace.builder.Dataset = prop.Dataset
+			}
 		}
 	}
 	rootSpan := newSpan()
@@ -96,6 +99,7 @@ func (t *Trace) serializeHeaders(spanID string) string {
 	var prop = &propagation.Propagation{
 		TraceID:      t.traceID,
 		ParentID:     spanID,
+		Dataset:      t.builder.Dataset,
 		TraceContext: t.traceLevelFields,
 	}
 	t.tlfLock.RLock()

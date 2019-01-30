@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/honeycombio/beeline-go/propagation"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/stretchr/testify/assert"
 )
@@ -193,7 +194,7 @@ func TestSpan(t *testing.T) {
 
 	headers := span.SerializeHeaders()
 	// magical string here is base64 encoded "tr1" field for the trace propagation
-	expectedHeader := fmt.Sprintf("1;trace_id=%s,parent_id=%s,context=eyJ0cjEiOiJ2cjEifQ==", tr.traceID, span.spanID)
+	expectedHeader := fmt.Sprintf("1;trace_id=%s,parent_id=%s,dataset=placeholder,context=eyJ0cjEiOiJ2cjEifQ==", tr.traceID, span.spanID)
 	assert.Equal(t, expectedHeader, headers, "serialized span should match expectations")
 
 	childSpan.Send()
@@ -331,6 +332,36 @@ func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 	close(run)
 	// need to wait here to avoid a race on resetting the SamplerHook
 	wg.Wait()
+}
+
+func TestPropagatedFields(t *testing.T) {
+	prop := &propagation.Propagation{
+		TraceID:  "abcdef123456",
+		ParentID: "0102030405",
+		Dataset:  "imadataset",
+		TraceContext: map[string]interface{}{
+			"userID":   float64(1),
+			"errorMsg": "failed to sign on",
+			"toRetry":  true,
+		},
+	}
+	serial := propagation.MarshalTraceContext(prop)
+	ctx, tr := NewTrace(context.Background(), serial)
+
+	assert.NotNil(t, tr.builder, "traces should have a builder")
+	assert.Equal(t, prop.TraceID, tr.traceID, "trace id should have propagated")
+	assert.Equal(t, prop.ParentID, tr.parentID, "parent id should have propagated")
+	assert.Equal(t, prop.Dataset, tr.builder.Dataset, "dataset should have propagated")
+	assert.Equal(t, prop.TraceContext, tr.traceLevelFields, "trace fields should have propagated")
+
+	trFromContext := GetTraceFromContext(ctx)
+	assert.Equal(t, tr, trFromContext, "new trace should put the trace in the context")
+
+	_, tr2 := NewTrace(context.Background(), tr.GetRootSpan().SerializeHeaders())
+	assert.Equal(t, tr.traceID, tr2.traceID, "trace ID should shave propagated")
+	assert.NotEqual(t, tr.parentID, tr2.parentID, "parent ID should have changed")
+	assert.Equal(t, tr.builder.Dataset, tr2.builder.Dataset, "dataset should have propagated")
+	assert.Equal(t, tr.traceLevelFields, tr2.traceLevelFields, "trace fields should have propagated")
 }
 
 // BenchmarkSendChildSpans benchmarks creating and sending child spans in

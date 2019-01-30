@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -30,6 +31,7 @@ const (
 type Propagation struct {
 	TraceID      string
 	ParentID     string
+	Dataset      string
 	TraceContext map[string]interface{}
 }
 
@@ -54,8 +56,19 @@ func MarshalTraceContext(prop *Propagation) string {
 
 	tcB64 := base64.StdEncoding.EncodeToString(tcJSON)
 
-	return fmt.Sprintf("%d;trace_id=%s,parent_id=%s,context=%s",
-		TracePropagationVersion, prop.TraceID, prop.ParentID, tcB64)
+	var datasetClause string
+	if prop.Dataset != "" {
+		datasetClause = fmt.Sprintf("dataset=%s,", url.QueryEscape(prop.Dataset))
+	}
+
+	return fmt.Sprintf(
+		"%d;trace_id=%s,parent_id=%s,%scontext=%s",
+		TracePropagationVersion,
+		prop.TraceID,
+		prop.ParentID,
+		datasetClause,
+		tcB64,
+	)
 }
 
 func UnmarshalTraceContext(header string) (*Propagation, error) {
@@ -81,6 +94,8 @@ func UnmarshalTraceContextV1(header string) (*Propagation, error) {
 			prop.TraceID = keyval[1]
 		case "parent_id":
 			prop.ParentID = keyval[1]
+		case "dataset":
+			prop.Dataset, _ = url.QueryUnescape(keyval[1])
 		case "context":
 			tcB64 = keyval[1]
 		}
