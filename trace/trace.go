@@ -240,6 +240,22 @@ func (s *Span) Send() {
 		return
 	}
 
+	s.sendLocked()
+}
+
+func (s *Span) sendByParent() {
+	s.sendLock.Lock()
+	defer s.sendLock.Unlock()
+	// don't send already sent spans
+	if s.isSent {
+		return
+	}
+
+	s.AddField("meta.sent_by_parent", true)
+	s.sendLocked()
+}
+
+func (s *Span) sendLocked() {
 	if s.ev == nil {
 		return
 	}
@@ -265,21 +281,15 @@ func (s *Span) Send() {
 	childrenToSend := make([]*Span, 0, len(s.children))
 	for _, child := range s.children {
 		if !child.IsAsync() {
-			child.sendLock.RLock()
-			isChildSent := child.isSent
-			child.sendLock.RUnlock()
-			if !isChildSent {
-				// queue children up to be sent. We'd deadlock if we actually sent the
-				// child here.
-				childrenToSend = append(childrenToSend, child)
-			}
+			// queue children up to be sent. We'd deadlock if we actually sent the
+			// child here.
+			childrenToSend = append(childrenToSend, child)
 		}
 	}
 	s.childrenLock.Unlock()
 
 	for _, child := range childrenToSend {
-		child.AddField("meta.sent_by_parent", true)
-		child.Send()
+		child.sendByParent()
 	}
 
 	s.send()
