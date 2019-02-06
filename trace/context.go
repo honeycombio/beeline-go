@@ -61,7 +61,7 @@ func PutSpanInContext(ctx context.Context, span *Span) context.Context {
 // This is useful if you need to break context to launch a goroutine that
 // shouldn't be cancelled by the parent's cancellation context. It returns the
 // newly populated context. If it can't find a trace in the source context, it
-// returns the unchanged dest context with an error source context.
+// returns the unchanged dest context with an error.
 func CopyContext(dest context.Context, src context.Context) (context.Context, error) {
 	trace := GetTraceFromContext(src)
 	span := GetSpanFromContext(src)
