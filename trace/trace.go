@@ -47,9 +47,7 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 		rollupFields:     make(map[string]float64),
 		traceLevelFields: make(map[string]interface{}),
 	}
-	if serializedHeaders == "" {
-		trace.traceID = uuid.Must(uuid.NewRandom()).String()
-	} else {
+	if serializedHeaders != "" {
 		prop, err := propagation.UnmarshalTraceContext(serializedHeaders)
 		if err == nil {
 			trace.traceID = prop.TraceID
@@ -62,6 +60,11 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 			}
 		}
 	}
+
+	if trace.traceID == "" {
+		trace.traceID = uuid.Must(uuid.NewRandom()).String()
+	}
+
 	rootSpan := newSpan()
 	rootSpan.isRoot = true
 	if trace.parentID != "" {

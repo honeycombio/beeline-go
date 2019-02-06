@@ -362,6 +362,28 @@ func TestPropagatedFields(t *testing.T) {
 	assert.NotEqual(t, tr.parentID, tr2.parentID, "parent ID should have changed")
 	assert.Equal(t, tr.builder.Dataset, tr2.builder.Dataset, "dataset should have propagated")
 	assert.Equal(t, tr.traceLevelFields, tr2.traceLevelFields, "trace fields should have propagated")
+
+	prop = &propagation.Propagation{
+		Dataset: "imadataset",
+		TraceContext: map[string]interface{}{
+			"userID": float64(1),
+		},
+	}
+	serial = propagation.MarshalTraceContext(prop)
+	ctx, tr = NewTrace(context.Background(), serial)
+	assert.NotNil(t, tr.builder, "traces should have a builder")
+	assert.NotEqual(t, "", tr.traceID, "trace id should have propagated")
+	assert.Equal(t, "", tr.parentID, "parent id should have propagated")
+	assert.Equal(t, prop.Dataset, tr.builder.Dataset, "dataset should have propagated")
+	assert.Equal(t, prop.TraceContext, tr.traceLevelFields, "trace fields should have propagated")
+
+	ctx, tr = NewTrace(context.Background(), "garbage")
+	assert.NotNil(t, tr.builder, "traces should have a builder")
+	assert.NotEqual(t, "", tr.traceID, "trace id should have propagated")
+	assert.Equal(t, "", tr.parentID, "parent id should have propagated")
+	assert.Equal(t, "placeholder", tr.builder.Dataset, "dataset should have propagated")
+	assert.Equal(t, map[string]interface{}{}, tr.traceLevelFields, "trace fields should have propagated")
+
 }
 
 // BenchmarkSendChildSpans benchmarks creating and sending child spans in

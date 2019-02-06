@@ -100,11 +100,8 @@ func UnmarshalTraceContextV1(header string) (*Propagation, error) {
 			tcB64 = keyval[1]
 		}
 	}
-	if prop.TraceID == "" {
-		return nil, &PropagationError{"missing trace ID", nil}
-	}
-	if prop.ParentID == "" {
-		return nil, &PropagationError{"missing parent ID", nil}
+	if prop.TraceID == "" && prop.ParentID != "" {
+		return nil, &PropagationError{"parent_id without trace_id", nil}
 	}
 	if tcB64 != "" {
 		data, err := base64.StdEncoding.DecodeString(tcB64)

@@ -42,6 +42,17 @@ func TestMarshalTraceContext(t *testing.T) {
 	returned, err = UnmarshalTraceContext(marshaled)
 	assert.Equal(t, prop, returned, "roundtrip object")
 	assert.NoError(t, err, "roundtrip error")
+
+	prop = &Propagation{
+		Dataset: "imadataset",
+	}
+	marshaled = MarshalTraceContext(prop)
+	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
+	assert.Equal(t, "1;trace_id=,parent_id=,dataset=imadataset,context=bnVsbA==", marshaled)
+
+	returned, err = UnmarshalTraceContext(marshaled)
+	assert.Equal(t, prop, returned, "roundtrip object")
+	assert.NoError(t, err, "roundtrip error")
 }
 
 func TestUnmarshalTraceContext(t *testing.T) {
@@ -81,7 +92,7 @@ func TestUnmarshalTraceContext(t *testing.T) {
 			false,
 		},
 		{
-			"v1, missing trace_id",
+			"v1, parent_id without trace_id",
 			"1;parent_id=12345",
 			nil,
 			true,
@@ -89,8 +100,10 @@ func TestUnmarshalTraceContext(t *testing.T) {
 		{
 			"v1, missing parent_id",
 			"1;trace_id=12345",
-			nil,
-			true,
+			&Propagation{
+				TraceID: "12345",
+			},
+			false,
 		},
 		{
 			"v1, garbled context",
