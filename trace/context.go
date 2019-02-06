@@ -1,10 +1,19 @@
 package trace
 
-import "context"
+import (
+	"context"
+	"errors"
+
+	"github.com/honeycombio/beeline-go/trace"
+)
 
 const (
 	honeySpanContextKey  = "honeycombSpanContextKey"
 	honeyTraceContextKey = "honeycombTraceContextKey"
+)
+
+var (
+	ErrTraceNotFoundInContext = errors.New("beeline trace not found in source context")
 )
 
 // GetTraceFromContext retrieves a trace from the passed in context or returns
@@ -47,4 +56,20 @@ func GetSpanFromContext(ctx context.Context) *Span {
 // context. Spans put in context are retrieved using GetSpanFromContext.
 func PutSpanInContext(ctx context.Context, span *Span) context.Context {
 	return context.WithValue(ctx, honeySpanContextKey, span)
+}
+
+// CopyContext takes a context that has a beeline trace and one that
+// doesn't. It copies all the bits necessary to continue the trace from one to
+// the other. This is useful if you need to break context to launch a goroutine
+// that shouldn't be cancelled by the parent's cancellation context. It returns
+// the newly populated context and an error if it can't find a trace in the
+// source context.
+func CopyContext(dest context.Context, src context.Context) context.Context, error {
+	trace := trace.GetTraceFromContext(src)
+	span := trace.GetSpanFromContext(src)
+	if trace == nil || span == nil {
+		return ErrTraceNotFoundInContext
+	}
+	dest = trace.PutTraceInContext(dest, trace)
+	dest = trace.PutSpanInContext(dest, span)
 }
