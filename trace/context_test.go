@@ -27,3 +27,24 @@ func TestSpanFromContext(t *testing.T) {
 	spanInCtx = GetSpanFromContext(ctx)
 	assert.Equal(t, emptySpan, spanInCtx, "span in context should be span we put in the context")
 }
+
+func TestCopyContext(t *testing.T) {
+	ctx, tr := NewTrace(context.Background(), "")
+	rs := tr.GetRootSpan()
+
+	newCtx, err := CopyContext(context.Background(), ctx)
+	assert.NoError(t, err, "should not return error when trace and span are present")
+
+	trInCtx := GetTraceFromContext(newCtx)
+	spanInCtx := GetSpanFromContext(newCtx)
+
+	assert.Equal(t, trInCtx, tr, "expected to find the same trace in the new context after copy")
+	assert.Equal(t, spanInCtx, rs, "expected to find the same span in the new context after copy")
+}
+
+func TestCopyContextError(t *testing.T) {
+	newCtx, err := CopyContext(context.Background(), context.Background())
+	assert.NotNil(t, newCtx, "should return valid context even in errored state")
+	assert.Equal(t, err, ErrTraceNotFoundInContext, "should error when no trace is present in the context")
+
+}
