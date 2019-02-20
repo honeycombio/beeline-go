@@ -68,8 +68,13 @@ type Config struct {
 	// (50) that are sent per batch.
 	MaxBatchSize uint
 	// PendingWorkCapacity overrides the default event queue size (1000).
-	// If the queue is full, events will be dropped.
+	// If the queue is full, events will be dropped, unless BlockOnSend is True
 	PendingWorkCapacity uint
+
+	// BlockOnSend determines if the beeline should block or drop events that exceed
+	// the size of the send channel (set by PendingWorkCapacity). Defaults to
+	// False - events overflowing the send channel will be dropped.
+	BlockOnSend bool
 }
 
 // Init intializes the honeycomb instrumentation library.
@@ -106,6 +111,7 @@ func Init(config Config) {
 		MaxConcurrentBatches: config.MaxConcurrentBatches,
 		MaxBatchSize:         config.MaxBatchSize,
 		PendingWorkCapacity:  config.PendingWorkCapacity,
+		BlockOnSend:          config.BlockOnSend,
 	}
 	if config.APIHost != "" {
 		libhconfig.APIHost = config.APIHost
