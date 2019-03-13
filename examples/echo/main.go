@@ -51,11 +51,12 @@ func bye(c echo.Context) error {
 
 //
 // a curl to localhost:8080/hello/ben gets you an event that looks like this:
+//
 // {
 //     "data": {
 //         "app.custom": "in hello",
 //         "app.name": "ben",
-//         "duration_ms": 0.063619,
+//         "duration_ms": 0.053824,
 //         "handler.name": "main.hello",
 //         "meta.beeline_version": "0.3.6",
 //         "meta.local_hostname": "jamietsao",
@@ -68,12 +69,13 @@ func bye(c echo.Context) error {
 //         "request.http_version": "HTTP/1.1",
 //         "request.method": "GET",
 //         "request.path": "/hello/ben",
-//         "request.remote_addr": "[::1]:63625",
+//         "request.remote_addr": "[::1]:63984",
 //         "request.url": "/hello/ben",
+//         "response.size": 12,
 //         "response.status_code": 200,
-//         "trace.span_id": "bec5d266-83ab-4290-91e3-157d0594ac2b",
-//         "trace.trace_id": "8c3f3e90-b63f-4d06-b2ff-189c3d0d69d5"
+//         "trace.span_id": "e4345914-f721-4558-9389-906d484a3f90",
+//         "trace.trace_id": "521e55fe-f71f-4c33-ad9a-5e44f366e563"
 //     },
-//     "time": "2019-03-12T23:26:14.564837-07:00",
+//     "time": "2019-03-12T23:38:13.137265-07:00",
 //     "dataset": "http-echo"
 // }

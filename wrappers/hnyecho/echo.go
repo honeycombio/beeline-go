@@ -44,8 +44,9 @@ func (e *EchoWrapper) Middleware() echo.MiddlewareFunc {
 			// invoke next middleware in chain
 			err := next(c)
 
-			// add field for http response code
+			// add fields for http response code and size
 			span.AddField("response.status_code", c.Response().Status)
+			span.AddField("response.size", c.Response().Size)
 
 			return err
 		}
