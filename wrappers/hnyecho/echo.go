@@ -1,7 +1,7 @@
 package hnyecho
 
 import (
-	"github.com/jamietsao/beeline-go/wrappers/common"
+	"github.com/honeycombio/beeline-go/wrappers/common"
 	"github.com/labstack/echo"
 )
 
