@@ -41,15 +41,6 @@ func (e *EchoWrapper) Middleware() echo.MiddlewareFunc {
 				span.AddField("app."+name, c.Param(name))
 			}
 
-			// add field for each query param
-			for name, values := range c.QueryParams() {
-				if len(values) == 1 {
-					span.AddField("app."+name, values[0])
-				} else {
-					span.AddField("app."+name, values)
-				}
-			}
-
 			// invoke next middleware in chain
 			err := next(c)
 

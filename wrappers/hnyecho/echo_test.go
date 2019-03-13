@@ -19,7 +19,7 @@ func TestEchoMiddleware(t *testing.T) {
 		Output:   evCatcher,
 	})
 	// build a sample request to generate an event
-	r, _ := http.NewRequest("GET", "/hello/pooh?foo=bar", nil)
+	r, _ := http.NewRequest("GET", "/hello/pooh", nil)
 	w := httptest.NewRecorder()
 
 	// set up the Echo router with the EchoWrapper middleware
@@ -41,8 +41,4 @@ func TestEchoMiddleware(t *testing.T) {
 	name, ok := fields["app.name"]
 	assert.True(t, ok, "app.name field must exist on middleware generated event")
 	assert.Equal(t, "pooh", name, "successfully served request should have name var populated")
-	// query params
-	foo, ok := fields["app.foo"]
-	assert.True(t, ok, "app.foo field must exist on middleware generated event")
-	assert.Equal(t, "bar", foo, "successfully served request should have foo param populated")
 }
