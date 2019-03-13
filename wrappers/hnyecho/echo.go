@@ -1,6 +1,8 @@
 package hnyecho
 
 import (
+	"sync"
+
 	"github.com/honeycombio/beeline-go/wrappers/common"
 	"github.com/labstack/echo"
 )
@@ -9,6 +11,8 @@ import (
 type (
 	EchoWrapper struct {
 		handlerNames map[string]string
+
+		once sync.Once
 	}
 )
 
@@ -55,18 +59,19 @@ func (e *EchoWrapper) Middleware() echo.MiddlewareFunc {
 
 // Unfortunately the name of c.Handler() is an anonymous function
 // (https://github.com/labstack/echo/blob/master/echo.go#L487-L494).
-// This function will build a map of request paths to actual handler names during
-// the first request, thus providing quick lookup for every request thereafter.
+// This function will return the correct handler name by building a
+// map of request paths to actual handler names (only during the first
+// request thus providing quick lookup for every request thereafter).
 func (e *EchoWrapper) handlerName(c echo.Context) string {
-	// if first request
-	if e.handlerNames == nil {
+	// only perform once
+	e.once.Do(func() {
 		// build map of request paths to handler names
 		routes := c.Echo().Routes()
 		e.handlerNames = make(map[string]string, len(routes))
 		for _, r := range c.Echo().Routes() {
 			e.handlerNames[r.Method+r.Path] = r.Name
 		}
-	}
+	})
 
 	// lookup handler name for this request
 	return e.handlerNames[c.Request().Method+c.Path()]
