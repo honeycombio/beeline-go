@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	beeline "github.com/honeycombio/beeline-go"
 	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,11 +20,12 @@ func (testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func TestGorillaMiddleware(t *testing.T) {
 	// set up libhoney to catch events instead of send them
-	evCatcher := &libhoney.MockOutput{}
-	libhoney.Init(libhoney.Config{
-		WriteKey: "abcd",
-		Dataset:  "efgh",
-		Output:   evCatcher,
+	mo := &transmission.MockSender{}
+	beeline.Init(beeline.Config{
+		APIHost:      "placeholder",
+		WriteKey:     "placeholder",
+		Dataset:      "placeholder",
+		ClientConfig: &libhoney.ClientConfig{Transmission: mo},
 	})
 
 	// build the gorilla mux router with Middleware
@@ -39,9 +42,9 @@ func TestGorillaMiddleware(t *testing.T) {
 		router.ServeHTTP(w, r)
 
 		// verify the MockOutput caught the well formed event
-		evs := evCatcher.Events()
+		evs := mo.Events()
 		assert.Equal(t, 1, len(evs), "one event is created with one request through the Middleware")
-		fields := evs[0].Fields()
+		fields := evs[0].Data
 		status, ok := fields["response.status_code"]
 		assert.True(t, ok, "status field must exist on middleware generated event")
 		assert.Equal(t, 200, status, "successfully served request should have status 200")
@@ -57,8 +60,8 @@ func TestGorillaMiddleware(t *testing.T) {
 		// handle the request
 		router.ServeHTTP(w, r)
 
-		evs := evCatcher.Events()
+		evs := mo.Events()
 		assert.Equal(t, 2, len(evs))
-		assert.Equal(t, "testHandler", evs[1].Fields()["name"])
+		assert.Equal(t, "testHandler", evs[1].Data["name"])
 	})
 }

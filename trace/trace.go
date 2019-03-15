@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/sample"
 	"github.com/honeycombio/beeline-go/timer"
@@ -43,7 +44,7 @@ type Trace struct {
 // not starting from an upstream trace, pass the empty string here.
 func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *Trace) {
 	trace := &Trace{
-		builder:          libhoney.NewBuilder(),
+		builder:          client.NewBuilder(),
 		rollupFields:     make(map[string]float64),
 		traceLevelFields: make(map[string]interface{}),
 	}

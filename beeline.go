@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/honeycombio/libhoney-go/transmission"
+
+	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/sample"
 	"github.com/honeycombio/beeline-go/trace"
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -70,10 +73,16 @@ type Config struct {
 	// PendingWorkCapacity overrides the default event queue size (1000).
 	// If the queue is full, events will be dropped.
 	PendingWorkCapacity uint
+
+	// ClientConfig, if specified, allows overriding the default client used to send events to Honeycomb
+	ClientConfig *libhoney.ClientConfig
 }
 
 // Init intializes the honeycomb instrumentation library.
 func Init(config Config) {
+
+	userAgentAddition := fmt.Sprintf("beeline/%s", version)
+
 	if config.WriteKey == "" {
 		config.WriteKey = defaultWriteKey
 	}
@@ -82,13 +91,6 @@ func Init(config Config) {
 	}
 	if config.SampleRate == 0 {
 		config.SampleRate = 1
-	}
-	var output libhoney.Output
-	if config.STDOUT == true {
-		output = &libhoney.WriterOutput{}
-	}
-	if config.Mute == true {
-		output = &libhoney.DiscardOutput{}
 	}
 	if config.MaxConcurrentBatches == 0 {
 		config.MaxConcurrentBatches = 20
@@ -99,37 +101,65 @@ func Init(config Config) {
 	if config.PendingWorkCapacity == 0 {
 		config.PendingWorkCapacity = 1000
 	}
-	libhconfig := libhoney.Config{
-		WriteKey:             config.WriteKey,
-		Dataset:              config.Dataset,
-		Output:               output,
-		MaxConcurrentBatches: config.MaxConcurrentBatches,
-		MaxBatchSize:         config.MaxBatchSize,
-		PendingWorkCapacity:  config.PendingWorkCapacity,
+	if config.ClientConfig == nil {
+		var tx transmission.Sender
+		if config.STDOUT == true {
+			tx = &transmission.WriterSender{}
+		}
+		if config.Mute == true {
+			tx = &transmission.DiscardSender{}
+		}
+		if tx == nil {
+			tx = &transmission.Honeycomb{
+				MaxBatchSize:         config.MaxBatchSize,
+				MaxConcurrentBatches: config.MaxConcurrentBatches,
+				PendingWorkCapacity:  config.PendingWorkCapacity,
+				UserAgentAddition:    userAgentAddition,
+			}
+		}
+		clientConfig := libhoney.ClientConfig{
+			APIKey:       config.WriteKey,
+			Dataset:      config.Dataset,
+			Transmission: tx,
+		}
+		if config.APIHost != "" {
+			clientConfig.APIHost = config.APIHost
+		}
+		if config.Debug {
+			clientConfig.Logger = &libhoney.DefaultLogger{}
+		}
+		client.Init(&clientConfig)
+	} else {
+		if tx, ok := config.ClientConfig.Transmission.(*transmission.Honeycomb); ok {
+			tx.UserAgentAddition = userAgentAddition
+		}
+		// Some fields are defined in both the beeline config and the client config -
+		// make sure we pass the beeline fields down if not explicitly set in the client
+		// config
+		if config.ClientConfig.APIKey == "" {
+			config.ClientConfig.APIKey = config.WriteKey
+		}
+		if config.ClientConfig.Dataset == "" {
+			config.ClientConfig.Dataset = config.Dataset
+		}
+		if config.APIHost != "" && config.ClientConfig.APIHost == "" {
+			config.ClientConfig.APIHost = config.APIHost
+		}
+		client.Init(config.ClientConfig)
 	}
-	if config.APIHost != "" {
-		libhconfig.APIHost = config.APIHost
-	}
-	if config.Debug {
-		libhconfig.Logger = &libhoney.DefaultLogger{}
-	}
-	libhoney.Init(libhconfig)
 
-	// set the version in both the useragent and in all events
-	libhoney.UserAgentAddition = fmt.Sprintf("beeline/%s", version)
-	libhoney.AddField("meta.beeline_version", version)
-
+	client.AddField("meta.beeline_version", version)
 	// add a bunch of fields
 	if config.ServiceName != "" {
-		libhoney.AddField("service_name", config.ServiceName)
+		client.AddField("service_name", config.ServiceName)
 	}
 	if hostname, err := os.Hostname(); err == nil {
-		libhoney.AddField("meta.local_hostname", hostname)
+		client.AddField("meta.local_hostname", hostname)
 	}
 
 	if config.Debug {
 		// TODO add more debugging than just the responses queue
-		go readResponses(libhoney.Responses())
+		go readResponses(client.TxResponses())
 	}
 
 	// Use the sampler hook if it's defined, otherwise a deterministic sampler
@@ -159,7 +189,7 @@ func Flush(ctx context.Context) {
 	if tr != nil {
 		tr.Send()
 	}
-	libhoney.Flush()
+	client.Flush()
 }
 
 // Close shuts down the beeline. Closing does not send any pending traces but
@@ -167,7 +197,7 @@ func Flush(ctx context.Context) {
 // It is optional to close the beeline, and prohibited to try and send an event
 // after the beeline has been closed.
 func Close() {
-	libhoney.Close()
+	client.Close()
 }
 
 // AddField allows you to add a single field to an event anywhere downstream of
@@ -234,7 +264,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) 
 
 // readResponses pulls from the response queue and spits them to STDOUT for
 // debugging
-func readResponses(responses chan libhoney.Response) {
+func readResponses(responses chan transmission.Response) {
 	for r := range responses {
 		var metadata string
 		if r.Metadata != nil {
