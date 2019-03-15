@@ -51,14 +51,18 @@ type Config struct {
 	// event before it gets sent to Honeycomb. Does not get invoked if the event
 	// is going to be dropped because of sampling. Runs after the SamplerHook.
 	PresendHook func(map[string]interface{})
+
 	// APIHost is the hostname for the Honeycomb API server to which to send
 	// this event. default: https://api.honeycomb.io/
+	// Not used if client is set
 	APIHost string
 	// STDOUT when set to true will print events to STDOUT *instead* of sending
 	// them to honeycomb; useful for development. default: false
+	// Not used if client is set
 	STDOUT bool
 	// Mute when set to true will disable Honeycomb entirely; useful for tests
 	// and CI. default: false
+	// Not used if client is set
 	Mute bool
 	// Debug will emit verbose logging to STDOUT when true. If you're having
 	// trouble getting the beeline to work, set this to true in a dev
@@ -66,21 +70,24 @@ type Config struct {
 	Debug bool
 	// MaxConcurrentBatches, if set, will override the default number of
 	// goroutines (20) that are used to send batches of events in parallel.
+	// Not used if client is set
 	MaxConcurrentBatches uint
 	// MaxBatchSize, if set, will override the default number of events
 	// (50) that are sent per batch.
+	// Not used if client is set
 	MaxBatchSize uint
 	// PendingWorkCapacity overrides the default event queue size (1000).
 	// If the queue is full, events will be dropped.
+	// Not used if client is set
 	PendingWorkCapacity uint
 
-	// ClientConfig, if specified, allows overriding the default client used to send events to Honeycomb
-	ClientConfig *libhoney.ClientConfig
+	// Client, if specified, allows overriding the default client used to send events to Honeycomb
+	// If set, invalidates many fields in this config - see descriptions
+	Client *libhoney.Client
 }
 
 // Init intializes the honeycomb instrumentation library.
 func Init(config Config) {
-
 	userAgentAddition := fmt.Sprintf("beeline/%s", version)
 
 	if config.WriteKey == "" {
@@ -101,7 +108,7 @@ func Init(config Config) {
 	if config.PendingWorkCapacity == 0 {
 		config.PendingWorkCapacity = 1000
 	}
-	if config.ClientConfig == nil {
+	if config.Client == nil {
 		var tx transmission.Sender
 		if config.STDOUT == true {
 			tx = &transmission.WriterSender{}
@@ -128,24 +135,10 @@ func Init(config Config) {
 		if config.Debug {
 			clientConfig.Logger = &libhoney.DefaultLogger{}
 		}
-		client.Init(&clientConfig)
+		c, _ := libhoney.NewClient(clientConfig)
+		client.Set(c)
 	} else {
-		if tx, ok := config.ClientConfig.Transmission.(*transmission.Honeycomb); ok {
-			tx.UserAgentAddition = userAgentAddition
-		}
-		// Some fields are defined in both the beeline config and the client config -
-		// make sure we pass the beeline fields down if not explicitly set in the client
-		// config
-		if config.ClientConfig.APIKey == "" {
-			config.ClientConfig.APIKey = config.WriteKey
-		}
-		if config.ClientConfig.Dataset == "" {
-			config.ClientConfig.Dataset = config.Dataset
-		}
-		if config.APIHost != "" && config.ClientConfig.APIHost == "" {
-			config.ClientConfig.APIHost = config.APIHost
-		}
-		client.Init(config.ClientConfig)
+		client.Set(config.Client)
 	}
 
 	client.AddField("meta.beeline_version", version)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/honeycombio/hound/test"
 	"github.com/honeycombio/libhoney-go/transmission"
 
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -18,12 +19,13 @@ import (
 // sending a child span, this test will fail.
 func TestNestedSpans(t *testing.T) {
 	mo := &transmission.MockSender{}
-	Init(Config{
-		APIHost:      "placeholder",
-		WriteKey:     "placeholder",
+	client, err := libhoney.NewClient(libhoney.ClientConfig{
+		APIKey:       "placeholder",
 		Dataset:      "placeholder",
-		ClientConfig: &libhoney.ClientConfig{Transmission: mo},
-	})
+		APIHost:      "placeholder",
+		Transmission: mo})
+	test.OK(t, err)
+	Init(Config{Client: client})
 	ctxroot, spanroot := StartSpan(context.Background(), "start")
 	AddField(ctxroot, "start_col", 1)
 	ctxmid, spanmid := StartSpan(ctxroot, "middle")
@@ -59,12 +61,13 @@ func TestNestedSpans(t *testing.T) {
 // name.
 func TestBasicSpanAttributes(t *testing.T) {
 	mo := &transmission.MockSender{}
-	Init(Config{
-		APIHost:      "placeholder",
-		WriteKey:     "placeholder",
+	client, err := libhoney.NewClient(libhoney.ClientConfig{
+		APIKey:       "placeholder",
 		Dataset:      "placeholder",
-		ClientConfig: &libhoney.ClientConfig{Transmission: mo},
-	})
+		APIHost:      "placeholder",
+		Transmission: mo})
+	test.OK(t, err)
+	Init(Config{Client: client})
 	ctx, span := StartSpan(context.Background(), "start")
 	AddField(ctx, "start_col", 1)
 	ctxLeaf, spanLeaf := StartSpan(ctx, "leaf")
@@ -102,8 +105,4 @@ func TestBasicSpanAttributes(t *testing.T) {
 		// root span will be missing parent ID
 	}
 	assert.True(t, foundRoot, "root span missing")
-}
-
-func TestInitWithCustomClient(t *testing.T) {
-	Init(Config{ClientConfig: &libhoney.ClientConfig{Transmission: &transmission.DiscardSender{}}})
 }

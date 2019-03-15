@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/honeycombio/beeline-go/client"
-
 	"github.com/honeycombio/beeline-go/propagation"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
@@ -406,12 +405,14 @@ func BenchmarkSendChildSpans(b *testing.B) {
 
 func setupLibhoney() *transmission.MockSender {
 	mo := &transmission.MockSender{}
-	client.Init(&libhoney.ClientConfig{
-		APIKey:       "placeholder",
-		Dataset:      "placeholder",
-		APIHost:      "placeholder",
-		Transmission: mo,
-	})
+	c, _ := libhoney.NewClient(
+		libhoney.ClientConfig{
+			APIKey:       "placeholder",
+			Dataset:      "placeholder",
+			APIHost:      "placeholder",
+			Transmission: mo,
+		})
+	client.Set(c)
 
 	return mo
 }

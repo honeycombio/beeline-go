@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	beeline "github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/hound/test"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/stretchr/testify/assert"
@@ -14,12 +15,13 @@ import (
 func TestWrapHandlerFunc(t *testing.T) {
 	// set up libhoney to catch events instead of send them
 	mo := &transmission.MockSender{}
-	beeline.Init(beeline.Config{
-		APIHost:      "placeholder",
-		WriteKey:     "placeholder",
+	client, err := libhoney.NewClient(libhoney.ClientConfig{
+		APIKey:       "placeholder",
 		Dataset:      "placeholder",
-		ClientConfig: &libhoney.ClientConfig{Transmission: mo},
-	})
+		APIHost:      "placeholder",
+		Transmission: mo})
+	test.OK(t, err)
+	beeline.Init(beeline.Config{Client: client})
 	// build a sample request to generate an event
 	r, _ := http.NewRequest("GET", "/hello", nil)
 	w := httptest.NewRecorder()
@@ -53,12 +55,13 @@ func TestWrapHandlerFunc(t *testing.T) {
 func TestWrapHandler(t *testing.T) {
 	// set up libhoney to catch events instead of send them
 	mo := &transmission.MockSender{}
-	beeline.Init(beeline.Config{
-		APIHost:      "placeholder",
-		WriteKey:     "placeholder",
+	client, err := libhoney.NewClient(libhoney.ClientConfig{
+		APIKey:       "placeholder",
 		Dataset:      "placeholder",
-		ClientConfig: &libhoney.ClientConfig{Transmission: mo},
-	})
+		APIHost:      "placeholder",
+		Transmission: mo})
+	test.OK(t, err)
+	beeline.Init(beeline.Config{Client: client})
 	// build a sample request to generate an event
 	r, _ := http.NewRequest("GET", "/hello", nil)
 	w := httptest.NewRecorder()
