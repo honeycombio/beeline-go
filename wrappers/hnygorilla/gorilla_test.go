@@ -7,7 +7,6 @@ import (
 
 	"github.com/gorilla/mux"
 	beeline "github.com/honeycombio/beeline-go"
-	"github.com/honeycombio/hound/test"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +26,7 @@ func TestGorillaMiddleware(t *testing.T) {
 		Dataset:      "placeholder",
 		APIHost:      "placeholder",
 		Transmission: mo})
-	test.OK(t, err)
+	assert.Equal(t, nil, err)
 	beeline.Init(beeline.Config{Client: client})
 
 	// build the gorilla mux router with Middleware

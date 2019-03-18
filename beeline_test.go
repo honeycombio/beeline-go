@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/honeycombio/hound/test"
 	"github.com/honeycombio/libhoney-go/transmission"
 
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -24,7 +23,7 @@ func TestNestedSpans(t *testing.T) {
 		Dataset:      "placeholder",
 		APIHost:      "placeholder",
 		Transmission: mo})
-	test.OK(t, err)
+	assert.Equal(t, nil, err)
 	Init(Config{Client: client})
 	ctxroot, spanroot := StartSpan(context.Background(), "start")
 	AddField(ctxroot, "start_col", 1)
@@ -66,7 +65,7 @@ func TestBasicSpanAttributes(t *testing.T) {
 		Dataset:      "placeholder",
 		APIHost:      "placeholder",
 		Transmission: mo})
-	test.OK(t, err)
+	assert.Equal(t, nil, err)
 	Init(Config{Client: client})
 	ctx, span := StartSpan(context.Background(), "start")
 	AddField(ctx, "start_col", 1)
