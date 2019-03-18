@@ -7,8 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/propagation"
 	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -122,7 +124,7 @@ func TestSendTrace(t *testing.T) {
 	events := mo.Events()
 	assert.Equal(t, 3, len(events), "should have sent 3 events, rs, c1, and c2")
 	for _, ev := range events {
-		evName := ev.Fields()["name"].(string)
+		evName := ev.Data["name"].(string)
 
 		actual[evName] = true
 	}
@@ -220,15 +222,15 @@ func TestSpan(t *testing.T) {
 	var foundRoot, foundSpan, foundAsync int
 	for _, ev := range events {
 		// some things should be true for all spans
-		assert.IsType(t, float64(0), ev.Fields()["duration_ms"], "span should have a numeric duration")
-		assert.Equal(t, "vr1", ev.Fields()["tr1"], "span should have trace level field")
+		assert.IsType(t, float64(0), ev.Data["duration_ms"], "span should have a numeric duration")
+		assert.Equal(t, "vr1", ev.Data["tr1"], "span should have trace level field")
 
 		// a few things are different on each of the three span types
-		switch ev.Fields()["meta.span_type"].(string) {
+		switch ev.Data["meta.span_type"].(string) {
 		case "root":
 			foundRoot++
-			assert.Nil(t, ev.Fields()["trace.parent_id"], "root span should have no parent ID")
-			assert.Equal(t, float64(12), ev.Fields()["rollup.r1"], "root span should have rolled up fields")
+			assert.Nil(t, ev.Data["trace.parent_id"], "root span should have no parent ID")
+			assert.Equal(t, float64(12), ev.Data["rollup.r1"], "root span should have rolled up fields")
 		case "async":
 			foundAsync++
 		case "leaf":
@@ -401,15 +403,16 @@ func BenchmarkSendChildSpans(b *testing.B) {
 	})
 }
 
-func setupLibhoney() *libhoney.MockOutput {
-	mo := &libhoney.MockOutput{}
-	libhoney.Init(
-		libhoney.Config{
-			APIHost:  "placeholder",
-			WriteKey: "placeholder",
-			Dataset:  "placeholder",
-			Output:   mo,
-		},
-	)
+func setupLibhoney() *transmission.MockSender {
+	mo := &transmission.MockSender{}
+	c, _ := libhoney.NewClient(
+		libhoney.ClientConfig{
+			APIKey:       "placeholder",
+			Dataset:      "placeholder",
+			APIHost:      "placeholder",
+			Transmission: mo,
+		})
+	client.Set(c)
+
 	return mo
 }

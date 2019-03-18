@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/honeycombio/libhoney-go/transmission"
+
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/stretchr/testify/assert"
 )
@@ -15,15 +17,14 @@ import (
 // spans or somehow break re-inserting the parent span into the context after
 // sending a child span, this test will fail.
 func TestNestedSpans(t *testing.T) {
-	mo := &libhoney.MockOutput{}
-	libhoney.Init(
-		libhoney.Config{
-			APIHost:  "placeholder",
-			WriteKey: "placeholder",
-			Dataset:  "placeholder",
-			Output:   mo,
-		},
-	)
+	mo := &transmission.MockSender{}
+	client, err := libhoney.NewClient(libhoney.ClientConfig{
+		APIKey:       "placeholder",
+		Dataset:      "placeholder",
+		APIHost:      "placeholder",
+		Transmission: mo})
+	assert.Equal(t, nil, err)
+	Init(Config{Client: client})
 	ctxroot, spanroot := StartSpan(context.Background(), "start")
 	AddField(ctxroot, "start_col", 1)
 	ctxmid, spanmid := StartSpan(ctxroot, "middle")
@@ -40,7 +41,7 @@ func TestNestedSpans(t *testing.T) {
 	assert.Equal(t, 3, len(events), "should have sent 3 events")
 	var foundStart, foundMiddle bool
 	for _, ev := range events {
-		fields := ev.Fields()
+		fields := ev.Data
 		if fields["app.start_col"] == 1 {
 			foundStart = true
 			assert.Equal(t, fields["app.end_start_col"], 1, "ending start field should be in start span")
@@ -58,15 +59,14 @@ func TestNestedSpans(t *testing.T) {
 // all the basic required attributes: duration, trace, span, and parentIDs, and
 // name.
 func TestBasicSpanAttributes(t *testing.T) {
-	mo := &libhoney.MockOutput{}
-	libhoney.Init(
-		libhoney.Config{
-			APIHost:  "placeholder",
-			WriteKey: "placeholder",
-			Dataset:  "placeholder",
-			Output:   mo,
-		},
-	)
+	mo := &transmission.MockSender{}
+	client, err := libhoney.NewClient(libhoney.ClientConfig{
+		APIKey:       "placeholder",
+		Dataset:      "placeholder",
+		APIHost:      "placeholder",
+		Transmission: mo})
+	assert.Equal(t, nil, err)
+	Init(Config{Client: client})
 	ctx, span := StartSpan(context.Background(), "start")
 	AddField(ctx, "start_col", 1)
 	ctxLeaf, spanLeaf := StartSpan(ctx, "leaf")
@@ -79,7 +79,7 @@ func TestBasicSpanAttributes(t *testing.T) {
 
 	var foundRoot bool
 	for _, ev := range events {
-		fields := ev.Fields()
+		fields := ev.Data
 		name, ok := fields["name"]
 		assert.True(t, ok, "failed to find name")
 		_, ok = fields["duration_ms"]
