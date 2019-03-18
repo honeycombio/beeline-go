@@ -82,7 +82,7 @@ type Config struct {
 	PendingWorkCapacity uint
 
 	// Client, if specified, allows overriding the default client used to send events to Honeycomb
-	// If set, invalidates many fields in this config - see descriptions
+	// If set, overrides many fields in this config - see descriptions
 	Client *libhoney.Client
 }
 
