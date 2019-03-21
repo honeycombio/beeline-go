@@ -411,7 +411,7 @@ func (s *Span) send() {
 	if GlobalConfig.SamplerHook != nil {
 		var sampleRate int
 		shouldKeep, sampleRate = GlobalConfig.SamplerHook(s.ev.Fields())
-		s.ev.SampleRate *= uint(sampleRate)
+		s.ev.SampleRate = uint(sampleRate)
 	} else {
 		// use the default sampler
 		if sample.GlobalSampler != nil {
