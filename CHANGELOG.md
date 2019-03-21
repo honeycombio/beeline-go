@@ -1,3 +1,10 @@
+Release v0.4.1 (2019-03-21)
+==
+
+### Bugfixes
+
+* Sample rate returned by the sampler hook was incorrectly being multiplied with the default global sample rate.
+
 Release v0.3.2 (2018-11-28)
 ==
 
