@@ -11,8 +11,7 @@ import (
 type (
 	EchoWrapper struct {
 		handlerNames map[string]string
-
-		once sync.Once
+		once         sync.Once
 	}
 )
 
@@ -40,9 +39,12 @@ func (e *EchoWrapper) Middleware() echo.MiddlewareFunc {
 			span.AddField("handler.name", handlerName)
 			span.AddField("name", handlerName)
 
-			// add field for each path param
+			// add route related fields
+			span.AddField("route", c.Path())
+			span.AddField("route.handler", handlerName)
 			for _, name := range c.ParamNames() {
-				span.AddField("app."+name, c.Param(name))
+				// add field for each path param
+				span.AddField("route.params."+name, c.Param(name))
 			}
 
 			// invoke next middleware in chain
