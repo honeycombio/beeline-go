@@ -5,13 +5,53 @@ Release v0.4.1 (2019-03-21)
 
 * Sample rate returned by the sampler hook was incorrectly being multiplied with the default global sample rate.
 
+Release v0.4.0 (2018-11-28)
+==
+
+### Additions
+
+* Add a `libhoney.Client` as a configurable item in the beeline initial config.
+  This allows full control over the underlying transmission of spans, so you can
+  replace the HTTP transport or adjust queue sizes and so on
+
+Release v0.3.6 (2018-11-28)
+==
+
+### Additions
+
+* Add `CopyContext` function to simplify moving trace metadata to a new context
+  (for example, when trying to avoid a cancellation in an async span).
+* Improve handling of broken or partial trace propagation headers
+
+Release v0.3.5 (2018-11-28)
+==
+
+### Additions
+
+* Add `dataset` to serialized trace headers to allow one service with multiple
+  upstream callers to send spans to the right destination dataset
+
+Release v0.3.4 (2018-11-28)
+==
+
+### Additions
+
+* Delete spans from the trace when they're sent for improved memory management
+* Add a benchmark
+
+Release v0.3.3 (2018-11-28)
+==
+
+### Additions
+
+* Add URL queries and add name even when empty
+
 Release v0.3.2 (2018-11-28)
 ==
 
 ### Bugfixes
 
 * Fix multiple races when sending spans. (https://github.com/honeycombio/beeline-go/pull/39 and https://github.com/honeycombio/beeline-go/pull/40)
-
 
 Release v0.3.1 (2018-10-25)
 ==
