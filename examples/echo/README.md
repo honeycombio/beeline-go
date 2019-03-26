@@ -3,7 +3,7 @@
 This example shows off using the hnyecho middleware.  Adding the middleware to the
 Echo router using `Echo.Use()` (preferrably as first in the chain) will generate one
 Honeycomb event per request.  Fields for basic http properties are added as well as
-fields for each path param.
+route related fields (e.g. matched route, path params)
 
 This example is runnable with `go run main.go` - it will start listening on port
 8080.

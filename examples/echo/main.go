@@ -55,8 +55,7 @@ func bye(c echo.Context) error {
 // {
 //     "data": {
 //         "app.custom": "in hello",
-//         "app.name": "ben",
-//         "duration_ms": 0.053824,
+//         "duration_ms": 0.031066,
 //         "handler.name": "main.hello",
 //         "meta.beeline_version": "0.3.6",
 //         "meta.local_hostname": "jamietsao",
@@ -69,13 +68,16 @@ func bye(c echo.Context) error {
 //         "request.http_version": "HTTP/1.1",
 //         "request.method": "GET",
 //         "request.path": "/hello/ben",
-//         "request.remote_addr": "[::1]:63984",
+//         "request.remote_addr": "[::1]:56807",
 //         "request.url": "/hello/ben",
 //         "response.size": 12,
 //         "response.status_code": 200,
-//         "trace.span_id": "e4345914-f721-4558-9389-906d484a3f90",
-//         "trace.trace_id": "521e55fe-f71f-4c33-ad9a-5e44f366e563"
+//         "route": "/hello/:name",
+//         "route.handler": "main.hello",
+//         "route.params.name": "ben",
+//         "trace.span_id": "9a20ecc7-de00-4417-bfb8-9a46616e30bc",
+//         "trace.trace_id": "c5f54e2e-3e42-4338-a3a9-5edb95012d0a"
 //     },
-//     "time": "2019-03-12T23:38:13.137265-07:00",
+//     "time": "2019-03-25T18:24:21.780222-07:00",
 //     "dataset": "http-echo"
 // }

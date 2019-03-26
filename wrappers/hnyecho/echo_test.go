@@ -25,7 +25,7 @@ func TestEchoMiddleware(t *testing.T) {
 	// set up the Echo router with the EchoWrapper middleware
 	router := echo.New()
 	router.Use(New().Middleware())
-	router.GET("/hello/:name", func(c echo.Context) error { return c.String(http.StatusOK, "ok") })
+	router.GET("/hello/:name", helloHandler)
 	// handle the request
 	router.ServeHTTP(w, r)
 
@@ -41,8 +41,23 @@ func TestEchoMiddleware(t *testing.T) {
 	size, ok := fields["response.size"]
 	assert.True(t, ok, "response.size field must exist on middleware generated event")
 	assert.Equal(t, int64(2), size, "successfully served request should have a response size of 2")
-	// path params
-	name, ok := fields["app.name"]
-	assert.True(t, ok, "app.name field must exist on middleware generated event")
-	assert.Equal(t, "pooh", name, "successfully served request should have name var populated")
+	// handler fields
+	handlerNameFields := []string{"handler.name", "name", "route.handler"}
+	for _, field := range handlerNameFields {
+		handler, ok := fields[field]
+		assert.True(t, ok, "handler.name field must exist on middleware generated event")
+		assert.Equal(t, "github.com/honeycombio/beeline-go/wrappers/hnyecho.helloHandler", handler, "successfully served request should have correct matched handler")
+	}
+
+	// route fields
+	route, ok := fields["route"]
+	assert.True(t, ok, "route field must exist on middleware generated event")
+	assert.Equal(t, "/hello/:name", route, "successfully served request should have matched route")
+	name, ok := fields["route.params.name"]
+	assert.True(t, ok, "route.params.name field must exist on middleware generated event")
+	assert.Equal(t, "pooh", name, "successfully served request should have path param 'name' populated")
+}
+
+func helloHandler(c echo.Context) error {
+	return c.String(http.StatusOK, "ok")
 }
