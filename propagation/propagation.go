@@ -19,6 +19,7 @@ import (
 //
 //  trace_id=${traceId}    - traceId is an opaque ascii string which shall not include ','
 //  parent_id=${spanId}    - spanId is an opaque ascii string which shall not include ','
+//  dataset=${datasetId}   - datasetId is the slug for the honeycomb dataset to which downstream spans should be sent; shall not include ','
 //  context=${contextBlob} - contextBlob is a base64 encoded json object.
 //
 // ex: X-Honeycomb-Trace: 1;trace_id=weofijwoeifj,parent_id=owefjoweifj,context=SGVsbG8gV29ybGQ=
