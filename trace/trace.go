@@ -375,6 +375,7 @@ func (s *Span) send() {
 		s.AddField(k, v)
 	}
 
+	s.childrenLock.Lock()
 	// classify span type
 	var spanType string
 	switch {
@@ -391,6 +392,7 @@ func (s *Span) send() {
 	default:
 		spanType = "mid"
 	}
+	s.childrenLock.Unlock()
 	s.AddField("meta.span_type", spanType)
 
 	if spanType == "root" {

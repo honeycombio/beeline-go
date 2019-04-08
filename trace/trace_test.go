@@ -264,6 +264,29 @@ func TestCreateAsyncSpanDoesNotCauseRaceInSend(t *testing.T) {
 	wg.Wait()
 }
 
+// TestCreateSubSpanDoesNotCauseRaceInSend exists because when sending a root
+// span, you don't consider the length of the children to determine if the span
+// is a leaf. By doing the same test as above on a subspan, we test for a race
+// on the number of chilrden in a span.
+func TestCreateSubSpanDoesNotCauseRaceInSend(t *testing.T) {
+	setupLibhoney()
+	ctx, tr := NewTrace(context.Background(), t.Name())
+	rs := tr.GetRootSpan()
+	ctx, subsp := rs.CreateChild(ctx)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		subsp.Send()
+		wg.Done()
+	}()
+	go func() {
+		subsp.CreateChild(ctx)
+		wg.Done()
+	}()
+	wg.Wait()
+}
+
 func TestChildAndParentSendsDoNotRace(t *testing.T) {
 	setupLibhoney()
 
