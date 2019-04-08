@@ -5,19 +5,24 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	beeline "github.com/honeycombio/beeline-go"
 	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/labstack/echo"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestEchoMiddleware(t *testing.T) {
 	// set up libhoney to catch events instead of send them
-	evCatcher := &libhoney.MockOutput{}
-	libhoney.Init(libhoney.Config{
-		WriteKey: "abcd",
-		Dataset:  "efgh",
-		Output:   evCatcher,
+	evCatcher := &transmission.MockSender{}
+	client, err := libhoney.NewClient(libhoney.ClientConfig{
+		APIKey:       "abcd",
+		Dataset:      "efgh",
+		APIHost:      "ijkl",
+		Transmission: evCatcher,
 	})
+	assert.Equal(t, nil, err)
+	beeline.Init(beeline.Config{Client: client})
 	// build a sample request to generate an event
 	r, _ := http.NewRequest("GET", "/hello/pooh", nil)
 	w := httptest.NewRecorder()
@@ -32,7 +37,7 @@ func TestEchoMiddleware(t *testing.T) {
 	// verify the MockOutput caught the well formed event
 	evs := evCatcher.Events()
 	assert.Equal(t, 1, len(evs), "one event is created with one request through the Middleware")
-	fields := evs[0].Fields()
+	fields := evs[0].Data
 	// status code
 	status, ok := fields["response.status_code"]
 	assert.True(t, ok, "response.status_code field must exist on middleware generated event")
