@@ -1,3 +1,19 @@
+Release v0.4.2 (2019-04-08)
+==
+
+### Additions
+
+* @jamietsao contributed middleware for the Echo router (https://echo.labstack.com/)
+
+### Bugfixes
+
+* Events that were coming in with an existing sample rate to a beeline
+  configured to do additional sampling were not computing the final sample rate
+  correctly. This change fixes the sample rate in that specific case.
+* Added missing comment describing the semantics of the `dataset` field in the
+  trace propagation header added in v0.3.5
+
+
 Release v0.4.1 (2019-03-21)
 ==
 
