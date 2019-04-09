@@ -1,3 +1,11 @@
+Release v0.4.3 (2019-04-09)
+==
+
+### Bugfixes
+
+* Fix race condition when concurrently adding children and sending a non-root
+  span. Contribution by @carlosgaldino
+
 Release v0.4.2 (2019-04-08)
 ==
 
