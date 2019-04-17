@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/honeycombio/libhoney-go/transmission"
 
@@ -68,14 +69,18 @@ type Config struct {
 	// trouble getting the beeline to work, set this to true in a dev
 	// environment.
 	Debug bool
-	// MaxConcurrentBatches, if set, will override the default number of
-	// goroutines (20) that are used to send batches of events in parallel.
-	// Not used if client is set
-	MaxConcurrentBatches uint
 	// MaxBatchSize, if set, will override the default number of events
 	// (50) that are sent per batch.
 	// Not used if client is set
 	MaxBatchSize uint
+	// BatchTimeout, if set, will override the default time (100 * time.Millisecond)
+	// for sending batches that have not been fully-filled.
+	// Not used if client is set
+	BatchTimeout time.Duration
+	// MaxConcurrentBatches, if set, will override the default number of
+	// goroutines (20) that are used to send batches of events in parallel.
+	// Not used if client is set
+	MaxConcurrentBatches uint
 	// PendingWorkCapacity overrides the default event queue size (1000).
 	// If the queue is full, events will be dropped.
 	// Not used if client is set
@@ -99,11 +104,14 @@ func Init(config Config) {
 	if config.SampleRate == 0 {
 		config.SampleRate = defaultSampleRate
 	}
-	if config.MaxConcurrentBatches == 0 {
-		config.MaxConcurrentBatches = 20
-	}
 	if config.MaxBatchSize == 0 {
 		config.MaxBatchSize = 50
+	}
+	if config.BatchTimeout == 0 {
+		config.BatchTimeout = 100 * time.Millisecond
+	}
+	if config.MaxConcurrentBatches == 0 {
+		config.MaxConcurrentBatches = 20
 	}
 	if config.PendingWorkCapacity == 0 {
 		config.PendingWorkCapacity = 1000
@@ -119,6 +127,7 @@ func Init(config Config) {
 		if tx == nil {
 			tx = &transmission.Honeycomb{
 				MaxBatchSize:         config.MaxBatchSize,
+				BatchTimeout:         config.BatchTimeout,
 				MaxConcurrentBatches: config.MaxConcurrentBatches,
 				PendingWorkCapacity:  config.PendingWorkCapacity,
 				UserAgentAddition:    userAgentAddition,
