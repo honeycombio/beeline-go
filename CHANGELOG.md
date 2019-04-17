@@ -1,3 +1,16 @@
+Release v0.4.4 (2019-04-09)
+==
+
+### Bugfixes
+
+* Fixed an issue where the libhoney transmission was being spun up without a default batch timeout, so spans were only getting sent when they hit the batch max (50) rather than after a 100ms timeout.
+* Use libhoney defaults for all missing parameters during initialization (previously the beeline had a few values that differed from the libhoney defaults).
+
+### Additions
+
+* Added the Contributors file listing people that have made contributions to the Beeline
+
+
 Release v0.4.3 (2019-04-09)
 ==
 
