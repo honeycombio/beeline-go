@@ -97,7 +97,7 @@ func Init(config Config) {
 		config.Dataset = defaultDataset
 	}
 	if config.SampleRate == 0 {
-		config.SampleRate = 1
+		config.SampleRate = defaultSampleRate
 	}
 	if config.MaxConcurrentBatches == 0 {
 		config.MaxConcurrentBatches = 20
