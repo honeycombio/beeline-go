@@ -70,18 +70,18 @@ type Config struct {
 	// environment.
 	Debug bool
 	// MaxBatchSize, if set, will override the default number of events
-	// (50) that are sent per batch.
+	// (libhoney.DefaultMaxBatchSize) that are sent per batch.
 	// Not used if client is set
 	MaxBatchSize uint
-	// BatchTimeout, if set, will override the default time (100 * time.Millisecond)
+	// BatchTimeout, if set, will override the default time (libhoney.DefaultBatchTimeout)
 	// for sending batches that have not been fully-filled.
 	// Not used if client is set
 	BatchTimeout time.Duration
 	// MaxConcurrentBatches, if set, will override the default number of
-	// goroutines (20) that are used to send batches of events in parallel.
+	// goroutines (libhoney.DefaultMaxConcurrentBatches) that are used to send batches of events in parallel.
 	// Not used if client is set
 	MaxConcurrentBatches uint
-	// PendingWorkCapacity overrides the default event queue size (1000).
+	// PendingWorkCapacity overrides the default event queue size (libhoney.DefaultPendingWorkCapacity).
 	// If the queue is full, events will be dropped.
 	// Not used if client is set
 	PendingWorkCapacity uint
@@ -105,16 +105,16 @@ func Init(config Config) {
 		config.SampleRate = defaultSampleRate
 	}
 	if config.MaxBatchSize == 0 {
-		config.MaxBatchSize = 50
+		config.MaxBatchSize = libhoney.DefaultMaxBatchSize
 	}
 	if config.BatchTimeout == 0 {
-		config.BatchTimeout = 100 * time.Millisecond
+		config.BatchTimeout = libhoney.DefaultBatchTimeout
 	}
 	if config.MaxConcurrentBatches == 0 {
-		config.MaxConcurrentBatches = 20
+		config.MaxConcurrentBatches = libhoney.DefaultMaxConcurrentBatches
 	}
 	if config.PendingWorkCapacity == 0 {
-		config.PendingWorkCapacity = 1000
+		config.PendingWorkCapacity = libhoney.DefaultPendingWorkCapacity
 	}
 	if config.Client == nil {
 		var tx transmission.Sender
