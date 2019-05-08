@@ -1,5 +1,6 @@
 # Honeycomb Beeline for Go
 
+[![CircleCI](https://circleci.com/gh/honeycombio/beeline-go.svg?style=shield)](https://circleci.com/gh/honeycombio/beeline-go)
 [![Build Status](https://travis-ci.org/honeycombio/beeline-go.svg?branch=master)](https://travis-ci.org/honeycombio/beeline-go)
 [![GoDoc](https://godoc.org/github.com/honeycombio/beeline-go?status.svg)](https://godoc.org/github.com/honeycombio/beeline-go)
 

@@ -1,0 +1,39 @@
+version: 2.1
+
+executors:
+  go:
+    parameters:
+      goversion:
+        type: string
+        default: "11"
+    working_directory: /go/src/github.com/honeycombio/beeline-go
+    docker:
+      - image: circleci/golang:1.<< parameters.goversion >>
+
+jobs:
+  test_beeline:
+    parameters:
+      goversion:
+        type: string
+        default: "11"
+    executor:
+      name: go
+      goversion: "<< parameters.goversion >>"
+    steps:
+      - checkout
+      - run: go get -v -t -d ./...
+      - run: go test -race -v ./...
+
+workflows:
+  build:
+    jobs:
+      - test_beeline:
+          goversion: "8"
+      - test_beeline:
+          goversion: "9"
+      - test_beeline:
+          goversion: "10"
+      - test_beeline:
+          goversion: "11"
+      - test_beeline:
+          goversion: "12"
