@@ -28,8 +28,6 @@ workflows:
   build:
     jobs:
       - test_beeline:
-          goversion: "8"
-      - test_beeline:
           goversion: "9"
       - test_beeline:
           goversion: "10"
