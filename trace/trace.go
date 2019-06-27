@@ -3,12 +3,12 @@ package trace
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/sample"
-	"github.com/honeycombio/beeline-go/timer"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
@@ -176,7 +176,7 @@ type Span struct {
 	parent       *Span
 	rollupFields map[string]float64
 	rollupLock   sync.Mutex
-	timer        timer.Timer
+	started      time.Time
 	trace        *Trace
 	eventLock    sync.Mutex
 	sendLock     sync.RWMutex
@@ -189,10 +189,8 @@ type Span struct {
 // create a well formed span.
 func newSpan() *Span {
 	return &Span{
-		spanID:       uuid.Must(uuid.NewRandom()).String(),
-		timer:        timer.Start(),
-		children:     make([]*Span, 0),
-		rollupFields: make(map[string]float64),
+		spanID:  uuid.Must(uuid.NewRandom()).String(),
+		started: time.Now(),
 	}
 }
 
@@ -220,6 +218,9 @@ func (s *Span) AddRollupField(key string, val float64) {
 	}
 	s.rollupLock.Lock()
 	defer s.rollupLock.Unlock()
+	if s.rollupFields == nil {
+		s.rollupFields = make(map[string]float64)
+	}
 	if s.rollupFields != nil {
 		s.rollupFields[key] += val
 	}
@@ -268,8 +269,8 @@ func (s *Span) sendLocked() {
 		return
 	}
 	// finish the timer for this span
-	if s.timer != nil {
-		dur := s.timer.Finish()
+	if !s.started.IsZero() {
+		dur := float64(time.Since(s.started)) / float64(time.Millisecond)
 		s.AddField("duration_ms", dur)
 	}
 	// set trace IDs for this span
@@ -286,12 +287,15 @@ func (s *Span) sendLocked() {
 	s.rollupLock.Unlock()
 
 	s.childrenLock.Lock()
-	childrenToSend := make([]*Span, 0, len(s.children))
-	for _, child := range s.children {
-		if !child.IsAsync() {
-			// queue children up to be sent. We'd deadlock if we actually sent the
-			// child here.
-			childrenToSend = append(childrenToSend, child)
+	var childrenToSend []*Span
+	if len(s.children) > 0 {
+		childrenToSend = make([]*Span, 0, len(s.children))
+		for _, child := range s.children {
+			if !child.IsAsync() {
+				// queue children up to be sent. We'd deadlock if we actually sent the
+				// child here.
+				childrenToSend = append(childrenToSend, child)
+			}
 		}
 	}
 	s.childrenLock.Unlock()
