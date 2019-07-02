@@ -148,8 +148,8 @@ func TestSpan(t *testing.T) {
 	assert.NotNil(t, span.ev, "span should have an embedded event")
 	assert.Equal(t, rs.spanID, span.parentID, "span's parent ID should be parent's span ID")
 	assert.Equal(t, rs, span.parent, "span should have a pointer to parent")
-	assert.NotNil(t, span.rollupFields, "span should have an initialized rollupFields map")
-	assert.NotNil(t, span.timer, "span should have an initialized timer")
+	assert.Nil(t, span.rollupFields, "span should not have an initialized rollupFields map")
+	assert.False(t, span.started.IsZero(), "span should have an initialized started")
 	assert.Equal(t, tr, span.trace, "span should have a pointer to trace")
 
 	_, childSpan := span.CreateChild(ctx)
@@ -168,8 +168,8 @@ func TestSpan(t *testing.T) {
 	assert.NotNil(t, asyncSpan.ev, "span should have an embedded event")
 	assert.Equal(t, rs.spanID, asyncSpan.parentID, "span's parent ID should be parent's span ID")
 	assert.Equal(t, rs, asyncSpan.parent, "span should have a pointer to parent")
-	assert.NotNil(t, asyncSpan.rollupFields, "span should have an initialized rollupFields map")
-	assert.NotNil(t, asyncSpan.timer, "span should have an initialized timer")
+	assert.Nil(t, asyncSpan.rollupFields, "span should not have an initialized rollupFields map")
+	assert.False(t, asyncSpan.started.IsZero(), "span should have an initialized started")
 	assert.Equal(t, tr, asyncSpan.trace, "span should have a pointer to trace")
 
 	span.AddField("f1", "v1")
@@ -179,6 +179,8 @@ func TestSpan(t *testing.T) {
 	span.AddRollupField("r1", 2)
 	span.AddRollupField("r1", 3)
 	asyncSpan.AddRollupField("r1", 7)
+	assert.NotNil(t, asyncSpan.rollupFields, "span should have an initialized rollupFields map")
+	assert.NotNil(t, span.rollupFields, "span should have an initialized rollupFields map")
 	assert.Equal(t, float64(5), span.rollupFields["r1"], "repeated rollup fields should be summed on the span")
 	assert.Equal(t, float64(7), asyncSpan.rollupFields["r1"], "rollup fields should remain separate on separate spans")
 	assert.Equal(t, float64(12), tr.rollupFields["r1"], "rollup fields should have the grand total in the trace")
@@ -424,6 +426,16 @@ func BenchmarkSendChildSpans(b *testing.B) {
 			s.Send()
 		}
 	})
+}
+
+func BenchmarkSendSpan(b *testing.B) {
+	setupLibhoney()
+
+	_, tr := NewTrace(context.Background(), b.Name())
+	rs := tr.GetRootSpan()
+	for n := 0; n < b.N; n++ {
+		rs.sendLocked()
+	}
 }
 
 func setupLibhoney() *transmission.MockSender {

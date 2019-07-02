@@ -17,14 +17,7 @@ import (
 // spans or somehow break re-inserting the parent span into the context after
 // sending a child span, this test will fail.
 func TestNestedSpans(t *testing.T) {
-	mo := &transmission.MockSender{}
-	client, err := libhoney.NewClient(libhoney.ClientConfig{
-		APIKey:       "placeholder",
-		Dataset:      "placeholder",
-		APIHost:      "placeholder",
-		Transmission: mo})
-	assert.Equal(t, nil, err)
-	Init(Config{Client: client})
+	mo := setupLibhoney(t)
 	ctxroot, spanroot := StartSpan(context.Background(), "start")
 	AddField(ctxroot, "start_col", 1)
 	ctxmid, spanmid := StartSpan(ctxroot, "middle")
@@ -59,14 +52,7 @@ func TestNestedSpans(t *testing.T) {
 // all the basic required attributes: duration, trace, span, and parentIDs, and
 // name.
 func TestBasicSpanAttributes(t *testing.T) {
-	mo := &transmission.MockSender{}
-	client, err := libhoney.NewClient(libhoney.ClientConfig{
-		APIKey:       "placeholder",
-		Dataset:      "placeholder",
-		APIHost:      "placeholder",
-		Transmission: mo})
-	assert.Equal(t, nil, err)
-	Init(Config{Client: client})
+	mo := setupLibhoney(t)
 	ctx, span := StartSpan(context.Background(), "start")
 	AddField(ctx, "start_col", 1)
 	ctxLeaf, spanLeaf := StartSpan(ctx, "leaf")
@@ -104,4 +90,39 @@ func TestBasicSpanAttributes(t *testing.T) {
 		// root span will be missing parent ID
 	}
 	assert.True(t, foundRoot, "root span missing")
+}
+
+func BenchmarkCreateSpan(b *testing.B) {
+	setupLibhoney(b)
+
+	ctx, _ := StartSpan(context.Background(), "parent")
+	for n := 0; n < b.N; n++ {
+		StartSpan(ctx, "child")
+	}
+}
+
+func BenchmarkBeelineAddField(b *testing.B) {
+	setupLibhoney(b)
+
+	ctx, _ := StartSpan(context.Background(), "parent")
+	for n := 0; n < b.N; n++ {
+		AddField(ctx, "foo", 1)
+	}
+}
+
+func setupLibhoney(t testing.TB) *transmission.MockSender {
+	mo := &transmission.MockSender{}
+	client, err := libhoney.NewClient(
+		libhoney.ClientConfig{
+			APIKey:       "placeholder",
+			Dataset:      "placeholder",
+			APIHost:      "placeholder",
+			Transmission: mo,
+		},
+	)
+	assert.Equal(t, nil, err)
+
+	Init(Config{Client: client})
+
+	return mo
 }
