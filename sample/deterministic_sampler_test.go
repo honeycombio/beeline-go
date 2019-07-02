@@ -100,3 +100,74 @@ func TestDeterministicSampler(t *testing.T) {
 		}
 	}
 }
+
+// Tests the deterministic sampler against a specific set of determiniants for specific results,
+// which should be consistent across beelines
+func TestDeterministicBeelineInterop(t *testing.T) {
+	ds, err := NewDeterministicSampler(2)
+	if err != nil {
+		t.Fatalf("error creating deterministic sampler: %s", err)
+	}
+
+	ids := []string{
+		"4YeYygWjTZ41zOBKUoYUaSVxPGm78rdU",
+		"iow4KAFBl9u6lF4EYIcsFz60rXGvu7ph",
+		"EgQMHtruEfqaqQqRs5nwaDXsegFGmB5n",
+		"UnVVepVdyGIiwkHwofyva349tVu8QSDn",
+		"rWuxi2uZmBEprBBpxLLFcKtXHA8bQkvJ",
+		"8PV5LN1IGm5T0ZVIaakb218NvTEABNZz",
+		"EMSmscnxwfrkKd1s3hOJ9bL4zqT1uud5",
+		"YiLx0WGJrQAge2cVoAcCscDDVidbH4uE",
+		"IjD0JHdQdDTwKusrbuiRO4NlFzbPotvg",
+		"ADwiQogJGOS4X8dfIcidcfdT9fY2WpHC",
+		"DyGaS7rfQsMX0E6TD9yORqx7kJgUYvNR",
+		"MjOCkn11liCYZspTAhdULMEfWJGMHvpK",
+		"wtGa41YcFMR5CBNr79lTfRAFi6Vhr6UF",
+		"3AsMjnpTBawWv2AAPDxLjdxx4QYl9XXb",
+		"sa2uMVNPiZLK52zzxlakCUXLaRNXddBz",
+		"NYH9lkdbvXsiUFKwJtjSkQ1RzpHwWloK",
+		"8AwzQeY5cudY8YUhwxm3UEP7Oos61RTY",
+		"ADKWL3p5gloRYO3ptarTCbWUHo5JZi3j",
+		"UAnMARj5x7hkh9kwBiNRfs5aYDsbHKpw",
+		"Aes1rgTLMNnlCkb9s6bH7iT5CbZTdxUw",
+		"eh1LYTOfgISrZ54B7JbldEpvqVur57tv",
+		"u5A1wEYax1kD9HBeIjwyNAoubDreCsZ6",
+		"mv70SFwpAOHRZt4dmuw5n2lAsM1lOrcx",
+		"i4nIu0VZMuh5hLrUm9w2kqNxcfYY7Y3a",
+		"UqfewK2qFZqfJ619RKkRiZeYtO21ngX1",
+	}
+	expected := []bool{
+		false,
+		true,
+		true,
+		true,
+		true,
+		false,
+		true,
+		true,
+		false,
+		false,
+		true,
+		false,
+		true,
+		false,
+		false,
+		false,
+		false,
+		false,
+		true,
+		true,
+		false,
+		false,
+		true,
+		true,
+		false,
+	}
+
+	for i := range ids {
+		keep := ds.Sample(ids[i])
+		if keep != expected[i] {
+			t.Errorf("got unexpected deterministic sampler decision for %s: %t, expected %t", ids[i], keep, expected[i])
+		}
+	}
+}
