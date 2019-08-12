@@ -1320,6 +1320,15 @@ func (s *Stmt) Unsafe() *Stmt {
 	return s
 }
 
+func (s *Stmt) Close() error {
+	var err error
+	_, sender := common.BuildDBEvent(s.Builder, "")
+	defer sender(err)
+
+	err = s.wstmt.Close()
+	return err
+}
+
 type Tx struct {
 	wtx     *sqlx.Tx
 	Builder *libhoney.Builder
