@@ -15,7 +15,7 @@ packages. Some of the dependencies have changed their API interface over the
 past few years (eg goji, uuid, net/http) so you may need to upgrade to get to a
 place that works.
 
-* **go 1.9+** - the context package moved into the core library and is used
+* **go 1.10+** - the context package moved into the core library and is used
   extensively by the beeline to make events available to the call stack
 * **github.com/google/uuid v0.2+** - the signature for NewRandom started returning
   `UUID, error`
