@@ -2082,7 +2082,7 @@ func (tx *Tx) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 
 func (tx *Tx) QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error) {
 	var err error
-	_, sender := common.BuildDBEvent(tx.Builder, query, args...)
+	_, sender := common.BuildDBSpan(ctx, tx.Builder, query, args...)
 	defer func() {
 		sender(err)
 	}()
