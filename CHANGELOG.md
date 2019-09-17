@@ -1,3 +1,11 @@
+Release v0.4.5 (2019-09-17)
+==
+
+### Bugfixes
+
+* Fixed `db.error` not being added by `hnysql` and `hnysqlx` wrappers.
+* Reduction in heap allocations when creating a span.
+
 Release v0.4.4 (2019-04-09)
 ==
 
