@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx/reflectx"
 
 	"github.com/honeycombio/beeline-go/wrappers/common"
-	"github.com/honeycombio/libhoney-go"
+	libhoney "github.com/honeycombio/libhoney-go"
 )
 
 type DB struct {
@@ -50,7 +50,9 @@ func WrapDB(s *sqlx.DB) *DB {
 func (db *DB) Beginx() (*Tx, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -75,7 +77,9 @@ func (db *DB) Beginx() (*Tx, error) {
 func (db *DB) BeginTxx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -107,7 +111,9 @@ func (db *DB) BeginTxx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -134,7 +140,9 @@ func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
 func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -165,7 +173,9 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}
 func (db *DB) Get(dest interface{}, query string, args ...interface{}) error {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -183,7 +193,9 @@ func (db *DB) Get(dest interface{}, query string, args ...interface{}) error {
 func (db *DB) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -203,7 +215,9 @@ func (db *DB) GetContext(ctx context.Context, dest interface{}, query string, ar
 func (db *DB) MapperFunc(mf func(string) string) {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -221,7 +235,9 @@ func (db *DB) MapperFunc(mf func(string) string) {
 func (db *DB) MustBegin() *Tx {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -252,7 +268,9 @@ func (db *DB) MustBegin() *Tx {
 func (db *DB) MustBeginTx(ctx context.Context, opts *sql.TxOptions) *Tx {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -293,7 +311,9 @@ func (db *DB) MustBeginTx(ctx context.Context, opts *sql.TxOptions) *Tx {
 func (db *DB) MustExec(query string, args ...interface{}) sql.Result {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -325,7 +345,9 @@ func (db *DB) MustExec(query string, args ...interface{}) sql.Result {
 func (db *DB) MustExecContext(ctx context.Context, query string, args ...interface{}) sql.Result {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -362,7 +384,9 @@ func (db *DB) MustExecContext(ctx context.Context, query string, args ...interfa
 func (db *DB) NamedExec(query string, arg interface{}) (sql.Result, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, query, arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -389,7 +413,9 @@ func (db *DB) NamedExec(query string, arg interface{}) (sql.Result, error) {
 func (db *DB) NamedExecContext(ctx context.Context, query string, arg interface{}) (sql.Result, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, query, arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -420,7 +446,9 @@ func (db *DB) NamedExecContext(ctx context.Context, query string, arg interface{
 func (db *DB) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, query, arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -435,7 +463,9 @@ func (db *DB) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
 func (db *DB) NamedQueryContext(ctx context.Context, query string, arg interface{}) (*sqlx.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, db.Builder, query, arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -450,7 +480,9 @@ func (db *DB) NamedQueryContext(ctx context.Context, query string, arg interface
 func (db *DB) Ping() error {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -464,7 +496,9 @@ func (db *DB) Ping() error {
 func (db *DB) PingContext(ctx context.Context) error {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -478,7 +512,9 @@ func (db *DB) PingContext(ctx context.Context) error {
 func (db *DB) PrepareNamed(query string) (*NamedStmt, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -507,7 +543,9 @@ func (db *DB) PrepareNamed(query string) (*NamedStmt, error) {
 func (db *DB) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -534,7 +572,9 @@ func (db *DB) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt
 func (db *DB) Preparex(query string) (*Stmt, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -559,7 +599,9 @@ func (db *DB) Preparex(query string) (*Stmt, error) {
 func (db *DB) PreparexContext(ctx context.Context, query string) (*Stmt, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -586,7 +628,9 @@ func (db *DB) PreparexContext(ctx context.Context, query string) (*Stmt, error) 
 func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -601,7 +645,9 @@ func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
 func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -617,7 +663,9 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{
 func (db *DB) QueryRow(query string, args ...interface{}) *sql.Row {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -632,7 +680,9 @@ func (db *DB) QueryRow(query string, args ...interface{}) *sql.Row {
 func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -647,7 +697,9 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 func (db *DB) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -662,7 +714,9 @@ func (db *DB) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 func (db *DB) QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -677,7 +731,9 @@ func (db *DB) QueryxContext(ctx context.Context, query string, args ...interface
 func (db *DB) QueryRowx(query string, args ...interface{}) *sqlx.Row {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -692,7 +748,9 @@ func (db *DB) QueryRowx(query string, args ...interface{}) *sqlx.Row {
 func (db *DB) QueryRowxContext(ctx context.Context, query string, args ...interface{}) *sqlx.Row {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -707,7 +765,9 @@ func (db *DB) QueryRowxContext(ctx context.Context, query string, args ...interf
 func (db *DB) Rebind(query string) string {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -721,7 +781,9 @@ func (db *DB) Rebind(query string) string {
 func (db *DB) Select(dest interface{}, query string, args ...interface{}) error {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -738,7 +800,9 @@ func (db *DB) Select(dest interface{}, query string, args ...interface{}) error 
 func (db *DB) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -758,7 +822,9 @@ func (db *DB) SelectContext(ctx context.Context, dest interface{}, query string,
 func (db *DB) Close() error {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -773,7 +839,9 @@ func (db *DB) Close() error {
 func (db *DB) Driver() driver.Driver {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -786,7 +854,9 @@ func (db *DB) Driver() driver.Driver {
 func (db *DB) SetConnMaxLifetime(d time.Duration) {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -799,7 +869,9 @@ func (db *DB) SetConnMaxLifetime(d time.Duration) {
 func (db *DB) SetMaxIdleConns(n int) {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -812,7 +884,9 @@ func (db *DB) SetMaxIdleConns(n int) {
 func (db *DB) SetMaxOpenConns(n int) {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -825,7 +899,9 @@ func (db *DB) SetMaxOpenConns(n int) {
 func (db *DB) Stats() sql.DBStats {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if db.Mapper != nil {
@@ -847,7 +923,9 @@ func (n *NamedStmt) GetWrappedNamedStmt() *sqlx.NamedStmt {
 func (n *NamedStmt) Close() error {
 	var err error
 	_, sender := common.BuildDBEvent(n.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	err = n.wns.Close()
 	return err
@@ -856,7 +934,9 @@ func (n *NamedStmt) Close() error {
 func (n *NamedStmt) Exec(arg interface{}) (sql.Result, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	res, err := n.wns.Exec(arg)
 
@@ -877,7 +957,9 @@ func (n *NamedStmt) Exec(arg interface{}) (sql.Result, error) {
 func (n *NamedStmt) ExecContext(ctx context.Context, arg interface{}) (sql.Result, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	res, err := n.wns.ExecContext(ctx, arg)
 
@@ -902,7 +984,9 @@ func (n *NamedStmt) ExecContext(ctx context.Context, arg interface{}) (sql.Resul
 func (n *NamedStmt) Get(dest interface{}, arg interface{}) error {
 	var err error
 	ev, sender := common.BuildDBEvent(n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// add the type of the objec being populated
 	ev.AddField("db.dest_type", typeof(dest))
@@ -914,7 +998,9 @@ func (n *NamedStmt) Get(dest interface{}, arg interface{}) error {
 func (n *NamedStmt) GetContext(ctx context.Context, dest interface{}, arg interface{}) error {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// add the type of the objec being populated
 	if span != nil {
@@ -928,7 +1014,9 @@ func (n *NamedStmt) GetContext(ctx context.Context, dest interface{}, arg interf
 func (n *NamedStmt) MustExec(arg interface{}) sql.Result {
 	var err error
 	ev, sender := common.BuildDBEvent(n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	res, err := n.wns.Exec(arg)
@@ -954,7 +1042,9 @@ func (n *NamedStmt) MustExec(arg interface{}) sql.Result {
 func (n *NamedStmt) MustExecContext(ctx context.Context, arg interface{}) sql.Result {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	res, err := n.wns.ExecContext(ctx, arg)
@@ -986,7 +1076,9 @@ func (n *NamedStmt) MustExecContext(ctx context.Context, arg interface{}) sql.Re
 func (n *NamedStmt) Query(arg interface{}) (*sql.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := n.wns.Query(arg)
@@ -996,7 +1088,9 @@ func (n *NamedStmt) Query(arg interface{}) (*sql.Rows, error) {
 func (n *NamedStmt) QueryContext(ctx context.Context, arg interface{}) (*sql.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := n.wns.QueryContext(ctx, arg)
@@ -1006,7 +1100,9 @@ func (n *NamedStmt) QueryContext(ctx context.Context, arg interface{}) (*sql.Row
 func (n *NamedStmt) QueryRow(arg interface{}) *sqlx.Row {
 	var err error
 	_, sender := common.BuildDBEvent(n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	row := n.wns.QueryRow(arg)
@@ -1016,7 +1112,9 @@ func (n *NamedStmt) QueryRow(arg interface{}) *sqlx.Row {
 func (n *NamedStmt) QueryRowContext(ctx context.Context, arg interface{}) *sqlx.Row {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	row := n.wns.QueryRowContext(ctx, arg)
@@ -1026,7 +1124,9 @@ func (n *NamedStmt) QueryRowContext(ctx context.Context, arg interface{}) *sqlx.
 func (n *NamedStmt) QueryRowx(arg interface{}) *sqlx.Row {
 	var err error
 	_, sender := common.BuildDBEvent(n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	row := n.wns.QueryRowx(arg)
@@ -1036,7 +1136,9 @@ func (n *NamedStmt) QueryRowx(arg interface{}) *sqlx.Row {
 func (n *NamedStmt) QueryRowxContext(ctx context.Context, arg interface{}) *sqlx.Row {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	row := n.wns.QueryRowxContext(ctx, arg)
@@ -1046,7 +1148,9 @@ func (n *NamedStmt) QueryRowxContext(ctx context.Context, arg interface{}) *sqlx
 func (n *NamedStmt) Queryx(arg interface{}) (*sqlx.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := n.wns.Queryx(arg)
@@ -1056,7 +1160,9 @@ func (n *NamedStmt) Queryx(arg interface{}) (*sqlx.Rows, error) {
 func (n *NamedStmt) QueryxContext(ctx context.Context, arg interface{}) (*sqlx.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := n.wns.QueryxContext(ctx, arg)
@@ -1066,7 +1172,9 @@ func (n *NamedStmt) QueryxContext(ctx context.Context, arg interface{}) (*sqlx.R
 func (n *NamedStmt) Select(dest interface{}, arg interface{}) error {
 	var err error
 	ev, sender := common.BuildDBEvent(n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	ev.AddField("db.dest_type", typeof(dest))
 
@@ -1078,7 +1186,9 @@ func (n *NamedStmt) Select(dest interface{}, arg interface{}) error {
 func (n *NamedStmt) SelectContext(ctx context.Context, dest interface{}, arg interface{}) error {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, n.Builder, "", arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	if span != nil {
 		span.AddField("db.dest_type", typeof(dest))
@@ -1092,7 +1202,9 @@ func (n *NamedStmt) SelectContext(ctx context.Context, dest interface{}, arg int
 func (n *NamedStmt) Unsafe() *NamedStmt {
 	var err error
 	_, sender := common.BuildDBEvent(n.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	newws := n.wns.Unsafe()
 	n.wns = newws
@@ -1108,7 +1220,9 @@ type Stmt struct {
 func (s *Stmt) Get(dest interface{}, args ...interface{}) error {
 	var err error
 	ev, sender := common.BuildDBEvent(s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1125,7 +1239,9 @@ func (s *Stmt) Get(dest interface{}, args ...interface{}) error {
 func (s *Stmt) GetContext(ctx context.Context, dest interface{}, args ...interface{}) error {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1144,7 +1260,9 @@ func (s *Stmt) GetContext(ctx context.Context, dest interface{}, args ...interfa
 func (s *Stmt) MustExec(args ...interface{}) sql.Result {
 	var err error
 	ev, sender := common.BuildDBEvent(s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1175,7 +1293,9 @@ func (s *Stmt) MustExec(args ...interface{}) sql.Result {
 func (s *Stmt) MustExecContext(ctx context.Context, args ...interface{}) sql.Result {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1212,7 +1332,9 @@ func (s *Stmt) MustExecContext(ctx context.Context, args ...interface{}) sql.Res
 func (s *Stmt) QueryRowx(args ...interface{}) *sqlx.Row {
 	var err error
 	_, sender := common.BuildDBEvent(s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1227,7 +1349,9 @@ func (s *Stmt) QueryRowx(args ...interface{}) *sqlx.Row {
 func (s *Stmt) QueryRowxContext(ctx context.Context, args ...interface{}) *sqlx.Row {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1242,7 +1366,9 @@ func (s *Stmt) QueryRowxContext(ctx context.Context, args ...interface{}) *sqlx.
 func (s *Stmt) Queryx(args ...interface{}) (*sqlx.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1257,7 +1383,9 @@ func (s *Stmt) Queryx(args ...interface{}) (*sqlx.Rows, error) {
 func (s *Stmt) QueryxContext(ctx context.Context, args ...interface{}) (*sqlx.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1272,7 +1400,9 @@ func (s *Stmt) QueryxContext(ctx context.Context, args ...interface{}) (*sqlx.Ro
 func (s *Stmt) Select(dest interface{}, args ...interface{}) error {
 	var err error
 	ev, sender := common.BuildDBEvent(s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1289,7 +1419,9 @@ func (s *Stmt) Select(dest interface{}, args ...interface{}) error {
 func (s *Stmt) SelectContext(ctx context.Context, dest interface{}, args ...interface{}) error {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1308,7 +1440,9 @@ func (s *Stmt) SelectContext(ctx context.Context, dest interface{}, args ...inte
 func (s *Stmt) Unsafe() *Stmt {
 	var err error
 	_, sender := common.BuildDBEvent(s.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if s.Mapper != nil {
@@ -1333,7 +1467,9 @@ func (tx *Tx) GetWrappedTx() *sqlx.Tx {
 func (tx *Tx) BindNamed(query string, arg interface{}) (string, []interface{}, error) {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, query, arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1347,7 +1483,9 @@ func (tx *Tx) BindNamed(query string, arg interface{}) (string, []interface{}, e
 func (tx *Tx) Commit() error {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1364,7 +1502,9 @@ func (tx *Tx) Commit() error {
 func (tx *Tx) CommitContext(ctx context.Context) error {
 	var err error
 	_, _, sender := common.BuildDBSpan(ctx, tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1379,7 +1519,9 @@ func (tx *Tx) CommitContext(ctx context.Context) error {
 func (tx *Tx) DriverName() string {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1393,7 +1535,9 @@ func (tx *Tx) DriverName() string {
 func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1420,7 +1564,9 @@ func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1451,7 +1597,9 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 func (tx *Tx) Get(dest interface{}, query string, args ...interface{}) error {
 	var err error
 	ev, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1467,7 +1615,9 @@ func (tx *Tx) Get(dest interface{}, query string, args ...interface{}) error {
 func (tx *Tx) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1486,7 +1636,9 @@ func (tx *Tx) GetContext(ctx context.Context, dest interface{}, query string, ar
 func (tx *Tx) MustExec(query string, args ...interface{}) sql.Result {
 	var err error
 	ev, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1517,7 +1669,9 @@ func (tx *Tx) MustExec(query string, args ...interface{}) sql.Result {
 func (tx *Tx) MustExecContext(ctx context.Context, query string, args ...interface{}) sql.Result {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1554,7 +1708,9 @@ func (tx *Tx) MustExecContext(ctx context.Context, query string, args ...interfa
 func (tx *Tx) NamedExec(query string, arg interface{}) (sql.Result, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(tx.Builder, query, arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1581,7 +1737,9 @@ func (tx *Tx) NamedExec(query string, arg interface{}) (sql.Result, error) {
 func (tx *Tx) NamedExecContext(ctx context.Context, query string, arg interface{}) (sql.Result, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, tx.Builder, query, arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1612,7 +1770,9 @@ func (tx *Tx) NamedExecContext(ctx context.Context, query string, arg interface{
 func (tx *Tx) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, query, arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1627,7 +1787,9 @@ func (tx *Tx) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
 func (tx *Tx) NamedQueryContext(ctx context.Context, query string, arg interface{}) (*sqlx.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, tx.Builder, query, arg)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1642,7 +1804,9 @@ func (tx *Tx) NamedQueryContext(ctx context.Context, query string, arg interface
 func (tx *Tx) NamedStmt(stmt *NamedStmt) *NamedStmt {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &NamedStmt{
@@ -1662,7 +1826,9 @@ func (tx *Tx) NamedStmt(stmt *NamedStmt) *NamedStmt {
 func (tx *Tx) NamedStmtContext(ctx context.Context, stmt *NamedStmt) *NamedStmt {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &NamedStmt{
@@ -1682,7 +1848,9 @@ func (tx *Tx) NamedStmtContext(ctx context.Context, stmt *NamedStmt) *NamedStmt 
 func (tx *Tx) PrepareNamed(query string) (*NamedStmt, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(tx.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1708,7 +1876,9 @@ func (tx *Tx) PrepareNamed(query string) (*NamedStmt, error) {
 func (tx *Tx) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, tx.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1736,7 +1906,9 @@ func (tx *Tx) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt
 func (tx *Tx) Preparex(query string) (*Stmt, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(tx.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1762,7 +1934,9 @@ func (tx *Tx) Preparex(query string) (*Stmt, error) {
 func (tx *Tx) PreparexContext(ctx context.Context, query string) (*Stmt, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, tx.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1790,7 +1964,9 @@ func (tx *Tx) PreparexContext(ctx context.Context, query string) (*Stmt, error) 
 func (tx *Tx) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1805,7 +1981,9 @@ func (tx *Tx) Query(query string, args ...interface{}) (*sql.Rows, error) {
 func (tx *Tx) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1820,7 +1998,9 @@ func (tx *Tx) QueryContext(ctx context.Context, query string, args ...interface{
 func (tx *Tx) QueryRow(query string, args ...interface{}) *sql.Row {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1835,7 +2015,9 @@ func (tx *Tx) QueryRow(query string, args ...interface{}) *sql.Row {
 func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1850,7 +2032,9 @@ func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...interfa
 func (tx *Tx) QueryRowx(query string, args ...interface{}) *sqlx.Row {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1865,7 +2049,9 @@ func (tx *Tx) QueryRowx(query string, args ...interface{}) *sqlx.Row {
 func (tx *Tx) QueryRowxContext(ctx context.Context, query string, args ...interface{}) *sqlx.Row {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1880,7 +2066,9 @@ func (tx *Tx) QueryRowxContext(ctx context.Context, query string, args ...interf
 func (tx *Tx) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1895,7 +2083,9 @@ func (tx *Tx) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 func (tx *Tx) QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1910,7 +2100,9 @@ func (tx *Tx) QueryxContext(ctx context.Context, query string, args ...interface
 func (tx *Tx) Rebind(query string) string {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1924,7 +2116,9 @@ func (tx *Tx) Rebind(query string) string {
 func (tx *Tx) Rollback() error {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1939,7 +2133,9 @@ func (tx *Tx) Rollback() error {
 func (tx *Tx) RollbackContext(ctx context.Context) error {
 	var err error
 	_, _, sender := common.BuildDBSpan(ctx, tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1954,7 +2150,9 @@ func (tx *Tx) RollbackContext(ctx context.Context) error {
 func (tx *Tx) Select(dest interface{}, query string, args ...interface{}) error {
 	var err error
 	ev, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1970,7 +2168,9 @@ func (tx *Tx) Select(dest interface{}, query string, args ...interface{}) error 
 func (tx *Tx) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -1988,7 +2188,9 @@ func (tx *Tx) SelectContext(ctx context.Context, dest interface{}, query string,
 func (tx *Tx) Stmtx(stmt *Stmt) *Stmt {
 	var err error
 	ev, sender := common.BuildDBEvent(tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -2015,7 +2217,9 @@ func (tx *Tx) Stmtx(stmt *Stmt) *Stmt {
 func (tx *Tx) StmtxContext(ctx context.Context, stmt *Stmt) *Stmt {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {
@@ -2044,7 +2248,9 @@ func (tx *Tx) StmtxContext(ctx context.Context, stmt *Stmt) *Stmt {
 func (tx *Tx) Unsafe() *Tx {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// ensure any changes to the Mapper get passed along
 	if tx.Mapper != nil {

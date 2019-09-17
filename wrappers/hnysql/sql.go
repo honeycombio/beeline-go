@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/honeycombio/beeline-go/wrappers/common"
-	"github.com/honeycombio/libhoney-go"
+	libhoney "github.com/honeycombio/libhoney-go"
 )
 
 type DB struct {
@@ -45,7 +45,9 @@ func WrapDB(s *sql.DB) *DB {
 func (db *DB) Begin() (*Tx, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	bld := db.Builder.Clone()
 	wrapTx := &Tx{
@@ -67,7 +69,9 @@ func (db *DB) Begin() (*Tx, error) {
 func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// TODO if ctx.Cancel is called, the transaction is rolled back. We should
 	// submit an event indicating the rollback.
@@ -98,7 +102,9 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 	bld := db.Builder.Clone()
 	id, _ := uuid.NewRandom()
 	connid := id.String()
@@ -121,7 +127,9 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	res, err := db.wdb.Exec(query, args...)
@@ -143,7 +151,9 @@ func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
 func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	res, err := db.wdb.ExecContext(ctx, query, args...)
@@ -169,7 +179,9 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}
 func (db *DB) Ping() error {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 	err = db.wdb.Ping()
 	return err
 }
@@ -177,7 +189,9 @@ func (db *DB) Ping() error {
 func (db *DB) PingContext(ctx context.Context) error {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 	err = db.wdb.Ping()
 	return err
 }
@@ -185,7 +199,9 @@ func (db *DB) PingContext(ctx context.Context) error {
 func (db *DB) Prepare(query string) (*Stmt, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	bld := db.Builder.Clone()
 	id, _ := uuid.NewRandom()
@@ -208,7 +224,9 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, db.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	bld := db.Builder.Clone()
 	id, _ := uuid.NewRandom()
@@ -233,7 +251,9 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, query, args)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := db.wdb.Query(query, args...)
@@ -244,7 +264,9 @@ func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
 func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, db.Builder, query, args)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := db.wdb.QueryContext(ctx, query, args...)
@@ -271,7 +293,9 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 func (db *DB) Close() error {
 	var err error
 	_, sender := common.BuildDBEvent(db.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 	err = db.wdb.Close()
 	return err
 }
@@ -291,7 +315,9 @@ type Conn struct {
 func (c *Conn) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, c.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 	// TODO if ctx.Cancel is called, the transaction is rolled back. We should
 	// submit an event indicating the rollback.
 	bld := c.Builder.Clone()
@@ -321,7 +347,9 @@ func (c *Conn) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 func (c *Conn) Close() error {
 	var err error
 	_, sender := common.BuildDBEvent(c.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	err = c.wconn.Close()
@@ -331,7 +359,9 @@ func (c *Conn) Close() error {
 func (c *Conn) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, c.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	res, err := c.wconn.ExecContext(ctx, query, args...)
@@ -357,7 +387,9 @@ func (c *Conn) ExecContext(ctx context.Context, query string, args ...interface{
 func (c *Conn) PingContext(ctx context.Context) error {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, c.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 	err = c.wconn.PingContext(ctx)
 	return err
 }
@@ -365,7 +397,9 @@ func (c *Conn) PingContext(ctx context.Context) error {
 func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, c.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	bld := c.Builder.Clone()
 	id, _ := uuid.NewRandom()
@@ -390,7 +424,9 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 func (c *Conn) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, c.Builder, query, args)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := c.wconn.QueryContext(ctx, query, args...)
@@ -414,7 +450,9 @@ type Stmt struct {
 func (s *Stmt) Close() error {
 	var err error
 	_, sender := common.BuildDBEvent(s.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 	err = s.wstmt.Close()
 	return err
 }
@@ -422,7 +460,9 @@ func (s *Stmt) Close() error {
 func (s *Stmt) Exec(args ...interface{}) (sql.Result, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	res, err := s.wstmt.Exec(args...)
@@ -444,7 +484,9 @@ func (s *Stmt) Exec(args ...interface{}) (sql.Result, error) {
 func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, s.Builder, "", args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	res, err := s.wstmt.ExecContext(ctx, args...)
@@ -470,7 +512,9 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...interface{}) (sql.Result
 func (s *Stmt) Query(args ...interface{}) (*sql.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(s.Builder, "", args)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := s.wstmt.Query(args...)
@@ -480,7 +524,9 @@ func (s *Stmt) Query(args ...interface{}) (*sql.Rows, error) {
 func (s *Stmt) QueryContext(ctx context.Context, args ...interface{}) (*sql.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, s.Builder, "", args)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := s.wstmt.QueryContext(ctx, args...)
@@ -514,7 +560,9 @@ type Tx struct {
 func (tx *Tx) Commit() error {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	err = tx.wtx.Commit()
@@ -524,7 +572,9 @@ func (tx *Tx) Commit() error {
 func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	res, err := tx.wtx.Exec(query, args...)
@@ -546,7 +596,9 @@ func (tx *Tx) Exec(query string, args ...interface{}) (sql.Result, error) {
 func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, tx.Builder, query, args...)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	res, err := tx.wtx.ExecContext(ctx, query, args...)
@@ -572,7 +624,9 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...interface{}
 func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(tx.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	bld := tx.Builder.Clone()
 	id, _ := uuid.NewRandom()
@@ -593,7 +647,9 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var err error
 	ctx, span, sender := common.BuildDBSpan(ctx, tx.Builder, query)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	bld := tx.Builder.Clone()
 	id, _ := uuid.NewRandom()
@@ -616,7 +672,9 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 func (tx *Tx) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, query, args)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := tx.wtx.Query(query, args...)
@@ -626,7 +684,9 @@ func (tx *Tx) Query(query string, args ...interface{}) (*sql.Rows, error) {
 func (tx *Tx) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	var err error
 	ctx, _, sender := common.BuildDBSpan(ctx, tx.Builder, query, args)
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	rows, err := tx.wtx.QueryContext(ctx, query, args...)
@@ -654,7 +714,9 @@ func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...interfa
 func (tx *Tx) Rollback() error {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, "")
-	defer sender(err)
+	defer func() {
+		sender(err)
+	}()
 
 	// do DB call
 	err = tx.wtx.Rollback()
