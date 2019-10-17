@@ -1,6 +1,8 @@
 package common
 
 import (
+	"context"
+	"database/sql"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -104,4 +106,17 @@ func TestResponseWriterTypeAssertions(t *testing.T) {
 	if _, ok := wr.Wrapped.(io.ReaderFrom); !ok {
 		t.Errorf("ResponseWriter does not implement io.ReaderFrom")
 	}
+}
+
+func TestBuildDBEvent(t *testing.T) {
+	b := libhoney.NewBuilder()
+	_, sender := BuildDBEvent(b, sql.DBStats{}, "")
+	sender(nil)
+}
+
+func TestBuildDBSpan(t *testing.T) {
+	b := libhoney.NewBuilder()
+	ctx := context.Background()
+	ctx, _, sender := BuildDBSpan(ctx, b, sql.DBStats{}, "")
+	sender(nil)
 }

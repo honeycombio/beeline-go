@@ -33,3 +33,5 @@ workflows:
           goversion: "11"
       - test_beeline:
           goversion: "12"
+      - test_beeline:
+          goversion: "13"
