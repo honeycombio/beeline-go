@@ -47,7 +47,7 @@ func WrapDB(s *sqlx.DB) *DB {
 	return db
 }
 
-func (db *DB) WrappedDB() *sqlx.DB {
+func (db *DB) GetWrappedDB() *sqlx.DB {
 	return db.wdb
 }
 
