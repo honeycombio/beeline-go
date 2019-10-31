@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/honeycombio/beeline-go/wrappers/common"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo"
 )
 
 // EchoWrapper provides Honeycomb instrumentation for the Echo router via middleware
