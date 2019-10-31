@@ -47,6 +47,10 @@ func WrapDB(s *sqlx.DB) *DB {
 	return db
 }
 
+func (db *DB) GetWrappedDB() *sqlx.DB {
+	return db.wdb
+}
+
 func (db *DB) Beginx() (*Tx, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, "")
