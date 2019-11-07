@@ -1456,7 +1456,7 @@ func (s *Stmt) Unsafe() *Stmt {
 
 func (s *Stmt) Close() error {
 	var err error
-	_, sender := common.BuildDBEvent(s.Builder, "")
+	_, sender := common.BuildDBEvent(s.Builder, sql.DBStats{}, "")
 	defer sender(err)
 
 	err = s.wstmt.Close()

@@ -6,8 +6,6 @@
 
 # Release v0.4.6 (2019-10-31)
 
-A few small fixes
-
 ### Bugfixes
 
 - added missing `Close` function to the `Stmt` type
