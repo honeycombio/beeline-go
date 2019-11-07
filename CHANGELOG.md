@@ -1,8 +1,18 @@
-# Release v0.4.6 (2019-10-17)
+# Release v0.4.7 (2019-11-07)
 
 ### Additions
 
 - Add additional go database stats to `hnysql` and `hnysqlx` wrapppers. In go 1.11 and later, we additionally report `db.conns_in_use`, `db.conns_idle`, `db.wait_count`, and `db.wait_duration`. See https://golang.org/pkg/database/sql/#DB.Stats
+
+# Release v0.4.6 (2019-10-31)
+
+A few small fixes
+
+### Bugfixes
+
+- added missing `Close` function to the `Stmt` type
+- renamed `echo` example binary for using the echo web framework so it doesn't collide with the builtin shell `echo` command
+- updated transaction's `QueryxContext` to use a span instead of an event
 
 # Release v0.4.5 (2019-09-17)
 
