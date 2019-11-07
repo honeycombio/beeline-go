@@ -588,6 +588,7 @@ func (db *DB) Preparex(query string) (*Stmt, error) {
 
 	bld := db.Builder.Clone()
 	wrapStmt := &Stmt{
+		db:      db,
 		Builder: bld,
 	}
 	newid, _ := uuid.NewRandom()
@@ -615,6 +616,7 @@ func (db *DB) PreparexContext(ctx context.Context, query string) (*Stmt, error) 
 
 	bld := db.Builder.Clone()
 	wrapStmt := &Stmt{
+		db:      db,
 		Builder: bld,
 	}
 	newid, _ := uuid.NewRandom()
@@ -1212,6 +1214,7 @@ func (n *NamedStmt) Unsafe() *NamedStmt {
 }
 
 type Stmt struct {
+	db      *DB
 	wstmt   *sqlx.Stmt
 	Builder *libhoney.Builder
 	Mapper  *reflectx.Mapper
@@ -1219,7 +1222,7 @@ type Stmt struct {
 
 func (s *Stmt) Get(dest interface{}, args ...interface{}) error {
 	var err error
-	ev, sender := common.BuildDBEvent(s.Builder, sql.DBStats{}, "", args...)
+	ev, sender := common.BuildDBEvent(s.Builder, s.db.Stats(), "", args...)
 	defer func() {
 		sender(err)
 	}()
@@ -1238,7 +1241,7 @@ func (s *Stmt) Get(dest interface{}, args ...interface{}) error {
 
 func (s *Stmt) GetContext(ctx context.Context, dest interface{}, args ...interface{}) error {
 	var err error
-	ctx, span, sender := common.BuildDBSpan(ctx, s.Builder, sql.DBStats{}, "", args...)
+	ctx, span, sender := common.BuildDBSpan(ctx, s.Builder, s.db.Stats(), "", args...)
 	defer func() {
 		sender(err)
 	}()
@@ -1259,7 +1262,7 @@ func (s *Stmt) GetContext(ctx context.Context, dest interface{}, args ...interfa
 
 func (s *Stmt) MustExec(args ...interface{}) sql.Result {
 	var err error
-	ev, sender := common.BuildDBEvent(s.Builder, sql.DBStats{}, "", args...)
+	ev, sender := common.BuildDBEvent(s.Builder, s.db.Stats(), "", args...)
 	defer func() {
 		sender(err)
 	}()
@@ -1292,7 +1295,7 @@ func (s *Stmt) MustExec(args ...interface{}) sql.Result {
 
 func (s *Stmt) MustExecContext(ctx context.Context, args ...interface{}) sql.Result {
 	var err error
-	ctx, span, sender := common.BuildDBSpan(ctx, s.Builder, sql.DBStats{}, "", args...)
+	ctx, span, sender := common.BuildDBSpan(ctx, s.Builder, s.db.Stats(), "", args...)
 	defer func() {
 		sender(err)
 	}()
@@ -1331,7 +1334,7 @@ func (s *Stmt) MustExecContext(ctx context.Context, args ...interface{}) sql.Res
 
 func (s *Stmt) QueryRowx(args ...interface{}) *sqlx.Row {
 	var err error
-	_, sender := common.BuildDBEvent(s.Builder, sql.DBStats{}, "", args...)
+	_, sender := common.BuildDBEvent(s.Builder, s.db.Stats(), "", args...)
 	defer func() {
 		sender(err)
 	}()
@@ -1348,7 +1351,7 @@ func (s *Stmt) QueryRowx(args ...interface{}) *sqlx.Row {
 
 func (s *Stmt) QueryRowxContext(ctx context.Context, args ...interface{}) *sqlx.Row {
 	var err error
-	ctx, _, sender := common.BuildDBSpan(ctx, s.Builder, sql.DBStats{}, "", args...)
+	ctx, _, sender := common.BuildDBSpan(ctx, s.Builder, s.db.Stats(), "", args...)
 	defer func() {
 		sender(err)
 	}()
@@ -1365,7 +1368,7 @@ func (s *Stmt) QueryRowxContext(ctx context.Context, args ...interface{}) *sqlx.
 
 func (s *Stmt) Queryx(args ...interface{}) (*sqlx.Rows, error) {
 	var err error
-	_, sender := common.BuildDBEvent(s.Builder, sql.DBStats{}, "", args...)
+	_, sender := common.BuildDBEvent(s.Builder, s.db.Stats(), "", args...)
 	defer func() {
 		sender(err)
 	}()
@@ -1382,7 +1385,7 @@ func (s *Stmt) Queryx(args ...interface{}) (*sqlx.Rows, error) {
 
 func (s *Stmt) QueryxContext(ctx context.Context, args ...interface{}) (*sqlx.Rows, error) {
 	var err error
-	ctx, _, sender := common.BuildDBSpan(ctx, s.Builder, sql.DBStats{}, "", args...)
+	ctx, _, sender := common.BuildDBSpan(ctx, s.Builder, s.db.Stats(), "", args...)
 	defer func() {
 		sender(err)
 	}()
@@ -1399,7 +1402,7 @@ func (s *Stmt) QueryxContext(ctx context.Context, args ...interface{}) (*sqlx.Ro
 
 func (s *Stmt) Select(dest interface{}, args ...interface{}) error {
 	var err error
-	ev, sender := common.BuildDBEvent(s.Builder, sql.DBStats{}, "", args...)
+	ev, sender := common.BuildDBEvent(s.Builder, s.db.Stats(), "", args...)
 	defer func() {
 		sender(err)
 	}()
@@ -1418,7 +1421,7 @@ func (s *Stmt) Select(dest interface{}, args ...interface{}) error {
 
 func (s *Stmt) SelectContext(ctx context.Context, dest interface{}, args ...interface{}) error {
 	var err error
-	ctx, span, sender := common.BuildDBSpan(ctx, s.Builder, sql.DBStats{}, "", args...)
+	ctx, span, sender := common.BuildDBSpan(ctx, s.Builder, s.db.Stats(), "", args...)
 	defer func() {
 		sender(err)
 	}()
@@ -1439,7 +1442,7 @@ func (s *Stmt) SelectContext(ctx context.Context, dest interface{}, args ...inte
 
 func (s *Stmt) Unsafe() *Stmt {
 	var err error
-	_, sender := common.BuildDBEvent(s.Builder, sql.DBStats{}, "")
+	_, sender := common.BuildDBEvent(s.Builder, s.db.Stats(), "")
 	defer func() {
 		sender(err)
 	}()
@@ -1456,7 +1459,7 @@ func (s *Stmt) Unsafe() *Stmt {
 
 func (s *Stmt) Close() error {
 	var err error
-	_, sender := common.BuildDBEvent(s.Builder, sql.DBStats{}, "")
+	_, sender := common.BuildDBEvent(s.Builder, s.db.Stats(), "")
 	defer sender(err)
 
 	err = s.wstmt.Close()
@@ -1931,6 +1934,7 @@ func (tx *Tx) Preparex(query string) (*Stmt, error) {
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &Stmt{
+		db:      tx.db,
 		Builder: bld,
 	}
 	newid, _ := uuid.NewRandom()
@@ -1959,6 +1963,7 @@ func (tx *Tx) PreparexContext(ctx context.Context, query string) (*Stmt, error) 
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &Stmt{
+		db:      tx.db,
 		Builder: bld,
 	}
 	newid, _ := uuid.NewRandom()
@@ -2213,6 +2218,7 @@ func (tx *Tx) Stmtx(stmt *Stmt) *Stmt {
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &Stmt{
+		db:      tx.db,
 		Builder: bld,
 	}
 	newid, _ := uuid.NewRandom()
@@ -2242,6 +2248,7 @@ func (tx *Tx) StmtxContext(ctx context.Context, stmt *Stmt) *Stmt {
 
 	bld := tx.Builder.Clone()
 	wrapStmt := &Stmt{
+		db:      tx.db,
 		Builder: bld,
 	}
 	newid, _ := uuid.NewRandom()
