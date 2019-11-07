@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"runtime"
 	"strings"
@@ -148,15 +149,16 @@ func sharedDBEvent(bld *libhoney.Builder, query string, args ...interface{}) *li
 }
 
 // BuildDBEvent tries to bring together most of the things that need to happen
-// for an event to wrap a DB call in bot the sql and sqlx packages. It returns a
+// for an event to wrap a DB call in both the sql and sqlx packages. It returns a
 // function which, when called, dispatches the event that it created. This lets
 // it finish a timer around the call automatically. This function is only used
 // when no context (and therefore no beeline trace) is available to the caller -
 // if context is available, use BuildDBSpan() instead to tie it in to the active
 // trace.
-func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*libhoney.Event, func(error)) {
+func BuildDBEvent(bld *libhoney.Builder, stats sql.DBStats, query string, args ...interface{}) (*libhoney.Event, func(error)) {
 	timer := timer.Start()
 	ev := sharedDBEvent(bld, query, args)
+	addDBStatsToEvent(ev, stats)
 	fn := func(err error) {
 		duration := timer.Finish()
 		// rollup(ctx, ev, duration)
@@ -173,7 +175,7 @@ func BuildDBEvent(bld *libhoney.Builder, query string, args ...interface{}) (*li
 // BuildDBSpan does the same things as BuildDBEvent except that it has access to
 // a trace from the context and takes advantage of that to add the DB events
 // into the trace.
-func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args ...interface{}) (context.Context, *trace.Span, func(error)) {
+func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, stats sql.DBStats, query string, args ...interface{}) (context.Context, *trace.Span, func(error)) {
 	timer := timer.Start()
 	parentSpan := trace.GetSpanFromContext(ctx)
 	var span *trace.Span
@@ -188,6 +190,7 @@ func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, query string, args 
 	} else {
 		ctx, span = parentSpan.CreateChild(ctx)
 	}
+	addDBStatsToSpan(span, stats)
 
 	ev := sharedDBEvent(bld, query, args...)
 	for k, v := range ev.Fields() {
