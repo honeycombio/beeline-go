@@ -55,6 +55,12 @@ func WrapHandler(handler http.Handler) http.Handler {
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
+		if cl := wrappedWriter.Wrapped.Header().Get("Content-Length"); cl != "" {
+			span.AddField("response.content_length", cl)
+		}
+		if ct := wrappedWriter.Wrapped.Header().Get("Content-Type"); ct != "" {
+			span.AddField("response.content_type", ct)
+		}
 		span.AddField("response.status_code", wrappedWriter.Status)
 	}
 	return http.HandlerFunc(wrappedHandler)
@@ -81,6 +87,12 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 		hf(wrappedWriter.Wrapped, r)
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
+		}
+		if cl := wrappedWriter.Wrapped.Header().Get("Content-Length"); cl != "" {
+			span.AddField("response.content_length", cl)
+		}
+		if ct := wrappedWriter.Wrapped.Header().Get("Content-Type"); ct != "" {
+			span.AddField("response.content_type", ct)
 		}
 		span.AddField("response.status_code", wrappedWriter.Status)
 	}
@@ -146,8 +158,13 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 		// TODO should this error field be namespaced somehow
 		span.AddField("error", err.Error())
 	} else {
+		if cl := resp.Header.Get("Content-Length"); cl != "" {
+			span.AddField("response.content_length", cl)
+		}
+		if ct := resp.Header.Get("Content-Type"); ct != "" {
+			span.AddField("response.content_type", ct)
+		}
 		span.AddField("response.status_code", resp.StatusCode)
-
 	}
 	return resp, err
 }
