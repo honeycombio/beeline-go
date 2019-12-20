@@ -1,3 +1,9 @@
+# Release v0.4.8 (2019-12-20)
+
+### Additions
+
+- Added response content-type and content-length to the automatic instrumentation for HTTP spans.
+
 # Release v0.4.7 (2019-11-07)
 
 ### Additions
