@@ -96,7 +96,7 @@ func Init(config Config) {
 	userAgentAddition := fmt.Sprintf("beeline/%s", version)
 
 	if config.WriteKey == "" {
-		config.WriteKey = defaultWriteKey
+		config.WriteKey = "unconfigured"
 	}
 	if config.Dataset == "" {
 		config.Dataset = defaultDataset
