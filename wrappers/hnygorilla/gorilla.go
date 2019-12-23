@@ -6,15 +6,25 @@ import (
 	"runtime"
 
 	"github.com/gorilla/mux"
+	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/wrappers/common"
 )
 
 // Middleware is a gorilla middleware to add Honeycomb instrumentation to the
 // gorilla muxer.
 func Middleware(handler http.Handler) http.Handler {
+	return MWDelegateHeader(handler, nil)
+}
+
+// MWDelegateHeader is a gorilla middleware to add Honeycomb instrumentation to
+// the gorilla muxer. The second argument is a function that will examine a
+// request and return the appropriate trace header or `nil`. This delegation
+// allows the caller to manage custom trace propagation formats as well as
+// choose when to trust incoming trace headers.
+func MWDelegateHeader(handler http.Handler, fetchTraceHeader func(*http.Request) (*propagation.Propagation, error)) http.Handler {
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		// get a new context with our trace from the request, and add common fields
-		ctx, span := common.StartSpanOrTraceFromHTTP(r)
+		ctx, span := common.StartSpanOrTraceFromHTTPDelegateHeader(r, fetchTraceHeader)
 		defer span.Send()
 		// push the context with our trace and span on to the request
 		r = r.WithContext(ctx)

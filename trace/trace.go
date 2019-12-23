@@ -43,25 +43,34 @@ type Trace struct {
 // included, should be the header as written by trace.SerializeHeaders(). When
 // not starting from an upstream trace, pass the empty string here.
 func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *Trace) {
+	if serializedHeaders != "" {
+		prop, err := propagation.UnmarshalTraceContext(serializedHeaders)
+		if err == nil {
+			return NewTraceFromPropagation(ctx, prop)
+		}
+	}
+	return NewTraceFromPropagation(ctx, nil)
+}
+
+// NewTraceFromPropagation creates a new trace using the trace IDs in the
+// propagation object to continue an existing trace
+func NewTraceFromPropagation(ctx context.Context, prop *propagation.Propagation) (context.Context, *Trace) {
 	trace := &Trace{
 		builder:          client.NewBuilder(),
 		rollupFields:     make(map[string]float64),
 		traceLevelFields: make(map[string]interface{}),
 	}
-	if serializedHeaders != "" {
-		prop, err := propagation.UnmarshalTraceContext(serializedHeaders)
-		if err == nil {
-			trace.traceID = prop.TraceID
-			trace.parentID = prop.ParentID
-			for k, v := range prop.TraceContext {
-				trace.traceLevelFields[k] = v
-			}
-			if prop.Dataset != "" {
-				trace.builder.Dataset = prop.Dataset
-			}
+
+	if prop != nil {
+		trace.traceID = prop.TraceID
+		trace.parentID = prop.ParentID
+		for k, v := range prop.TraceContext {
+			trace.traceLevelFields[k] = v
+		}
+		if prop.Dataset != "" {
+			trace.builder.Dataset = prop.Dataset
 		}
 	}
-
 	if trace.traceID == "" {
 		trace.traceID = uuid.Must(uuid.NewRandom()).String()
 	}
