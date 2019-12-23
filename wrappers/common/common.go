@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"runtime"
 	"strings"
@@ -42,14 +43,28 @@ func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
 	return &rw
 }
 
+// StartSpanOrTraceFromHTTP looks at the incoming HTTP request to see if there's
+// a trace header and starts a new trace using the propagation header if it
+// exists.
 func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
+	return StartSpanOrTraceFromHTTPDelegateHeader(r, nil)
+}
+
+// StartSpanOrTraceFromHTTPDelegateHeader passes the incoming HTTP request to a
+// callback to see if there's a trace header and starts a new trace using the
+// propagation header if it exists. If the fetch header callback is nil it will
+// use the default beeline headers.
+func StartSpanOrTraceFromHTTPDelegateHeader(r *http.Request, fetchTraceHeader func(*http.Request) (*propagation.Propagation, error)) (context.Context, *trace.Span) {
 	ctx := r.Context()
 	span := trace.GetSpanFromContext(ctx)
 	if span == nil {
 		// there is no trace yet. We should make one! and use the root span.
-		beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
+		if fetchTraceHeader == nil {
+			fetchTraceHeader = GetPropFromBeelineHeader
+		}
+		prop, _ := fetchTraceHeader(r)
 		var tr *trace.Trace
-		ctx, tr = trace.NewTrace(ctx, beelineHeader)
+		ctx, tr = trace.NewTraceFromPropagation(ctx, prop)
 		span = tr.GetRootSpan()
 	} else {
 		// we had a parent! let's make a new child for this handler
@@ -60,6 +75,34 @@ func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
 		span.AddField(k, v)
 	}
 	return ctx, span
+}
+
+// IgnoreTraceHeaders will fulfill the fetchHeaders syntax but never return trace
+// headers
+func IgnoreTraceHeaders(r *http.Request) (*propagation.Propagation, error) {
+	return nil, nil
+}
+
+// GetPropFromBeelineHeader will return a trace propogataion object based on the
+// default beeline headers
+func GetPropFromBeelineHeader(r *http.Request) (*propagation.Propagation, error) {
+	beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
+	if beelineHeader == "" {
+		return nil, fmt.Errorf("beeline header absent")
+	}
+	return propagation.UnmarshalTraceContext(beelineHeader)
+}
+
+// GetPropFromAWSHeader will return a trace propogataion object based on the
+// headers created by AWS ELB and ALBs
+func GetPropFromAWSHeader(r *http.Request) (*propagation.Propagation, error) {
+	// docs on how to parse an AWS trace header
+	// https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html
+	awsHeader := r.Header.Get("X-Amzn-Trace-Id")
+	if awsHeader == "" {
+		return nil, fmt.Errorf("aws trace header absent")
+	}
+	return propagation.UnmarshalAWSTraceContext(awsHeader)
 }
 
 // GetRequestProps is a convenient method to grab all common http request

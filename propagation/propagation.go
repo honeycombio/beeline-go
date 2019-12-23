@@ -117,3 +117,54 @@ func UnmarshalTraceContextV1(header string) (*Propagation, error) {
 	}
 	return prop, nil
 }
+
+// UnmarshalAWSTraceContext takes an Amazon ALB or ELB trace header and returns
+// the component parts. See
+// https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html
+// for a description of the AWS trace header format.
+func UnmarshalAWSTraceContext(header string) (*Propagation, error) {
+	// header will be a semicolon separated list of Field=version-time-id
+	// Field will be Root or Self or something else
+	// Root is required, Self is optional.
+	// If self is absent, Root is both trace ID and span ID
+	// if self is present, Root is trace ID and self is span ID
+	var prop = &Propagation{}
+	fields := strings.Split(header, ";")
+	for _, field := range fields {
+		nameVal := strings.Split(field, "=")
+		if len(nameVal) != 2 {
+			// field was not Name=val format. Skip it
+			// TODO indicate we've skipped it somehow?
+			continue
+		}
+		name := nameVal[0]
+		val := nameVal[1]
+		switch name {
+		case "Root":
+			verTimeVal := strings.Split(val, "-")
+			if len(verTimeVal) != 3 {
+				// val was not version-timestamp-value
+				continue
+			}
+			prop.TraceID = verTimeVal[2]
+		case "Self":
+			verTimeVal := strings.Split(val, "-")
+			if len(verTimeVal) != 3 {
+				// val was not version-timestamp-value
+				continue
+			}
+			prop.ParentID = verTimeVal[2]
+		default:
+			// TODO parse other fields here like maybe the beeline can put trace context
+			// in the AWS trace ID header as an additional field
+		}
+		if prop.ParentID == "" {
+			// if Self was absent, use the trace ID as the ALBs span ID and this trace's
+			// parent ID
+			prop.ParentID = prop.TraceID
+		}
+		return prop, nil
+	}
+	// TODO provide more informative errors here
+	return nil, &PropagationError{"unable to parse AWS header", nil}
+}
