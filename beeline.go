@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	defaultWriteKey   = "apikey-placeholder"
 	defaultDataset    = "beeline-go"
 	defaultSampleRate = 1
 )
@@ -25,7 +24,7 @@ const (
 // Honeycomb.
 type Config struct {
 	// Writekey is your Honeycomb authentication token, available from
-	// https://ui.honeycomb.io/account. default: apikey-placeholder
+	// https://ui.honeycomb.io/account. default: "" (meaning disabled)
 	WriteKey string
 	// Dataset is the name of the Honeycomb dataset to which events will be
 	// sent. default: beeline-go
@@ -95,9 +94,6 @@ type Config struct {
 func Init(config Config) {
 	userAgentAddition := fmt.Sprintf("beeline/%s", version)
 
-	if config.WriteKey == "" {
-		config.WriteKey = defaultWriteKey
-	}
 	if config.Dataset == "" {
 		config.Dataset = defaultDataset
 	}
