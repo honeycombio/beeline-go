@@ -153,6 +153,16 @@ func (t *Trace) GetRootSpan() *Span {
 	return t.rootSpan
 }
 
+// GetTraceID returns the ID of the trace
+func (t *Trace) GetTraceID() string {
+	return t.traceID
+}
+
+// GetParentID returns the ID of the parent trace
+func (t *Trace) GetParentID() string {
+	return t.parentID
+}
+
 // Send will finish and send all the synchronous spans in the trace to Honeycomb
 func (t *Trace) Send() {
 	rs := t.rootSpan
@@ -328,6 +338,21 @@ func (s *Span) GetChildren() []*Span {
 // Get Parent returns this span's parent.
 func (s *Span) GetParent() *Span {
 	return s.parent
+}
+
+// GetSpanID returns the ID of the span
+func (t *Span) GetSpanID() string {
+	return t.spanID
+}
+
+// GetParentID returns the ID of the parent span
+func (t *Span) GetParentID() string {
+	return t.parentID
+}
+
+// GetTrace returns a pointer to the trace enclosing the span
+func (t *Span) GetTrace() *Trace {
+	return t.trace
 }
 
 // CreateAsyncChild creates a child of the current span that is expected to
