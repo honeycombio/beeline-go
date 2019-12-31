@@ -1,3 +1,9 @@
+# Release v0.4.9 (2019-12-31)
+
+### Additions
+
+- Added getter methods for trace and span IDs and parent IDs.
+
 # Release v0.4.8 (2019-12-20)
 
 ### Additions
