@@ -2,9 +2,11 @@ package hnynethttp
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"reflect"
 	"runtime"
+	"strings"
 
 	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/timer"
@@ -18,7 +20,7 @@ import (
 // what you can from there
 func WrapHandler(handler http.Handler) http.Handler {
 	// if we can cache handlerName here, let's do so for efficiency's sake
-	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+	handlerName := getHandlerName(handler)
 
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		// get a new context with our trace from the request, and add common fields
@@ -64,6 +66,15 @@ func WrapHandler(handler http.Handler) http.Handler {
 		span.AddField("response.status_code", wrappedWriter.Status)
 	}
 	return http.HandlerFunc(wrappedHandler)
+}
+
+// getHandlerName returns the name of the function or struct passed to it
+func getHandlerName(handler interface{}) string {
+	voh := reflect.ValueOf(handler)
+	if voh.Kind() == reflect.Func {
+		return runtime.FuncForPC(voh.Pointer()).Name()
+	}
+	return strings.TrimLeft(fmt.Sprintf("%T", handler), "*")
 }
 
 // WrapHandlerFunc will create a Honeycomb event per invocation of this handler
