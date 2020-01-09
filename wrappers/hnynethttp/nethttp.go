@@ -35,7 +35,7 @@ func WrapHandler(handler http.Handler) http.Handler {
 		if ok {
 			// this is actually a mux! let's do extra muxxy stuff
 			handler, pat := mux.Handler(r)
-			name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+			name := getHandlerName(handler)
 			hType := reflect.TypeOf(handler).String()
 			span.AddField("handler.pattern", pat)
 			span.AddField("handler.type", hType)
