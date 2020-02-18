@@ -61,6 +61,9 @@ func WrapHandler(handler http.Handler) http.Handler {
 		if ct := wrappedWriter.Wrapped.Header().Get("Content-Type"); ct != "" {
 			span.AddField("response.content_type", ct)
 		}
+		if ce := wrappedWriter.Wrapped.Header().Get("Content-Encoding"); ce != "" {
+			span.AddField("response.content_encoding", ce)
+		}
 		span.AddField("response.status_code", wrappedWriter.Status)
 	}
 	return http.HandlerFunc(wrappedHandler)
@@ -93,6 +96,9 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 		}
 		if ct := wrappedWriter.Wrapped.Header().Get("Content-Type"); ct != "" {
 			span.AddField("response.content_type", ct)
+		}
+		if ce := wrappedWriter.Wrapped.Header().Get("Content-Encoding"); ce != "" {
+			span.AddField("response.content_encoding", ce)
 		}
 		span.AddField("response.status_code", wrappedWriter.Status)
 	}
@@ -163,6 +169,9 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 		}
 		if ct := resp.Header.Get("Content-Type"); ct != "" {
 			span.AddField("response.content_type", ct)
+		}
+		if ce := resp.Header.Get("Content-Encoding"); ce != "" {
+			span.AddField("response.content_encoding", ce)
 		}
 		span.AddField("response.status_code", resp.StatusCode)
 	}
