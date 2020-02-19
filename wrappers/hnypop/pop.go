@@ -1,6 +1,7 @@
 package hnypop
 
 import (
+	"context"
 	"database/sql"
 	"math/rand"
 
@@ -47,4 +48,26 @@ func (m *DB) Commit() error {
 }
 func (m *DB) Close() error {
 	return m.Close()
+}
+func (m *DB) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	return m.DB.SelectContext(ctx, dest, query, args...)
+}
+func (m *DB) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	return m.DB.GetContext(ctx, dest, query, args...)
+}
+func (m *DB) NamedExecContext(ctx context.Context, query string, arg interface{}) (sql.Result, error) {
+	return m.DB.NamedExecContext(ctx, query, arg)
+}
+func (m *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	return m.DB.ExecContext(ctx, query, args...)
+}
+func (m *DB) PrepareNamedContext(ctx context.Context, query string) (*sqlx.NamedStmt, error) {
+	p, err := m.DB.PrepareNamedContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return p.GetWrappedNamedStmt(), err
+}
+func (m *DB) TransactionContext(ctx context.Context) (*pop.Tx, error) {
+	return m.tx.TransactionContext(ctx)
 }
