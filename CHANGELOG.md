@@ -1,3 +1,10 @@
+# Release v0.4.10 (2020-02-19)
+
+### Additions
+
+- Added content encoding field to `hnynethttp` responses.
+- Added context methods to `hnypop.DB`. Now working with latest version of `pop`.
+
 # Release v0.4.9 (2019-12-31)
 
 ### Additions
