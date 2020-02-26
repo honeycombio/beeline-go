@@ -164,7 +164,7 @@ func BuildDBEvent(bld *libhoney.Builder, stats sql.DBStats, query string, args .
 		// rollup(ctx, ev, duration)
 		ev.AddField("duration_ms", duration)
 		if err != nil {
-			ev.AddField("db.error", err)
+			ev.AddField("db.error", err.Error())
 		}
 		ev.Metadata, _ = ev.Fields()["name"]
 		ev.Send()
@@ -199,7 +199,7 @@ func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, stats sql.DBStats, 
 	fn := func(err error) {
 		duration := timer.Finish()
 		if err != nil {
-			span.AddField("db.error", err)
+			span.AddField("db.error", err.Error())
 		}
 		span.AddRollupField("db.duration_ms", duration)
 		span.AddRollupField("db.call_count", 1)
