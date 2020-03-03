@@ -10,17 +10,7 @@ This package makes it easy to instrument your Go app to send useful events to [H
 
 ## Dependencies
 
-The beeline is written with an eye towards a fairly recent set of dependent
-packages. Some of the dependencies have changed their API interface over the
-past few years (eg goji, uuid, net/http) so you may need to upgrade to get to a
-place that works.
-
-* **go 1.10+** - the context package moved into the core library and is used
-  extensively by the beeline to make events available to the call stack
-* **github.com/google/uuid v0.2+** - the signature for NewRandom started returning
-  `UUID, error`
-* **github.com/goji/goji v2.0+** - they started using contexts in `net/http` instead
-  of their own
+The beeline uses [go modules](https://golang.org/cmd/go/#hdr-Modules__module_versions__and_more) to track external dependencies: golang 1.11 or newer is therefore required to build
 
 ## Contributions
 
