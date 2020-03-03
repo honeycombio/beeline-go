@@ -9,9 +9,14 @@ import (
 	"github.com/honeycombio/beeline-go/wrappers/common"
 )
 
+var (
+	ExtractCustomHeaders []string
+)
+
 // Middleware is a gorilla middleware to add Honeycomb instrumentation to the
 // gorilla muxer.
 func Middleware(handler http.Handler) http.Handler {
+	common.ExtractCustomHeaders = ExtractCustomHeaders
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		// get a new context with our trace from the request, and add common fields
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)

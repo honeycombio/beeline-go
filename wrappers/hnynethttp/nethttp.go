@@ -13,12 +13,17 @@ import (
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
+var (
+	ExtractCustomHeaders []string
+)
+
 // WrapHandler will create a Honeycomb event per invocation of this handler with
 // all the standard HTTP fields attached. If passed a ServeMux instead, pull
 // what you can from there
 func WrapHandler(handler http.Handler) http.Handler {
 	// if we can cache handlerName here, let's do so for efficiency's sake
 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+	common.ExtractCustomHeaders = ExtractCustomHeaders
 
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		// get a new context with our trace from the request, and add common fields
@@ -73,6 +78,7 @@ func WrapHandler(handler http.Handler) http.Handler {
 // function with all the standard HTTP fields attached.
 func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
 	handlerFuncName := runtime.FuncForPC(reflect.ValueOf(hf).Pointer()).Name()
+	common.ExtractCustomHeaders = ExtractCustomHeaders
 	return func(w http.ResponseWriter, r *http.Request) {
 		// get a new context with our trace from the request, and add common fields
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)

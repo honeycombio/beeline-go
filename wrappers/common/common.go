@@ -14,6 +14,10 @@ import (
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
+var (
+	ExtractCustomHeaders []string
+)
+
 type ResponseWriter struct {
 	// Wrapped is not embedded to prevent ResponseWriter from directly
 	// fulfilling the http.ResponseWriter interface. Wrapping in this
@@ -68,6 +72,7 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	userAgent := req.UserAgent()
 	xForwardedFor := req.Header.Get("x-forwarded-for")
 	xForwardedProto := req.Header.Get("x-forwarded-proto")
+	referer := req.Header.Get("referer")
 
 	reqProps := make(map[string]interface{})
 	// identify the type of event
@@ -92,6 +97,17 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	}
 	if xForwardedProto != "" {
 		reqProps["request.header.x_forwarded_proto"] = xForwardedProto
+	}
+	if referer != "" {
+		reqProps["request.header.referer"] = referer
+	}
+
+	for _, headerName := range ExtractCustomHeaders {
+		headerVal := req.Header.Get(headerName)
+		if headerVal != "" {
+			propName := strings.Replace(strings.ToLower("request.header."+headerName), "-", "_", -1)
+			reqProps[propName] = headerVal
+		}
 	}
 	return reqProps
 }

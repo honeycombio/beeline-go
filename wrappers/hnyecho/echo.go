@@ -7,6 +7,10 @@ import (
 	"github.com/labstack/echo"
 )
 
+var (
+	ExtractCustomHeaders []string
+)
+
 // EchoWrapper provides Honeycomb instrumentation for the Echo router via middleware
 type (
 	EchoWrapper struct {
@@ -22,6 +26,7 @@ func New() *EchoWrapper {
 
 // Middleware returns an echo.MiddlewareFunc to be used with Echo.Use()
 func (e *EchoWrapper) Middleware() echo.MiddlewareFunc {
+	common.ExtractCustomHeaders = ExtractCustomHeaders
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			r := c.Request()

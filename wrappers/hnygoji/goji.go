@@ -11,9 +11,14 @@ import (
 	"goji.io/pat"
 )
 
+var (
+	ExtractCustomHeaders []string
+)
+
 // Middleware is specifically to use with goji's router.Use() function for
 // inserting middleware
 func Middleware(handler http.Handler) http.Handler {
+	common.ExtractCustomHeaders = ExtractCustomHeaders
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		// get a new context with our trace from the request, and add common fields
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)

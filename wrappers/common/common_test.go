@@ -56,6 +56,24 @@ func TestXForwardedProtoHeader(t *testing.T) {
 	assert.Equal(t, xForwardedProto, props["request.header.x_forwarded_proto"])
 }
 
+func TestRefererHeader(t *testing.T) {
+	referer := "http://example.com/foo"
+	req := httptest.NewRequest("GET", "https://unused.com/", nil)
+	req.Header.Set("Referer", referer)
+	props := GetRequestProps(req)
+	assert.Equal(t, referer, props["request.header.referer"])
+}
+
+func TestExtractCustomHeader(t *testing.T) {
+	customHeaderName := "X-Custom-Header"
+	customHeaderVal := "foo"
+	ExtractCustomHeaders = []string{customHeaderName}
+	req := httptest.NewRequest("GET", "https://unused.com/", nil)
+	req.Header.Set(customHeaderName, customHeaderVal)
+	props := GetRequestProps(req)
+	assert.Equal(t, customHeaderVal, props["request.header.x_custom_header"])
+}
+
 // TestSharedDBEvent verifies that the name field is set to something
 func TestSharedDBEvent(t *testing.T) {
 	bld := libhoney.NewBuilder()
