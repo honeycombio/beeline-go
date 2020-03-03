@@ -22,8 +22,13 @@ jobs:
     steps:
       - checkout
       - run:
+          name: go-get
+          command: go get -mod=readonly -v -t -d ./...
+          environment:
+            GO111MODULE: on
+      - run:
           name: go-test
-          command: go test -mod=readonly -race -v ./...
+          command: go test -race -v ./...
           environment:
             GO111MODULE: on
 
