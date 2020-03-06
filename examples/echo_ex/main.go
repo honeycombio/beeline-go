@@ -6,7 +6,7 @@ import (
 
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/wrappers/hnyecho"
-	echo "github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4"
 )
 
 func main() {

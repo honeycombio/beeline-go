@@ -8,7 +8,7 @@ import (
 	"github.com/honeycombio/beeline-go/wrappers/hnygoji"
 	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 
-	goji "goji.io/v3"
+	"goji.io/v3"
 	"goji.io/v3/pat"
 )
 

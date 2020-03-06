@@ -1,7 +1,7 @@
 package hnyecho
 
 import (
-	echo "github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4"
 )
 
 func ExampleMiddleware() {

@@ -9,7 +9,7 @@ import (
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/stretchr/testify/assert"
-	goji "goji.io/v3"
+	"goji.io/v3"
 	"goji.io/v3/pat"
 )
 

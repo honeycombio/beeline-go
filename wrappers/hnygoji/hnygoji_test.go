@@ -3,7 +3,7 @@ package hnygoji
 import (
 	"net/http"
 
-	goji "goji.io/v3"
+	"goji.io/v3"
 	"goji.io/v3/pat"
 )
 
