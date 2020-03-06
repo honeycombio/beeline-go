@@ -8,7 +8,7 @@ import (
 	beeline "github.com/honeycombio/beeline-go"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
-	"github.com/labstack/echo"
+	echo "github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
 

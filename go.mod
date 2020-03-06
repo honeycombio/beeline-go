@@ -15,13 +15,10 @@ require (
 	github.com/honeycombio/libhoney-go v1.12.3
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/julienschmidt/httprouter v1.3.0
-	github.com/labstack/echo v3.3.10+incompatible
-	github.com/labstack/gommon v0.3.0 // indirect
-	github.com/mattn/go-colorable v0.1.6 // indirect
+	github.com/labstack/echo/v4 v4.1.15
 	github.com/rogpeppe/go-internal v1.5.2 // indirect
 	github.com/stretchr/testify v1.5.1
-	github.com/valyala/fasttemplate v1.1.0 // indirect
-	goji.io v2.0.2+incompatible
+	goji.io/v3 v3.0.0
 	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073 // indirect
 	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect

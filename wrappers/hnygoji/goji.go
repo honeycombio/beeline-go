@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/honeycombio/beeline-go/wrappers/common"
-	"goji.io/middleware"
-	"goji.io/pat"
+	"goji.io/v3/middleware"
+	"goji.io/v3/pat"
 )
 
 // Middleware is specifically to use with goji's router.Use() function for
