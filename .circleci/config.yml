@@ -6,32 +6,36 @@ executors:
       goversion:
         type: string
         default: "11"
-    working_directory: /go/src/github.com/honeycombio/beeline-go
+    working_directory: /home/circleci/go/src/github.com/honeycombio/beeline-go
     docker:
-      - image: circleci/golang:1.<< parameters.goversion >>
+      - image: cimg/go:1.<< parameters.goversion >>
+        environment:
+          GO111MODULE: "on"
 
 jobs:
   test_beeline:
     parameters:
       goversion:
         type: string
-        default: "11"
+        default: "12"
     executor:
       name: go
       goversion: "<< parameters.goversion >>"
     steps:
       - checkout
-      - run: go get -v -t -d ./...
-      - run: go test -race -v ./...
+      - run:
+          name: go-get
+          command: go get -v -t -d ./...
+      - run:
+          name: go-test
+          command: go test -race -v ./...
 
 workflows:
   build:
     jobs:
       - test_beeline:
-          goversion: "10"
-      - test_beeline:
-          goversion: "11"
-      - test_beeline:
           goversion: "12"
       - test_beeline:
           goversion: "13"
+      - test_beeline:
+          goversion: "14"
