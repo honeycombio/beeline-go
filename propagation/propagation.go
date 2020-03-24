@@ -124,10 +124,10 @@ func UnmarshalTraceContextV1(header string) (*Propagation, error) {
 // for a description of the AWS trace header format.
 func UnmarshalAWSTraceContext(header string) (*Propagation, error) {
 	// header will be a semicolon separated list of Field=version-time-id
-	// Field will be Root or Self or something else
-	// Root is required, Self is optional.
-	// If self is absent, Root is both trace ID and span ID
-	// if self is present, Root is trace ID and self is span ID
+	// Field will be Root or Parent or something else
+	// Root is required, Parent is optional.
+	// If Parent is absent, Root is both trace ID and parent span ID
+	// if Parent is present, Root is trace ID and Parent is parent span ID
 	var prop = &Propagation{}
 	fields := strings.Split(header, ";")
 	for _, field := range fields {
@@ -141,30 +141,21 @@ func UnmarshalAWSTraceContext(header string) (*Propagation, error) {
 		val := nameVal[1]
 		switch name {
 		case "Root":
-			verTimeVal := strings.Split(val, "-")
-			if len(verTimeVal) != 3 {
-				// val was not version-timestamp-value
-				continue
-			}
-			prop.TraceID = verTimeVal[2]
-		case "Self":
-			verTimeVal := strings.Split(val, "-")
-			if len(verTimeVal) != 3 {
-				// val was not version-timestamp-value
-				continue
-			}
-			prop.ParentID = verTimeVal[2]
+			prop.TraceID = val
+		case "Parent":
+			prop.ParentID = val
 		default:
 			// TODO parse other fields here like maybe the beeline can put trace context
 			// in the AWS trace ID header as an additional field
 		}
-		if prop.ParentID == "" {
-			// if Self was absent, use the trace ID as the ALBs span ID and this trace's
-			// parent ID
-			prop.ParentID = prop.TraceID
-		}
-		return prop, nil
 	}
-	// TODO provide more informative errors here
-	return nil, &PropagationError{"unable to parse AWS header", nil}
+	if prop.TraceID == "" {
+		// TODO provide more informative errors here
+		return nil, &PropagationError{"unable to parse AWS header", nil}
+	}
+	if prop.ParentID == "" {
+		// if Parent was absent, use the trace ID as this trace's parent ID
+		prop.ParentID = prop.TraceID
+	}
+	return prop, nil
 }

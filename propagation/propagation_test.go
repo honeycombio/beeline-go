@@ -146,3 +146,56 @@ func TestUnmarshalTraceContext(t *testing.T) {
 		}
 	}
 }
+
+func TestUnmarshalAWSTraceContext(t *testing.T) {
+	testCases := []struct {
+		name       string
+		header     string
+		prop       *Propagation
+		returnsErr bool
+	}{
+		{
+			"root / no parent",
+			"Root=1-67891233-abcdef012345678912345678",
+			&Propagation{
+				TraceID:  "1-67891233-abcdef012345678912345678",
+				ParentID: "1-67891233-abcdef012345678912345678",
+			},
+			false,
+		},
+		{
+			"root / parent",
+			"Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8",
+			&Propagation{
+				TraceID:  "1-5759e988-bd862e3fe1be46a994272793",
+				ParentID: "53995c3f42cd8ad8",
+			},
+			false,
+		},
+		{
+			"self / root / no parent",
+			"Self=1-5983f5c9-36d365bc453d28036a63032b;Root=1-5983f5c9-56dcf0bc6d4d214d2dbbe8c6",
+			&Propagation{
+				TraceID:  "1-5983f5c9-56dcf0bc6d4d214d2dbbe8c6",
+				ParentID: "1-5983f5c9-56dcf0bc6d4d214d2dbbe8c6",
+			},
+			false,
+		},
+		{
+			"no root / parent",
+			"Parent=53995c3f42cd8ad8",
+			nil,
+			true,
+		},
+	}
+
+	for _, tt := range testCases {
+		prop, err := UnmarshalAWSTraceContext(tt.header)
+		assert.Equal(t, tt.prop, prop, tt.name)
+		if tt.returnsErr {
+			assert.Error(t, err, tt.name)
+		} else {
+			assert.NoError(t, err, tt.name)
+		}
+	}
+}
