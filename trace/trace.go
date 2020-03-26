@@ -2,6 +2,7 @@ package trace
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -10,6 +11,9 @@ import (
 	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/sample"
 	libhoney "github.com/honeycombio/libhoney-go"
+	otelCore "go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/correlation"
+	// otelTrace "go.opentelemetry.io/otel/api/trace"
 )
 
 var GlobalConfig Config
@@ -79,6 +83,66 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 	ctx = PutTraceInContext(ctx, trace)
 	ctx = PutSpanInContext(ctx, rootSpan)
 	return ctx, trace
+}
+
+// TraceFromOTel creates a brand new trace from an OTel TraceContext.
+func TraceFromOTel(ctx context.Context, sc otelCore.SpanContext, traceFields []otelCore.KeyValue) (context.Context, *Trace) {
+	trace := &Trace{
+		builder:          client.NewBuilder(),
+		rollupFields:     make(map[string]float64),
+		traceLevelFields: make(map[string]interface{}),
+	}
+	trace.traceID = sc.TraceIDString()
+	trace.parentID = sc.SpanIDString()
+
+	rootSpan := newSpan()
+	rootSpan.isRoot = true
+	rootSpan.parentID = trace.parentID
+	rootSpan.ev = trace.builder.NewEvent()
+	rootSpan.trace = trace
+	trace.rootSpan = rootSpan
+
+	// put trace and root span in context
+	ctx = PutTraceInContext(ctx, trace)
+	ctx = PutSpanInContext(ctx, rootSpan)
+	for _, tf := range traceFields {
+		trace.AddField(string(tf.Key), tf.Value.AsInterface())
+	}
+	return ctx, trace
+}
+
+func (s *Span) ToOTel() context.Context {
+	ctx := context.Background()
+	// TODO: figure out how to insert the core.SpanContext into a valid trace.
+	// os := otelSpan.MockSpan{}
+	// ctx = otelTrace.ContextWithSpan(ctx, os)
+	var tc []otelCore.KeyValue
+	for k, i := range s.trace.getTraceLevelFields() {
+		kv := otelCore.KeyValue{Key: otelCore.Key(k)}
+		switch v := i.(type) {
+		case bool:
+			kv.Value = otelCore.Bool(v)
+		case int32:
+			kv.Value = otelCore.Int32(v)
+		case int64:
+			kv.Value = otelCore.Int64(v)
+		case uint32:
+			kv.Value = otelCore.Uint32(v)
+		case uint64:
+			kv.Value = otelCore.Uint64(v)
+		case float32:
+			kv.Value = otelCore.Float32(v)
+		case float64:
+			kv.Value = otelCore.Float64(v)
+		case string:
+			kv.Value = otelCore.String(v)
+		default:
+			kv.Value = otelCore.String(fmt.Sprintf("%#v", v))
+		}
+		tc = append(tc, kv)
+	}
+	ctx = correlation.NewContext(ctx, tc...)
+	return ctx
 }
 
 // AddField adds a field to the trace. Every span in the trace will have this

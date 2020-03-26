@@ -12,6 +12,8 @@ import (
 	"github.com/honeycombio/beeline-go/timer"
 	"github.com/honeycombio/beeline-go/trace"
 	libhoney "github.com/honeycombio/libhoney-go"
+	otelCore "go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/plugin/httptrace"
 )
 
 type ResponseWriter struct {
@@ -47,14 +49,22 @@ func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
 	span := trace.GetSpanFromContext(ctx)
 	if span == nil {
 		// there is no trace yet. We should make one! and use the root span.
-		beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
 		var tr *trace.Trace
-		ctx, tr = trace.NewTrace(ctx, beelineHeader)
+		_, tf, sc := httptrace.Extract(ctx, r)
+		if sc != otelCore.EmptySpanContext() {
+			// First try reading W3C using otel-go libraries.
+			ctx, tr = trace.TraceFromOTel(ctx, sc, tf)
+		} else {
+			// Then fall back upon beeline headers.
+			beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
+			ctx, tr = trace.NewTrace(ctx, beelineHeader)
+		}
 		span = tr.GetRootSpan()
 	} else {
 		// we had a parent! let's make a new child for this handler
 		ctx, span = span.CreateChild(ctx)
 	}
+
 	// go get any common HTTP headers and attributes to add to the span
 	for k, v := range GetRequestProps(r) {
 		span.AddField(k, v)

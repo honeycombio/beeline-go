@@ -11,6 +11,7 @@ import (
 	"github.com/honeycombio/beeline-go/trace"
 	"github.com/honeycombio/beeline-go/wrappers/common"
 	libhoney "github.com/honeycombio/libhoney-go"
+	"go.opentelemetry.io/otel/plugin/httptrace"
 )
 
 // WrapHandler will create a Honeycomb event per invocation of this handler with
@@ -157,6 +158,9 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 	span.AddField("meta.type", "http_client")
 	span.AddField("name", "http_client")
 	r.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
+
+	
+	httptrace.Inject(ctx, r)
 
 	resp, err := ht.wrt.RoundTrip(r)
 
