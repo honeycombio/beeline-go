@@ -2,18 +2,32 @@ package trace
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
+	"encoding/hex"
+	mathrand "math/rand"
+	"net/http"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/honeycombio/beeline-go/client"
-	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/sample"
 	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/imdario/mergo"
+	otelprop "go.opentelemetry.io/otel/api/propagation"
 )
 
+// GlobalConfig stores configuration used throughout the beeline
 var GlobalConfig Config
 
+// HTTPPropagator wraps the interface with the same name from the OpenTelemetry Go SDK.
+type HTTPPropagator interface {
+	Extract(context.Context, otelprop.HTTPSupplier) context.Context
+	Inject(context.Context, otelprop.HTTPSupplier)
+	GetAllKeys() []string
+}
+
+// Config stores hooks used throughout the beeline
 type Config struct {
 	// SamplerHook is a function to manage sampling on this trace. See the docs
 	// for `beeline.Config` for a full description.
@@ -21,6 +35,16 @@ type Config struct {
 	// PresendHook is a function to mutate spans just before they are sent to
 	// Honeycomb. See the docs for `beeline.Config` for a full description.
 	PresendHook func(map[string]interface{})
+	// TraceHTTPHeaderParserHook is a function that allows a user of the beeline to
+	// specify which HTTPPropagators should be used when extracting trace context from
+	// HTTP headers attached to incoming requests. See the docs for `beeline.Config`
+	// for a full description.
+	TraceHTTPHeaderParserHook func(ctx context.Context, r *http.Request) []HTTPPropagator
+	// TraceHTTPHeaderPropagationHook is a function that allows a user of the beeline
+	// to specify which HTTPPropagators should be used when propagating trace context
+	// via HTTP headers in outgoing calls. See the docs for `beeline.Config` for a full
+	// description.
+	TraceHTTPHeaderPropagationHook func(ctx context.Context, r *http.Request) []HTTPPropagator
 }
 
 // Trace holds some trace level state and the root of the span tree that will be
@@ -37,33 +61,33 @@ type Trace struct {
 	rootSpan         *Span
 	tlfLock          sync.RWMutex
 	traceLevelFields map[string]interface{}
+	traceIDGenerator *idGenerator
 }
 
-// NewTrace creates a brand new trace. serializedHeaders is optional, and if
-// included, should be the header as written by trace.SerializeHeaders(). When
-// not starting from an upstream trace, pass the empty string here.
-func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *Trace) {
+// NewTrace creates a brand new trace. The SpanContext is optional, and if
+// included, should be the SpanContext created by an HTTPPropagator on incoming
+// requests. When not starting from an upstream teace, pass nil here.
+func NewTrace(ctx context.Context, sc *SpanContext) (context.Context, *Trace) {
 	trace := &Trace{
 		builder:          client.NewBuilder(),
 		rollupFields:     make(map[string]float64),
 		traceLevelFields: make(map[string]interface{}),
+		traceIDGenerator: newIDGenerator(),
 	}
-	if serializedHeaders != "" {
-		prop, err := propagation.UnmarshalTraceContext(serializedHeaders)
-		if err == nil {
-			trace.traceID = prop.TraceID
-			trace.parentID = prop.ParentID
-			for k, v := range prop.TraceContext {
-				trace.traceLevelFields[k] = v
-			}
-			if prop.Dataset != "" {
-				trace.builder.Dataset = prop.Dataset
-			}
+	if sc != nil {
+		trace.traceID = sc.TraceID
+		trace.parentID = sc.ParentID
+		for k, v := range sc.TraceContext {
+			trace.traceLevelFields[k] = v
+		}
+		if sc.Dataset != "" {
+			trace.builder.Dataset = sc.Dataset
 		}
 	}
 
 	if trace.traceID == "" {
-		trace.traceID = uuid.Must(uuid.NewRandom()).String()
+		var traceID [16]byte
+		trace.traceID = trace.traceIDGenerator.build(traceID[:])
 	}
 
 	rootSpan := newSpan()
@@ -71,6 +95,17 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 	if trace.parentID != "" {
 		rootSpan.parentID = trace.parentID
 	}
+	rootSpan.spanContext = &SpanContext{
+		ParentID: rootSpan.spanID,
+		TraceID:  trace.traceID,
+	}
+
+	if sc != nil {
+		rootSpan.spanContext.Dataset = sc.Dataset
+		rootSpan.spanContext.TraceContext = sc.TraceContext
+		rootSpan.spanContext.TraceState = sc.TraceState
+	}
+
 	rootSpan.ev = trace.builder.NewEvent()
 	rootSpan.trace = trace
 	trace.rootSpan = rootSpan
@@ -91,24 +126,6 @@ func (t *Trace) AddField(key string, val interface{}) {
 	if t.traceLevelFields != nil {
 		t.traceLevelFields[key] = val
 	}
-}
-
-// serializeHeaders returns the trace ID, given span ID as parent ID, and an
-// encoded form of all trace level fields. This serialized header is intended
-// to be put in an HTTP (or other protocol) header to transmit to downstream
-// services so they may start a new trace that will be connected to this trace.
-// The serialized form may be passed to NewTrace() in order to create a new
-// trace that will be connected to this trace.
-func (t *Trace) serializeHeaders(spanID string) string {
-	var prop = &propagation.Propagation{
-		TraceID:      t.traceID,
-		ParentID:     spanID,
-		Dataset:      t.builder.Dataset,
-		TraceContext: t.traceLevelFields,
-	}
-	t.tlfLock.RLock()
-	defer t.tlfLock.RUnlock()
-	return propagation.MarshalTraceContext(prop)
 }
 
 // addRollupField is here to let a span contribute a field to the trace while
@@ -172,6 +189,42 @@ func (t *Trace) Send() {
 	}
 }
 
+// SpanContext contains information related to a Span. Context should be carried
+// around by the currently active span, and optionally propagated in trace context
+// headers.
+type SpanContext struct {
+	TraceID      string
+	ParentID     string
+	TraceContext map[string]interface{}
+	Dataset      string
+	TraceState   byte
+}
+
+// MergeSpanContext tries to merge the fields of sc and sc2 together and return
+// the result as a new SpanContext. Note that fields in sc are given precedence
+// in the case of a conflict.
+func (sc *SpanContext) MergeSpanContext(sc2 *SpanContext) *SpanContext {
+	merged := &SpanContext{}
+
+	if sc == nil && sc2 == nil {
+		return merged
+	}
+
+	if sc == nil {
+		if err := mergo.Merge(merged, sc2); err == nil {
+			return merged
+		}
+	}
+
+	if sc2 == nil {
+		if err := mergo.Merge(merged, sc); err == nil {
+			return merged
+		}
+	}
+
+	return sc
+}
+
 // Span represents a specific task or portion of an application. It has a time
 // and duration, and is linked to parent and children.
 type Span struct {
@@ -190,6 +243,12 @@ type Span struct {
 	trace        *Trace
 	eventLock    sync.Mutex
 	sendLock     sync.RWMutex
+	spanContext  *SpanContext
+}
+
+// GetSpanContext returns the SpanContext associated with this Span.
+func (s *Span) GetSpanContext() *SpanContext {
+	return s.spanContext
 }
 
 // newSpan takes care of *some* of the initialization necessary to create a new
@@ -198,8 +257,10 @@ type Span struct {
 // uses of this function to get an example of the other things necessary to
 // create a well formed span.
 func newSpan() *Span {
+	var spanID [8]byte
+	r := newIDGenerator()
 	return &Span{
-		spanID:  uuid.Must(uuid.NewRandom()).String(),
+		spanID:  r.build(spanID[:]),
 		started: time.Now(),
 	}
 }
@@ -335,24 +396,24 @@ func (s *Span) GetChildren() []*Span {
 	return s.children
 }
 
-// Get Parent returns this span's parent.
+// GetParent returns this span's parent.
 func (s *Span) GetParent() *Span {
 	return s.parent
 }
 
 // GetSpanID returns the ID of the span
-func (t *Span) GetSpanID() string {
-	return t.spanID
+func (s *Span) GetSpanID() string {
+	return s.spanID
 }
 
 // GetParentID returns the ID of the parent span
-func (t *Span) GetParentID() string {
-	return t.parentID
+func (s *Span) GetParentID() string {
+	return s.parentID
 }
 
 // GetTrace returns a pointer to the trace enclosing the span
-func (t *Span) GetTrace() *Trace {
-	return t.trace
+func (s *Span) GetTrace() *Trace {
+	return s.trace
 }
 
 // CreateAsyncChild creates a child of the current span that is expected to
@@ -362,20 +423,10 @@ func (s *Span) CreateAsyncChild(ctx context.Context) (context.Context, *Span) {
 	return s.createChildSpan(ctx, true)
 }
 
-// Span creates a synchronous child of the current span. Spans must finish
+// CreateChild creates a synchronous child of the current span. Spans must finish
 // before their parents.
 func (s *Span) CreateChild(ctx context.Context) (context.Context, *Span) {
 	return s.createChildSpan(ctx, false)
-}
-
-// SerializeHeaders returns the trace ID, current span ID as parent ID, and an
-// encoded form of all trace level fields. This serialized header is intended to
-// be put in an HTTP (or other protocol) header to transmit to downstream
-// services so they may start a new trace that will be connected to this trace.
-// The serialized form may be passed to NewTrace() in order to create a new
-// trace that will be connected to this trace.
-func (s *Span) SerializeHeaders() string {
-	return s.trace.serializeHeaders(s.spanID)
 }
 
 // removeChildSpan remove a child which has been sent. It is intended to be
@@ -471,4 +522,43 @@ func (s *Span) createChildSpan(ctx context.Context, async bool) (context.Context
 	s.childrenLock.Unlock()
 	ctx = PutSpanInContext(ctx, newSpan)
 	return ctx, newSpan
+}
+
+type idGenerator struct {
+	randomBytes   func([]byte) (int, error)
+	incrementLock sync.Mutex
+	nonRandomID   uint64
+}
+
+// newRandomIDGenerator returns a new randomIdentifier with the default pseudo-random
+// generator.
+func newIDGenerator() *idGenerator {
+	return &idGenerator{
+		randomBytes: rand.Read,
+		nonRandomID: mathrand.Uint64(),
+	}
+}
+
+// build generates random bytes and encodes them as a hex string. The
+// length of the id depends on the length of the byte slice provided. If
+// rand.Read fails, the result will be a best attempt based on a counter.
+func (r *idGenerator) build(id []byte) string {
+	if len(id) < 8 {
+		id = make([]byte, 8)
+	}
+	_, err := r.randomBytes(id)
+	if err != nil {
+		binary.BigEndian.PutUint64(id, r.getIncrementedIDCounter())
+		return hex.EncodeToString(id)
+	}
+	return hex.EncodeToString(id)
+}
+
+// getIncrementedIDCounter uses a lock to ensure atomic increments of the
+// variable nonRandomIdCounter. It returns the incremented value.
+func (r *idGenerator) getIncrementedIDCounter() uint64 {
+	r.incrementLock.Lock()
+	defer r.incrementLock.Unlock()
+	r.nonRandomID++
+	return r.nonRandomID
 }

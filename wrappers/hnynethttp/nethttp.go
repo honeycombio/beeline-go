@@ -11,7 +11,19 @@ import (
 	"github.com/honeycombio/beeline-go/trace"
 	"github.com/honeycombio/beeline-go/wrappers/common"
 	libhoney "github.com/honeycombio/libhoney-go"
+
+	oteltrace "go.opentelemetry.io/otel/api/trace"
 )
+
+func getPropagatorsForRequest(ctx context.Context, r *http.Request) []trace.HTTPPropagator {
+	if trace.GlobalConfig.TraceHTTPHeaderPropagationHook != nil {
+		return trace.GlobalConfig.TraceHTTPHeaderPropagationHook(ctx, r)
+	}
+
+	return []trace.HTTPPropagator{
+		propagation.HoneycombHTTPPropagator{},
+	}
+}
 
 // WrapHandler will create a Honeycomb event per invocation of this handler with
 // all the standard HTTP fields attached. If passed a ServeMux instead, pull
@@ -156,7 +168,17 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 	}
 	span.AddField("meta.type", "http_client")
 	span.AddField("name", "http_client")
-	r.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
+
+	// HTTP Propagators that are defined in the OpenTelemetry Go SDK expect a
+	// context that has an OpenTelemetry Span object. To be able to use these
+	// propagators here, we create an OpenTelemetry Span object and store it in
+	// the context.
+	otelSpan := trace.OTelSpanFromContext(ctx)
+	ctx = oteltrace.ContextWithSpan(ctx, otelSpan)
+
+	for _, propagator := range getPropagatorsForRequest(ctx, r) {
+		propagator.Inject(ctx, r.Header)
+	}
 
 	resp, err := ht.wrt.RoundTrip(r)
 

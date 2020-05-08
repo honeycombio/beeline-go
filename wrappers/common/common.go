@@ -42,14 +42,28 @@ func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
 	return &rw
 }
 
+func getParsersForRequest(ctx context.Context, r *http.Request) []trace.HTTPPropagator {
+	if trace.GlobalConfig.TraceHTTPHeaderParserHook != nil {
+		return trace.GlobalConfig.TraceHTTPHeaderParserHook(ctx, r)
+	}
+	return []trace.HTTPPropagator{
+		propagation.HoneycombHTTPPropagator{},
+	}
+}
+
 func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
 	ctx := r.Context()
 	span := trace.GetSpanFromContext(ctx)
 	if span == nil {
-		// there is no trace yet. We should make one! and use the root span.
-		beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
+		var spanContext *trace.SpanContext
+		for _, propagator := range getParsersForRequest(ctx, r) {
+			ctx = propagator.Extract(ctx, r.Header)
+			spanContext = spanContext.MergeSpanContext(
+				trace.GetRemoteSpanContextFromContext(ctx),
+			)
+		}
 		var tr *trace.Trace
-		ctx, tr = trace.NewTrace(ctx, beelineHeader)
+		ctx, tr = trace.NewTrace(ctx, spanContext)
 		span = tr.GetRootSpan()
 	} else {
 		// we had a parent! let's make a new child for this handler
@@ -184,7 +198,7 @@ func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, stats sql.DBStats, 
 		// least confusing possibility. Would be nice to indicate this had
 		// happened in a better way than yet another meta. field.
 		var tr *trace.Trace
-		ctx, tr = trace.NewTrace(ctx, "")
+		ctx, tr = trace.NewTrace(ctx, nil)
 		span = tr.GetRootSpan()
 		span.AddField("meta.orphaned", true)
 	} else {

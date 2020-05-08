@@ -3,6 +3,7 @@ package beeline
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -38,21 +39,39 @@ type Config struct {
 	// events. Default sampling is at the trace level - entire traces will be
 	// kept or dropped. default: 1 (meaning no sampling)
 	SampleRate uint
-	// SamplerHook is a function that will get run with the contents of each
-	// event just before sending the event to Honeycomb. Register a function
+	// SamplerHook is a function call that will be invoked with the contents of
+	// each event just before sending the event to Honeycomb. Register a function
 	// with this config option to have manual control over sampling within the
 	// beeline. The function should return true if the event should be kept and
 	// false if it should be dropped.  If it should be kept, the returned
 	// integer is the sample rate that has been applied. The SamplerHook
 	// overrides the default sampler. Runs before the PresendHook.
 	SamplerHook func(map[string]interface{}) (bool, int)
-	// PresendHook is a function call that will get run with the contents of
+	// PresendHook is a function call that will be invoked with the contents of
 	// each event just before sending them to Honeycomb. The function registered
 	// here may mutate the map passed in to add, change, or drop fields from the
 	// event before it gets sent to Honeycomb. Does not get invoked if the event
 	// is going to be dropped because of sampling. Runs after the SamplerHook.
 	PresendHook func(map[string]interface{})
-
+	// TraceHeaderParserHook is a function call that will be invoked with the context
+	// and HTTP request on all incoming HTTP requests. The function registered must
+	// return a list of HTTPPropagator objects that will be used to extract trace
+	// context from headers attached to the incoming request. Each propagator will
+	// be used, in sequence, and any conflicting information will be squashed by
+	// the later propagator. Decisions about which propagators to return can be
+	// made based on information in the context or HTTP request. The function may
+	// also return an empty array, which will result in no incoming headers being
+	// parsed.
+	TraceHTTPHeaderParserHook func(ctx context.Context, r *http.Request) []trace.HTTPPropagator
+	// TraceHTTPHeaderPropagationHook is a function call that will be invoked with
+	// the context and HTTP request on all outgoing HTTP requests. The function
+	// registered must return a list of HTTPPropagator objects that will be used
+	// to inject trace context into the headers of the outgoing request. Decisions
+	// about what wire format to use and whether to inject headers at all can be
+	// made based on infomration in the context or HTTP request. The function may
+	// also return an empty array, which will result in no trace propagation headers
+	// being included in outgoing requests.
+	TraceHTTPHeaderPropagationHook func(ctx context.Context, r *http.Request) []trace.HTTPPropagator
 	// APIHost is the hostname for the Honeycomb API server to which to send
 	// this event. default: https://api.honeycomb.io/
 	// Not used if client is set
@@ -179,6 +198,15 @@ func Init(config Config) {
 	if config.PresendHook != nil {
 		trace.GlobalConfig.PresendHook = config.PresendHook
 	}
+
+	if config.TraceHTTPHeaderParserHook != nil {
+		trace.GlobalConfig.TraceHTTPHeaderParserHook = config.TraceHTTPHeaderParserHook
+	}
+
+	if config.TraceHTTPHeaderPropagationHook != nil {
+		trace.GlobalConfig.TraceHTTPHeaderPropagationHook = config.TraceHTTPHeaderPropagationHook
+	}
+
 	return
 }
 
@@ -257,7 +285,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) 
 		// there is no trace active; we should make one, but use the root span
 		// as the "new" span instead of creating a child of this mostly empty
 		// span
-		ctx, _ = trace.NewTrace(ctx, "")
+		ctx, _ = trace.NewTrace(ctx, nil)
 		newSpan = trace.GetSpanFromContext(ctx)
 	}
 	newSpan.AddField("name", name)

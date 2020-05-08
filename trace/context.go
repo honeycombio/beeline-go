@@ -6,8 +6,9 @@ import (
 )
 
 const (
-	honeySpanContextKey  = "honeycombSpanContextKey"
-	honeyTraceContextKey = "honeycombTraceContextKey"
+	honeySpanContextKey       = "honeycombSpanContextKey"
+	honeyTraceContextKey      = "honeycombTraceContextKey"
+	honeyRemoteSpanContextKey = "honeycombRemoteSpanContextKey"
 )
 
 var (
@@ -32,6 +33,33 @@ func GetTraceFromContext(ctx context.Context) *Trace {
 // context. Traces put in context are retrieved using GetTraceFromContext.
 func PutTraceInContext(ctx context.Context, trace *Trace) context.Context {
 	return context.WithValue(ctx, honeyTraceContextKey, trace)
+}
+
+// GetRemoteSpanContextFromContext retrieves a SpanContext from the passed in
+// context or returns nil if no SpanContext exists.
+func GetRemoteSpanContextFromContext(ctx context.Context) *SpanContext {
+	if ctx != nil {
+		if val := ctx.Value(honeyRemoteSpanContextKey); val != nil {
+			if sc, ok := val.(*SpanContext); ok {
+				return sc
+			}
+		}
+	}
+
+	// try looking for an otel spancontext
+	oTelContext := oTelRemoteSpanFromContext(ctx)
+	if oTelContext != nil {
+		return OCSpanContextToHCSpanContext(*oTelContext)
+	}
+
+	return nil
+}
+
+// PutRemoteSpanContextInContext takes an existing SpanContext and pushes it into
+// the context. It will replace any SpanContext that already exists in the context.
+// SpanContexts put in context are retrieved using GetRemoteSpanContextFromContext.
+func PutRemoteSpanContextInContext(ctx context.Context, sc *SpanContext) context.Context {
+	return context.WithValue(ctx, honeyRemoteSpanContextKey, sc)
 }
 
 // GetSpanFromContext identifies the currently active span via the span context
