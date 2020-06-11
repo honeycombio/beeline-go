@@ -14,17 +14,29 @@ import (
 	"github.com/honeycombio/beeline-go/sample"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/imdario/mergo"
-	otelprop "go.opentelemetry.io/otel/api/propagation"
 )
 
 // GlobalConfig stores configuration used throughout the beeline
 var GlobalConfig Config
 
+// HeaderSupplier is an interface that specifies methods for storing and retrieving
+// key value pairs. It is implemented by http.Headers.
+type HeaderSupplier interface {
+	Set(key string, value string)
+	Get(key string) string
+}
+
 // HTTPPropagator wraps the interface with the same name from the OpenTelemetry Go SDK.
+// It intentionally uses different method names to highlight the fact that it's API is
+// different than the analagous object in the OpenTelemetry Go SDK.
 type HTTPPropagator interface {
-	Extract(context.Context, otelprop.HTTPSupplier) context.Context
-	Inject(context.Context, otelprop.HTTPSupplier)
-	GetAllKeys() []string
+	// Parse is responsible for retrieving the appropriate header(s) from header and
+	// using the information contained within to create and return a SpanContext object.
+	Parse(ctx context.Context, header HeaderSupplier) *SpanContext
+	// Insert is responsible for retrieving the appropriate information about the current
+	// span from ctx and using the information contained within to generate a serialized
+	// header(s) which are then inserted into header.
+	Insert(ctx context.Context, header HeaderSupplier)
 }
 
 // Config stores hooks used throughout the beeline

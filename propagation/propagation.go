@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/honeycombio/beeline-go/trace"
-	otelprop "go.opentelemetry.io/otel/api/propagation"
 )
 
 const (
@@ -49,24 +48,23 @@ func (p *propagationError) Error() string {
 // HoneycombHTTPPropagator understands how to parse and generate Honeycomb trace propagation headers
 type HoneycombHTTPPropagator struct{}
 
-// Extract takes the trace header and creates a SpanContext which is then
-// stored in the provided context object.
-func (hc HoneycombHTTPPropagator) Extract(ctx context.Context, supplier otelprop.HTTPSupplier) context.Context {
-	header := supplier.Get(honeycombTracePropagationHTTPHeader)
-	getVer := strings.SplitN(header, ";", 2)
+// Parse takes the trace header and creates a SpanContext.
+func (hc HoneycombHTTPPropagator) Parse(ctx context.Context, header trace.HeaderSupplier) *trace.SpanContext {
+	h := header.Get(honeycombTracePropagationHTTPHeader)
+	getVer := strings.SplitN(h, ";", 2)
 	if getVer[0] == "1" {
-		sc, err := hc.extractV1(getVer[1])
+		sc, err := hc.parseV1(getVer[1])
 		if err == nil {
-			ctx = trace.PutRemoteSpanContextInContext(ctx, sc)
+			return sc
 		}
 	}
-	return ctx
+	return nil
 }
 
-// extractV1 takes the trace header, stripped of the version
+// parseV1 takes the trace header, stripped of the version
 // string, and returns the component parts. Trace ID and Parent ID are both
 // required. If either is absent a nil trace header will be returned.
-func (HoneycombHTTPPropagator) extractV1(header string) (*trace.SpanContext, error) {
+func (HoneycombHTTPPropagator) parseV1(header string) (*trace.SpanContext, error) {
 	clauses := strings.Split(header, ",")
 	var sc = &trace.SpanContext{}
 	var tcB64 string
@@ -101,17 +99,12 @@ func (HoneycombHTTPPropagator) extractV1(header string) (*trace.SpanContext, err
 
 }
 
-// Inject assembles the trace context header and sets it in the supplier.
-func (h HoneycombHTTPPropagator) Inject(ctx context.Context, supplier otelprop.HTTPSupplier) {
+// Insert assembles the trace context header and sets the appropriate headers.
+func (h HoneycombHTTPPropagator) Insert(ctx context.Context, header trace.HeaderSupplier) {
 	sc := trace.GetRemoteSpanContextFromContext(ctx)
 	if sc == nil {
 		return
 	}
-	supplier.Set(honeycombTracePropagationHTTPHeader, h.serializeHeader(sc))
-}
-
-// SerializeHeader returns a string representation, currently in Honeycomb trace context header format.
-func (HoneycombHTTPPropagator) serializeHeader(sc *trace.SpanContext) string {
 	tcJSON, err := json.Marshal(sc.TraceContext)
 	if err != nil {
 		// if we couldn't marshal the trace level fields, leave it to blank
@@ -125,7 +118,7 @@ func (HoneycombHTTPPropagator) serializeHeader(sc *trace.SpanContext) string {
 		datasetClause = fmt.Sprintf("dataset=%s,", url.QueryEscape(sc.Dataset))
 	}
 
-	return fmt.Sprintf(
+	s := fmt.Sprintf(
 		"%d;trace_id=%s,parent_id=%s,%scontext=%s",
 		1,
 		sc.TraceID,
@@ -133,21 +126,16 @@ func (HoneycombHTTPPropagator) serializeHeader(sc *trace.SpanContext) string {
 		datasetClause,
 		tcB64,
 	)
-}
-
-// GetAllKeys returns the name of the header used for trace context propagation.
-func (HoneycombHTTPPropagator) GetAllKeys() []string {
-	return []string{honeycombTracePropagationHTTPHeader}
+	header.Set(honeycombTracePropagationHTTPHeader, s)
 }
 
 // AmazonHTTPPropagator understands how to parse and generate Amazon trace propagation headers
 type AmazonHTTPPropagator struct{}
 
-// Extract takes the trace header and creates a SpanContext which is then stored in the
-// provided context.
-func (AmazonHTTPPropagator) Extract(ctx context.Context, supplier otelprop.HTTPSupplier) context.Context {
-	header := supplier.Get(amazonTracePropagationHTTPHeader)
-	segments := strings.Split(header, ";")
+// Parse takes the trace header and creates a SpanContext.
+func (AmazonHTTPPropagator) Parse(ctx context.Context, header trace.HeaderSupplier) *trace.SpanContext {
+	h := header.Get(amazonTracePropagationHTTPHeader)
+	segments := strings.Split(h, ";")
 
 	// From https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html
 	// If the X-Amzn-Trace-Id header is not present on an incoming request, the load balancer generates a header
@@ -184,15 +172,14 @@ func (AmazonHTTPPropagator) Extract(ctx context.Context, supplier otelprop.HTTPS
 	}
 
 	if sc.TraceID == "" && sc.ParentID != "" {
-		return ctx
+		return nil
 	}
 
-	ctx = trace.PutRemoteSpanContextInContext(ctx, sc)
-	return ctx
+	return sc
 }
 
-// Inject assembles the trace context header and sets it in the supplier.
-func (AmazonHTTPPropagator) Inject(ctx context.Context, supplier otelprop.HTTPSupplier) {
+// Insert assembles the trace context header and sets the appropriate headers.
+func (AmazonHTTPPropagator) Insert(ctx context.Context, header trace.HeaderSupplier) {
 	sc := trace.GetRemoteSpanContextFromContext(ctx)
 	if sc == nil {
 		return
@@ -214,10 +201,5 @@ func (AmazonHTTPPropagator) Inject(ctx context.Context, supplier otelprop.HTTPSu
 		h = h + traceContext
 	}
 
-	supplier.Set(amazonTracePropagationHTTPHeader, h)
-}
-
-// GetAllKeys returns the name of the http header
-func (AmazonHTTPPropagator) GetAllKeys() []string {
-	return []string{amazonTracePropagationHTTPHeader}
+	header.Set(amazonTracePropagationHTTPHeader, h)
 }

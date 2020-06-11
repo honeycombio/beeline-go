@@ -6,7 +6,6 @@ import (
 
 	"github.com/honeycombio/beeline-go/trace"
 	"github.com/stretchr/testify/assert"
-	otelprop "go.opentelemetry.io/otel/api/propagation"
 )
 
 // MockRequest is used as an HTTPSupplier when parsing and injecting headers.
@@ -31,41 +30,6 @@ func (m MockRequest) Set(key string, value string) {
 	m.values[key] = value
 }
 
-// marshal is a helper method that is not part of the HTTPPropagator interface.
-// It puts the supplied SpanContext into the context, injects the header into
-// the supplier and then returns the resulting header string as well as the
-// context. This is useful for testing.
-func marshal(propagator trace.HTTPPropagator, headerName string, ctx context.Context, supplier otelprop.HTTPSupplier, sc *trace.SpanContext) (string, context.Context) {
-	ctx = trace.PutRemoteSpanContextInContext(ctx, sc)
-	propagator.Inject(ctx, supplier)
-	return supplier.Get(headerName), ctx
-}
-func (hc HoneycombHTTPPropagator) marshal(ctx context.Context, supplier otelprop.HTTPSupplier, sc *trace.SpanContext) (string, context.Context) {
-	return marshal(hc, honeycombTracePropagationHTTPHeader, ctx, supplier, sc)
-}
-func (a AmazonHTTPPropagator) marshal(ctx context.Context, supplier otelprop.HTTPSupplier, sc *trace.SpanContext) (string, context.Context) {
-	return marshal(a, amazonTracePropagationHTTPHeader, ctx, supplier, sc)
-}
-
-// unmarshal is a helper method that is not part of the HTTPPropagator
-// interface. It accepts a context and a supplier and returns a SpanContext. It
-// is assumed that supplier contains a valid Honeycomb trace context header.
-// This is useful for testing.
-func unmarshal(propagator trace.HTTPPropagator, ctx context.Context, supplier otelprop.HTTPSupplier) (*trace.SpanContext, error) {
-	ctx = propagator.Extract(ctx, supplier)
-	sc := trace.GetRemoteSpanContextFromContext(ctx)
-	if sc == nil {
-		return nil, &propagationError{"no remote span context found", nil}
-	}
-	return sc, nil
-}
-func (hc HoneycombHTTPPropagator) unmarshal(ctx context.Context, supplier otelprop.HTTPSupplier) (*trace.SpanContext, error) {
-	return unmarshal(hc, ctx, supplier)
-}
-func (a AmazonHTTPPropagator) unmarshal(ctx context.Context, supplier otelprop.HTTPSupplier) (*trace.SpanContext, error) {
-	return unmarshal(a, ctx, supplier)
-}
-
 func TestMarshalHoneycombTraceContext(t *testing.T) {
 	sc := &trace.SpanContext{
 		TraceID:  "abcdef123456",
@@ -78,43 +42,45 @@ func TestMarshalHoneycombTraceContext(t *testing.T) {
 	}
 
 	m := NewMockRequest()
-	ctx := context.Background()
+	ctx := trace.PutRemoteSpanContextInContext(context.Background(), sc)
 	propagator := HoneycombHTTPPropagator{}
-	marshaled, ctx := propagator.marshal(ctx, m, sc)
+	propagator.Insert(ctx, m)
+	marshaled := m.Get(honeycombTracePropagationHTTPHeader)
 	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
 	assert.Equal(t, "1;trace_id=abcdef123456,parent_id=0102030405,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==", marshaled)
 
-	returned, err := propagator.unmarshal(ctx, m)
+	returned := propagator.Parse(ctx, m)
+
 	assert.Equal(t, sc, returned, "roundtrip object")
-	assert.NoError(t, err, "roundtrip error")
 
 	sc.Dataset = "imadataset"
-	marshaled, ctx = propagator.marshal(ctx, m, sc)
+	propagator.Insert(ctx, m)
+	marshaled = m.Get(honeycombTracePropagationHTTPHeader)
 	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
 	assert.Equal(t, "1;trace_id=abcdef123456,parent_id=0102030405,dataset=imadataset,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==", marshaled)
 
-	returned, err = propagator.unmarshal(ctx, m)
+	returned = propagator.Parse(ctx, m)
 	assert.Equal(t, sc, returned, "roundtrip object")
-	assert.NoError(t, err, "roundtrip error")
 
 	sc.Dataset = "ill;egal"
-	marshaled, ctx = propagator.marshal(ctx, m, sc)
+	propagator.Insert(ctx, m)
+	marshaled = m.Get(honeycombTracePropagationHTTPHeader)
 	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
 	assert.Equal(t, "1;trace_id=abcdef123456,parent_id=0102030405,dataset=ill%3Begal,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==", marshaled)
 
-	returned, err = propagator.unmarshal(ctx, m)
+	returned = propagator.Parse(ctx, m)
 	assert.Equal(t, sc, returned, "roundtrip object")
-	assert.NoError(t, err, "roundtrip error")
 	sc = &trace.SpanContext{
 		Dataset: "imadataset",
 	}
-	marshaled, ctx = propagator.marshal(ctx, m, sc)
+	ctx = trace.PutRemoteSpanContextInContext(ctx, sc)
+	propagator.Insert(ctx, m)
+	marshaled = m.Get(honeycombTracePropagationHTTPHeader)
 	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
 	assert.Equal(t, "1;trace_id=,parent_id=,dataset=imadataset,context=bnVsbA==", marshaled)
 
-	returned, err = propagator.unmarshal(ctx, m)
+	returned = propagator.Parse(ctx, m)
 	assert.Equal(t, sc, returned, "roundtrip object")
-	assert.NoError(t, err, "no roundtrip error")
 }
 
 func TestMarshalAmazonTraceContext(t *testing.T) {
@@ -130,14 +96,14 @@ func TestMarshalAmazonTraceContext(t *testing.T) {
 	}
 
 	m := NewMockRequest()
-	ctx := context.Background()
+	ctx := trace.PutRemoteSpanContextInContext(context.Background(), sc)
 	propagator := AmazonHTTPPropagator{}
-	marshaled, ctx := propagator.marshal(ctx, m, sc)
+	propagator.Insert(ctx, m)
+	marshaled := m.Get(amazonTracePropagationHTTPHeader)
 	assert.Equal(t, "Root=abcdef123456;Parent=0102030405", marshaled[0:35])
 
-	returned, err := propagator.unmarshal(ctx, m)
+	returned := propagator.Parse(ctx, m)
 	assert.Equal(t, sc, returned, "roundtrip object")
-	assert.NoError(t, err, "roundtrip error")
 }
 
 func TestUnmarshalHoneycombTraceContext(t *testing.T) {
@@ -226,13 +192,8 @@ func TestUnmarshalHoneycombTraceContext(t *testing.T) {
 	ctx := context.Background()
 	for _, tt := range testCases {
 		m.Set("X-Honeycomb-Trace", tt.contextStr)
-		sc, err := propagator.unmarshal(ctx, m)
+		sc := propagator.Parse(ctx, m)
 		assert.Equal(t, tt.sc, sc, tt.name)
-		if tt.returnsErr {
-			assert.Error(t, err, tt.name)
-		} else {
-			assert.NoError(t, err, tt.name)
-		}
 	}
 }
 
@@ -299,12 +260,7 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 	ctx := context.Background()
 	for _, tt := range testCases {
 		m.Set("X-Amzn-Trace-Id", tt.contextStr)
-		sc, err := propagator.unmarshal(ctx, m)
+		sc := propagator.Parse(ctx, m)
 		assert.Equal(t, tt.sc, sc, tt.name)
-		if tt.returnsErr {
-			assert.Error(t, err, tt.name)
-		} else {
-			assert.NoError(t, err, tt.name)
-		}
 	}
 }

@@ -57,7 +57,7 @@ func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
 	if span == nil {
 		var spanContext *trace.SpanContext
 		for _, propagator := range getParsersForRequest(ctx, r) {
-			ctx = propagator.Extract(ctx, r.Header)
+			spanContext = propagator.Parse(ctx, r.Header)
 			spanContext = spanContext.MergeSpanContext(
 				trace.GetRemoteSpanContextFromContext(ctx),
 			)
