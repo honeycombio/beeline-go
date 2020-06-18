@@ -68,9 +68,9 @@ type Config struct {
 	// registered must return a list of HTTPPropagator objects that will be used
 	// to inject trace context into the headers of the outgoing request. Decisions
 	// about what wire format to use and whether to inject headers at all can be
-	// made based on infomration in the context or HTTP request. The function may
+	// made based on information in the context or HTTP request. The function may
 	// also return an empty array, which will result in no trace propagation headers
-	// being included in outgoing requests.
+	// being included in the current outgoing request.
 	TraceHTTPHeaderPropagationHook func(ctx context.Context, r *http.Request) []trace.HTTPPropagator
 	// APIHost is the hostname for the Honeycomb API server to which to send
 	// this event. default: https://api.honeycomb.io/
