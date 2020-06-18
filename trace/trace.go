@@ -2,14 +2,20 @@ package trace
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/sample"
 	libhoney "github.com/honeycombio/libhoney-go"
+)
+
+const (
+	traceIDLengthBytes = 16
+	spanIDLengthBytes  = 8
 )
 
 var GlobalConfig Config
@@ -39,6 +45,14 @@ type Trace struct {
 	traceLevelFields map[string]interface{}
 }
 
+// getNewID generates a hex encoded string with the specified number of bytes.
+// It is used for ID generation for traces and spans.
+func getNewID(length uint16) string {
+	id := make([]byte, length)
+	_, _ = rand.Read(id)
+	return hex.EncodeToString(id)
+}
+
 // NewTrace creates a brand new trace. serializedHeaders is optional, and if
 // included, should be the header as written by trace.SerializeHeaders(). When
 // not starting from an upstream trace, pass the empty string here.
@@ -63,7 +77,7 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 	}
 
 	if trace.traceID == "" {
-		trace.traceID = uuid.Must(uuid.NewRandom()).String()
+		trace.traceID = getNewID(traceIDLengthBytes)
 	}
 
 	rootSpan := newSpan()
@@ -199,7 +213,7 @@ type Span struct {
 // create a well formed span.
 func newSpan() *Span {
 	return &Span{
-		spanID:  uuid.Must(uuid.NewRandom()).String(),
+		spanID:  getNewID(spanIDLengthBytes),
 		started: time.Now(),
 	}
 }
