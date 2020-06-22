@@ -49,6 +49,7 @@ type Trace struct {
 // It is used for ID generation for traces and spans.
 func getNewID(length uint16) string {
 	id := make([]byte, length)
+	// rand.Seed is called in libhoney's init, so this is sure to have well-seeded random content.
 	_, _ = rand.Read(id)
 	return hex.EncodeToString(id)
 }
