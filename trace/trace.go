@@ -45,8 +45,8 @@ type Trace struct {
 	traceLevelFields map[string]interface{}
 }
 
-// getNewID generates a hex encoded string with the specified number of bytes.
-// It is used for ID generation for traces and spans.
+// getNewID generates a lowercase hex encoded string with the specified number
+// of bytes. It is used for ID generation for traces and spans.
 func getNewID(length uint16) string {
 	id := make([]byte, length)
 	// rand.Seed is called in libhoney's init, so this is sure to have well-seeded random content.
