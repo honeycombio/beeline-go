@@ -2,7 +2,9 @@ package trace
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -411,6 +413,17 @@ func TestPropagatedFields(t *testing.T) {
 	assert.Equal(t, "placeholder", tr.builder.Dataset, "dataset should have propagated")
 	assert.Equal(t, map[string]interface{}{}, tr.traceLevelFields, "trace fields should have propagated")
 
+}
+
+// TestGetNewID ensures that ID is always a lowercase hex string of the requested length
+func TestGetNewID(t *testing.T) {
+	id := getNewID(8)
+	assert.Equal(t, 16, len(id), "an 8 byte array should produce a 32 bit hex string")
+	assert.Equal(t, strings.ToLower(id), id, "ids should be lowercase")
+	decoded, err := hex.DecodeString(id)
+	if assert.NoError(t, err) {
+		assert.Equal(t, hex.EncodeToString(decoded), id, "ids should be hex encoded")
+	}
 }
 
 // BenchmarkSendChildSpans benchmarks creating and sending child spans in
