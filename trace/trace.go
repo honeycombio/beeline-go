@@ -115,7 +115,7 @@ func (t *Trace) AddField(key string, val interface{}) {
 // The serialized form may be passed to NewTrace() in order to create a new
 // trace that will be connected to this trace.
 func (t *Trace) serializeHeaders(spanID string) string {
-	var prop = &propagation.Propagation{
+	var prop = &propagation.PropagationContext{
 		TraceID:      t.traceID,
 		ParentID:     spanID,
 		Dataset:      t.builder.Dataset,

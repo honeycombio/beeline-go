@@ -7,7 +7,7 @@ import (
 )
 
 func TestMarshalTraceContext(t *testing.T) {
-	prop := &Propagation{
+	prop := &PropagationContext{
 		TraceID:  "abcdef123456",
 		ParentID: "0102030405",
 		TraceContext: map[string]interface{}{
@@ -43,7 +43,7 @@ func TestMarshalTraceContext(t *testing.T) {
 	assert.Equal(t, prop, returned, "roundtrip object")
 	assert.NoError(t, err, "roundtrip error")
 
-	prop = &Propagation{
+	prop = &PropagationContext{
 		Dataset: "imadataset",
 	}
 	marshaled = MarshalTraceContext(prop)
@@ -59,7 +59,7 @@ func TestUnmarshalTraceContext(t *testing.T) {
 	testCases := []struct {
 		name       string
 		contextStr string
-		prop       *Propagation
+		prop       *PropagationContext
 		returnsErr bool
 	}{
 		{
@@ -71,7 +71,7 @@ func TestUnmarshalTraceContext(t *testing.T) {
 		{
 			"v1 trace_id + parent_id, missing context",
 			"1;trace_id=abcdef,parent_id=12345",
-			&Propagation{
+			&PropagationContext{
 				TraceID:  "abcdef",
 				ParentID: "12345",
 			},
@@ -80,7 +80,7 @@ func TestUnmarshalTraceContext(t *testing.T) {
 		{
 			"v1, all headers and legit context",
 			"1;trace_id=abcdef,parent_id=12345,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==",
-			&Propagation{
+			&PropagationContext{
 				TraceID:  "abcdef",
 				ParentID: "12345",
 				TraceContext: map[string]interface{}{
@@ -100,7 +100,7 @@ func TestUnmarshalTraceContext(t *testing.T) {
 		{
 			"v1, missing parent_id",
 			"1;trace_id=12345",
-			&Propagation{
+			&PropagationContext{
 				TraceID: "12345",
 			},
 			false,
@@ -114,7 +114,7 @@ func TestUnmarshalTraceContext(t *testing.T) {
 		{
 			"v1, unknown key (otherwise valid)",
 			"1;trace_id=abcdef,parent_id=12345,something=unsupported",
-			&Propagation{
+			&PropagationContext{
 				TraceID:  "abcdef",
 				ParentID: "12345",
 			},
@@ -123,7 +123,7 @@ func TestUnmarshalTraceContext(t *testing.T) {
 		{
 			"v1, extra unknown key (otherwise valid)",
 			"1;trace_id=abcdef,parent_id=12345,something=unsupported,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==",
-			&Propagation{
+			&PropagationContext{
 				TraceID:  "abcdef",
 				ParentID: "12345",
 				TraceContext: map[string]interface{}{

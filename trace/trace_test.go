@@ -364,7 +364,7 @@ func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 }
 
 func TestPropagatedFields(t *testing.T) {
-	prop := &propagation.Propagation{
+	prop := &propagation.PropagationContext{
 		TraceID:  "abcdef123456",
 		ParentID: "0102030405",
 		Dataset:  "imadataset",
@@ -392,7 +392,7 @@ func TestPropagatedFields(t *testing.T) {
 	assert.Equal(t, tr.builder.Dataset, tr2.builder.Dataset, "dataset should have propagated")
 	assert.Equal(t, tr.traceLevelFields, tr2.traceLevelFields, "trace fields should have propagated")
 
-	prop = &propagation.Propagation{
+	prop = &propagation.PropagationContext{
 		Dataset: "imadataset",
 		TraceContext: map[string]interface{}{
 			"userID": float64(1),
