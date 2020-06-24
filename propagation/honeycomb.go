@@ -33,6 +33,9 @@ const (
 // in the Honeycomb trace header format. It returns the serialized form of the trace context, 
 // ready to be inserted into the headers of an outbound HTTP request.
 func MarshalHoneycombTraceContext(prop *PropagationContext) string {
+	if prop == nil {
+		return ""
+	}
 	tcJSON, err := json.Marshal(prop.TraceContext)
 	if err != nil {
 		// if we couldn't marshal the trace level fields, leave it blank
