@@ -54,26 +54,23 @@ func getNewID(length uint16) string {
 	return hex.EncodeToString(id)
 }
 
-// NewTrace creates a brand new trace. serializedHeaders is optional, and if
-// included, should be the header as written by trace.SerializeHeaders(). When
-// not starting from an upstream trace, pass the empty string here.
-func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *Trace) {
+// NewTraceFromPropagationContext creates a brand new trace. prop is optional, and if included,
+// should be populated with data from a trace context header.
+func NewTraceFromPropagationContext(ctx context.Context, prop *propagation.PropagationContext) (context.Context, *Trace) {
 	trace := &Trace{
 		builder:          client.NewBuilder(),
 		rollupFields:     make(map[string]float64),
 		traceLevelFields: make(map[string]interface{}),
 	}
-	if serializedHeaders != "" {
-		prop, err := propagation.UnmarshalTraceContext(serializedHeaders)
-		if err == nil {
-			trace.traceID = prop.TraceID
-			trace.parentID = prop.ParentID
-			for k, v := range prop.TraceContext {
-				trace.traceLevelFields[k] = v
-			}
-			if prop.Dataset != "" {
-				trace.builder.Dataset = prop.Dataset
-			}
+
+	if prop != nil {
+		trace.traceID = prop.TraceID
+		trace.parentID = prop.ParentID
+		for k, v := range prop.TraceContext {
+			trace.traceLevelFields[k] = v
+		}
+		if prop.Dataset != "" {
+			trace.builder.Dataset = prop.Dataset
 		}
 	}
 
@@ -94,6 +91,26 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 	ctx = PutTraceInContext(ctx, trace)
 	ctx = PutSpanInContext(ctx, rootSpan)
 	return ctx, trace
+}
+
+// NewTraceFromSerializedHeaders creates a brand new trace. serializedHeaders is optional, and if
+// included, should be the header as written by trace.SerializeHeaders(). When
+// not starting from an upstream trace, pass the empty string here.
+//
+// Deprecated: users should call NewTraceFromPropagationContext instead.
+func NewTraceFromSerializedHeaders(ctx context.Context, serializedHeaders string) (context.Context, *Trace) {
+	var prop *propagation.PropagationContext
+	if serializedHeaders != "" {
+		prop, _ = propagation.UnmarshalHoneycombTraceContext(serializedHeaders)
+	}
+	return NewTraceFromPropagationContext(ctx, prop)
+}
+
+// NewTrace creates a new trace. This wraps NewTraceFromSerializedHeaders and may be changed in
+// a future release to wrap NewTraceFromPropagationContext instead. Users should start calling
+// that method to avoid backwards incompatibilities with the next major release.
+func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *Trace) {
+	return NewTraceFromSerializedHeaders(ctx, serializedHeaders)
 }
 
 // AddField adds a field to the trace. Every span in the trace will have this
