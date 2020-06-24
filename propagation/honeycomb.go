@@ -30,8 +30,8 @@ const (
 )
 
 // MarshalHoneycombTraceContext uses the information in prop to create a trace context header
-// in the Honeycomb trace header format. It returns the header and header name as a key value
-// pair in a map.
+// in the Honeycomb trace header format. It returns the serialized form of the trace context, 
+// ready to be inserted into the headers of an outbound HTTP request.
 func MarshalHoneycombTraceContext(prop *PropagationContext) string {
 	tcJSON, err := json.Marshal(prop.TraceContext)
 	if err != nil {
