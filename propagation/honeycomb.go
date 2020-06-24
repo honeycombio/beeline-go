@@ -65,7 +65,7 @@ func UnmarshalHoneycombTraceContext(header string) (*PropagationContext, error) 
 	// pull the version out of the header
 	getVer := strings.SplitN(header, ";", 2)
 	if getVer[0] == "1" {
-		return UnmarshalTraceContextV1(getVer[1])
+		return UnmarshalHoneycombTraceContextV1(getVer[1])
 	}
 	return nil, &PropagationError{fmt.Sprintf("unrecognized version for trace header %s", getVer[0]), nil}
 }
