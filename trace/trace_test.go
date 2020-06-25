@@ -60,6 +60,44 @@ func TestNewTrace(t *testing.T) {
 	})
 }
 
+// TestNewTraceFromPropagationContext creates traces using data in a struct and
+// makes sure they're populated with all the things we want.
+func TestNewTraceFromPropagationContext(t *testing.T) {
+	ctx, tr := NewTraceFromPropagationContext(context.Background(), nil)
+	assert.NotNil(t, tr.builder, "traces should have a builder")
+	assert.NotEmpty(t, tr.traceID, "trace should have a trace ID")
+	assert.Empty(t, tr.parentID, "trace created with no propagation context should have an empty parent ID")
+	assert.NotNil(t, tr.rollupFields, "trace should initialize rollup fields map")
+	assert.NotNil(t, tr.rootSpan, "trace should have a root span")
+	assert.NotNil(t, tr.traceLevelFields, "trace should initialize trace level fields map")
+	trFromContext := GetTraceFromContext(ctx)
+	assert.Equal(t, tr, trFromContext, "new trace should put the trace in the context")
+	spFromContext := GetSpanFromContext(ctx)
+	assert.Equal(t, tr.rootSpan, spFromContext, "new trace should put the root span in the context")
+
+	// create a trace with a propagationcontext and make sure that the
+	// appropriate fields are populated. A propagation context object
+	// contains a trace id, parent id, optional trace context and an
+	// optional dataset. There is also a TraceFlags field, but that isn't
+	// being parsed yet.
+	prop := &propagation.PropagationContext{
+		TraceID:  "0af7651916cd43dd8448eb211c80319c",
+		ParentID: "00f067aa0ba902b7",
+		Dataset:  "my-dataset",
+		TraceContext: map[string]interface{}{
+			"userID":   1,
+			"errorMsg": "failed to sign on",
+			"toRetry":  true,
+		},
+	}
+	_, tr = NewTraceFromPropagationContext(ctx, prop)
+	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", tr.traceID, "trace with a propagation context should take trace ID")
+	assert.Equal(t, "00f067aa0ba902b7", tr.parentID, "trace with a propagation context should take parent ID")
+	assert.Equal(t, int(1), tr.traceLevelFields["userID"], "trace with a propagation context should populate trace level fields")
+	assert.Equal(t, "failed to sign on", tr.traceLevelFields["errorMsg"], "trace with a propagation context should populate trace level fields")
+	assert.Equal(t, true, tr.traceLevelFields["toRetry"], "trace with a propagation context should populate trace level fields")
+}
+
 // TestAddField tests adding a field to a trace
 func TestAddField(t *testing.T) {
 	_, tr := NewTrace(context.Background(), "")
@@ -364,7 +402,7 @@ func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 }
 
 func TestPropagatedFields(t *testing.T) {
-	prop := &propagation.Propagation{
+	prop := &propagation.PropagationContext{
 		TraceID:  "abcdef123456",
 		ParentID: "0102030405",
 		Dataset:  "imadataset",
@@ -392,7 +430,7 @@ func TestPropagatedFields(t *testing.T) {
 	assert.Equal(t, tr.builder.Dataset, tr2.builder.Dataset, "dataset should have propagated")
 	assert.Equal(t, tr.traceLevelFields, tr2.traceLevelFields, "trace fields should have propagated")
 
-	prop = &propagation.Propagation{
+	prop = &propagation.PropagationContext{
 		Dataset: "imadataset",
 		TraceContext: map[string]interface{}{
 			"userID": float64(1),
