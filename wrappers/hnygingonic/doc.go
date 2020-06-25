@@ -2,7 +2,7 @@
 //
 // Summary
 //
-// hnygingonic has Middleware to user in the gin.Use function call wrapping all
+// hnygingonic has Middleware for use in the gin.Use function call wrapping all
 // requests that come into the gin muxer
 //
 package hnygingonic
