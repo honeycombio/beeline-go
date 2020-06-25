@@ -17,6 +17,7 @@ func ExampleMiddleware() {
 		Middleware(),
 		gin.Logger(),
 		gin.Recovery(),
+		exampleWrapper(),
 	)
 
 	// Setup the routes we want to use
@@ -50,7 +51,7 @@ func ready(c *gin.Context) {
 	c.Data(http.StatusOK, "text/plain", []byte(`OK`))
 }
 
-func exampleWrapper(c *gin.Context) gin.HandlerFunc {
+func exampleWrapper() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		hnyctx, span := StartSpan(c, "main.exampleWrapper")
 		defer span.Send()
