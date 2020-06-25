@@ -1,3 +1,7 @@
+// Package propagation includes types and functions for marshalling and unmarshalling trace
+// context headers between various supported formats and an internal representation. It
+// provides support for traces that cross process boundaries with support for interoperability
+// between various kinds of trace context header formats.
 package propagation
 
 import (
