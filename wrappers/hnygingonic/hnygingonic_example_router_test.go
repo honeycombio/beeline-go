@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/honeycombio/beeline-go"
 )
 
 func ExampleMiddleware() {
@@ -28,16 +27,22 @@ func ExampleMiddleware() {
 }
 
 func home(c *gin.Context) {
-	beeline.AddField(c, "Welcome", "Home")
+	c, span := StartSpan(c, "main.home")
+	defer span.Send()
+	span.AddField("Welcome", "Home")
 	c.Data(http.StatusOK, "text/plain", []byte(`Welcome Home`))
 }
 
 func alive(c *gin.Context) {
-	beeline.AddField(c, "Alive", true)
+	c, span := StartSpan(c, "main.alive")
+	defer span.Send()
+	span.AddField("Alive", true)
 	c.Data(http.StatusOK, "text/plain", []byte(`OK`))
 }
 
 func ready(c *gin.Context) {
-	beeline.AddField(c, "Ready", true)
+	c, span := StartSpan(c, "main.ready")
+	defer span.Send()
+	span.AddField("Ready", true)
 	c.Data(http.StatusOK, "text/plain", []byte(`OK`))
 }
