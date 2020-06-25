@@ -4,9 +4,6 @@ import (
 	"fmt"
 )
 
-// Default to using the Honeycomb Trace Context header.
-const defaultTracePropagationHTTPHeader = TracePropagationHTTPHeader
-
 // PropagationContext contains information about a trace that can cross process boundaries.
 // Typically this information is parsed from an incoming trace context header.
 type PropagationContext struct {
