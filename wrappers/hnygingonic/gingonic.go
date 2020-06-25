@@ -43,7 +43,7 @@ func Middleware() gin.HandlerFunc {
 
 		name := c.HandlerName()
 		span.AddField("handler.name", name)
-		span.AddField("name", "hnygingonic.Middleware")
+		span.AddField("name", name)
 		// Run the next function in the Middleware chain
 		c.Next()
 
