@@ -1,10 +1,12 @@
 package hnygingonic
 
 import (
+	"context"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/honeycombio/beeline-go"
 )
 
 func ExampleMiddleware() {
@@ -27,22 +29,40 @@ func ExampleMiddleware() {
 }
 
 func home(c *gin.Context) {
-	c, span := StartSpan(c, "main.home")
+	hnyctx, span := StartSpan(c, "main.home")
 	defer span.Send()
 	span.AddField("Welcome", "Home")
+	childFunction(hnyctx)
 	c.Data(http.StatusOK, "text/plain", []byte(`Welcome Home`))
 }
 
 func alive(c *gin.Context) {
-	c, span := StartSpan(c, "main.alive")
+	_, span := StartSpan(c, "main.alive")
 	defer span.Send()
 	span.AddField("Alive", true)
 	c.Data(http.StatusOK, "text/plain", []byte(`OK`))
 }
 
 func ready(c *gin.Context) {
-	c, span := StartSpan(c, "main.ready")
+	_, span := StartSpan(c, "main.ready")
 	defer span.Send()
 	span.AddField("Ready", true)
 	c.Data(http.StatusOK, "text/plain", []byte(`OK`))
+}
+
+func exampleWrapper(c *gin.Context) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		hnyctx, span := StartSpan(c, "main.exampleWrapper")
+		defer span.Send()
+		SetContext(c, hnyctx)
+		// Do some work
+		c.Next()
+		childFunction(hnyctx)
+	}
+}
+
+func childFunction(ctx context.Context) {
+	_, span := beeline.StartSpan(ctx, "main.childFunction")
+	defer span.Send()
+	// Do some work here
 }
