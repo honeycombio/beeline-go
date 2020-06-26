@@ -11,10 +11,17 @@ import (
 
 func ExampleMiddleware() {
 	// Setup a new gin Router, not using the Default here so that we can put the
-	// Beeline middleware in before the middle provided by Gin
+	// Beeline middleware in before the middleware provided by Gin
 	router := gin.New()
 	router.Use(
-		Middleware(),
+		Middleware(nil),
+		// Doing something like the following would have the Middleware grab specifc
+		// GET query params that you deal with in your gin application.
+		//Middleware(map[string]struct{}{
+		//"parts":  {},
+		//"limit":  {},
+		//"offset": {},
+		//})
 		gin.Logger(),
 		gin.Recovery(),
 		exampleWrapper(),

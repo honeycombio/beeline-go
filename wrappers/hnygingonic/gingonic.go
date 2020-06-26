@@ -9,16 +9,18 @@ import (
 	"github.com/honeycombio/beeline-go/wrappers/common"
 )
 
+const ginContextKey = "beeline-middleware-context"
+
 // Middleware wraps httprouter handlers. Since it wraps handlers with explicit
 // parameters, it can add those values to the event it generates.
-func Middleware() gin.HandlerFunc {
+func Middleware(queryParams map[string]struct{}) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// get a new context with our trace from the request, and add common fields
 		ctx, span := common.StartSpanOrTraceFromHTTP(c.Request)
 		defer span.Send()
 		// Add the span context to the gin context as we need to be able to pass
 		// this context around our gin application
-		c.Set("beeline-middleware-context", ctx)
+		c.Set(ginContextKey, ctx)
 		// push the context with our trace and span on to the request
 		c.Request = c.Request.WithContext(ctx)
 
@@ -31,13 +33,17 @@ func Middleware() gin.HandlerFunc {
 		}
 
 		// pull out any GET query params
-		for key, value := range c.Request.URL.Query() {
-			if len(value) > 1 {
-				span.AddField("handler.query."+key, value)
-			} else if len(value) == 1 {
-				span.AddField("handler.query."+key, value[0])
-			} else {
-				span.AddField("handler.query."+key, nil)
+		if queryParams != nil {
+			for key, value := range c.Request.URL.Query() {
+				if _, ok := queryParams[key]; ok {
+					if len(value) > 1 {
+						span.AddField("handler.query."+key, value)
+					} else if len(value) == 1 {
+						span.AddField("handler.query."+key, value[0])
+					} else {
+						span.AddField("handler.query."+key, nil)
+					}
+				}
 			}
 		}
 
@@ -59,7 +65,7 @@ func Middleware() gin.HandlerFunc {
 // This is required because the gin-gonic handler function expects to receive
 // *gin.Context rather than context.Context
 func StartSpan(c *gin.Context, name string) (context.Context, *trace.Span) {
-	beelineContext, exists := c.Get("beeline-middleware-context")
+	beelineContext, exists := c.Get(ginContextKey)
 	var ctx context.Context
 
 	if exists {
@@ -72,5 +78,5 @@ func StartSpan(c *gin.Context, name string) (context.Context, *trace.Span) {
 // SetContext should be used to replace the context.Context in the gin.Context
 // in the case of having multiple custom middleware in the codebase
 func SetContext(c *gin.Context, newMiddleWareContext context.Context) {
-	c.Set("beeline-middleware-context", newMiddleWareContext)
+	c.Set(ginContextKey, newMiddleWareContext)
 }

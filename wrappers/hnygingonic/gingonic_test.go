@@ -28,7 +28,7 @@ func TestHTTPRouterMiddleware(t *testing.T) {
 
 	// build the httprouter mux router with Middleware
 	router := gin.New()
-	router.Use(Middleware())
+	router.Use(Middleware(nil))
 	router.GET("/hello/:name", func(_ *gin.Context) {})
 	// handle the request
 	router.ServeHTTP(w, r)
@@ -60,7 +60,7 @@ func TestHTTPRouterMiddlewareReturnsStatusCode(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	router := gin.New()
-	router.Use(Middleware())
+	router.Use(Middleware(nil))
 	handler := func(c *gin.Context) {
 		c.AbortWithStatus(http.StatusNotFound)
 	}
