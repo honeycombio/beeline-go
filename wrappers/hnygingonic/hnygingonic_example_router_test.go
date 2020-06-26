@@ -14,6 +14,7 @@ func ExampleMiddleware() {
 	// Beeline middleware in before the middleware provided by Gin
 	router := gin.New()
 	router.Use(
+		// Add the beeline middleware to the chain
 		Middleware(nil),
 		// Doing something like the following would have the Middleware grab specifc
 		// GET query params that you deal with in your gin application.
@@ -22,9 +23,11 @@ func ExampleMiddleware() {
 		//"limit":  {},
 		//"offset": {},
 		//})
+		// The Logger and Recovery middleware which are setup in the Default gin router
 		gin.Logger(),
 		gin.Recovery(),
-		exampleWrapper(),
+		// Our example middleware that does extra work
+		exampleMiddleware(),
 	)
 
 	// Setup the routes we want to use
@@ -32,7 +35,7 @@ func ExampleMiddleware() {
 	router.GET("/alive", alive)
 	router.GET("/ready", ready)
 
-	// wrap the main router to set everything up for instrumenting
+	// Start the server
 	log.Fatal(router.Run("127.0.0.1:8080"))
 }
 
@@ -58,9 +61,9 @@ func ready(c *gin.Context) {
 	c.Data(http.StatusOK, "text/plain", []byte(`OK`))
 }
 
-func exampleWrapper() gin.HandlerFunc {
+func exampleMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		hnyctx, span := StartSpan(c, "main.exampleWrapper")
+		hnyctx, span := StartSpan(c, "main.exampleMiddleware")
 		defer span.Send()
 		SetContext(c, hnyctx)
 		// Do some work
