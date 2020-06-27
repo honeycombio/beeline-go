@@ -48,15 +48,13 @@ func home(c *gin.Context) {
 }
 
 func alive(c *gin.Context) {
-	_, span := StartSpan(c, "main.alive")
-	defer span.Send()
-	span.AddField("Alive", true)
 	c.Data(http.StatusOK, "text/plain", []byte(`OK`))
 }
 
 func ready(c *gin.Context) {
 	_, span := StartSpan(c, "main.ready")
 	defer span.Send()
+	// Do some work here
 	span.AddField("Ready", true)
 	c.Data(http.StatusOK, "text/plain", []byte(`OK`))
 }
