@@ -24,9 +24,6 @@ func Middleware(queryParams map[string]struct{}) gin.HandlerFunc {
 		// push the context with our trace and span on to the request
 		c.Request = c.Request.WithContext(ctx)
 
-		// replace the writer with our wrapper to catch the status code
-		wrappedWriter := common.NewResponseWriter(c.Writer)
-
 		// pull out any variables in the URL, add the thing we're matching, etc.
 		for _, param := range c.Params {
 			span.AddField("handler.vars."+param.Key, param.Value)
@@ -52,12 +49,7 @@ func Middleware(queryParams map[string]struct{}) gin.HandlerFunc {
 		span.AddField("name", name)
 		// Run the next function in the Middleware chain
 		c.Next()
-
-		if wrappedWriter.Status == 0 {
-			wrappedWriter.Status = 200
-		}
-
-		span.AddField("response.status_code", wrappedWriter.Status)
+		span.AddField("response.status_code", c.Writer.Status())
 	}
 }
 
