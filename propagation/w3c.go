@@ -74,9 +74,11 @@ func createOpenTelemetrySpan(prop *PropagationContext) (trace.Span, error) {
 	}, nil
 }
 
-// otelSpan is an implementation of the trace.Span interface. That interface is fairly
-// wide, so there are a lot of methods on this type that are noops. The only field we
-// need in order to use the opentelemetry-go sdk w3c trace context propagator is the
+// otelSpan is an implementation of the open telemetry trace.Span interface. We
+// want an implementation in order to use the existing otel code for w3c trace
+// propagation parsing rather than duplicating that code here. That interface is
+// fairly wide, so there are a lot of methods on this type that are noops. The
+// only field we need in order to use their trace context propagator is the
 // trace.SpanContext, so we populate that.
 type otelSpan struct {
 	ctx trace.SpanContext
