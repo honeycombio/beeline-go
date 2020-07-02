@@ -94,7 +94,7 @@ func TestW3CTraceContext(t *testing.T) {
 	assert.Equal(t, "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-00", headers["traceparent"])
 	// should result in empty headers
 	prop = &PropagationContext{
-		TraceID: "invalid-trace-id",
+		TraceID:  "invalid-trace-id",
 		ParentID: "invalid-parent-id",
 	}
 	ctx, headers = MarshalW3CTraceContext(ctx, prop)
@@ -103,7 +103,7 @@ func TestW3CTraceContext(t *testing.T) {
 	// ensure that roundtrip keeps tracestate intact
 	headers = map[string]string{
 		"traceparent": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-00",
-		"tracestate": "foo=bar,bar=baz",
+		"tracestate":  "foo=bar,bar=baz",
 	}
 	ctx, prop = UnmarshalW3CTraceContext(ctx, headers)
 	ctx, marshaled := MarshalW3CTraceContext(ctx, prop)
