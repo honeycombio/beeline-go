@@ -57,7 +57,12 @@ func TestMarshalTraceContext(t *testing.T) {
 }
 
 func TestMarshalAmazonTraceContext(t *testing.T) {
-	// NOTE: we only support strings for trace context in amazon headers
+	// According to the documentation for load balancer request tracing:
+	// https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html
+	// An application can add arbitrary fields for its own purposes. The load balancer preserves these fields
+	// but does not use them. In our implementation, we stick these fields in the TraceContext. Because of the
+	// implementation, the TraceContext only supports strings whereas in the Honeycomb header format, these
+	// fields are stored as base64 encoded JSON and therefore can support basic types like strings, booleans, etc.
 	prop := &PropagationContext{
 		TraceID:  "abcdef123456",
 		ParentID: "0102030405",
