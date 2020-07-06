@@ -19,7 +19,10 @@ func MarshalAmazonTraceContext(prop *PropagationContext) string {
 		return ""
 	}
 
-	h := fmt.Sprintf("Root=%s;Parent=%s", prop.TraceID, prop.ParentID)
+	// From https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html:
+	// "If the X-Amzn-Trace-Id header is present and has a Self field, the load balancer updates
+	// the value of the Self field."
+	h := fmt.Sprintf("Root=%s;Self=%s", prop.TraceID, prop.ParentID)
 
 	if len(prop.TraceContext) != 0 {
 		elems := make([]string, len(prop.TraceContext))
@@ -68,8 +71,6 @@ func UnmarshalAmazonTraceContext(header string) (*PropagationContext, error) {
 			prop.ParentID = keyval[1]
 		case "root":
 			prop.TraceID = keyval[1]
-		case "parent":
-			prop.ParentID = keyval[1]
 		default:
 			prop.TraceContext[keyval[0]] = keyval[1]
 		}

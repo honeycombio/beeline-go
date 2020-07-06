@@ -76,7 +76,7 @@ func TestMarshalAmazonTraceContext(t *testing.T) {
 	header := MarshalAmazonTraceContext(prop)
 	// Note: we don't test trace context because we can't gaurantee the order.
 	// It's covered by the roundtrip test below.
-	assert.Equal(t, "Root=abcdef123456;Parent=0102030405", header[0:35])
+	assert.Equal(t, "Root=abcdef123456;Self=0102030405", header[0:33])
 
 	returned, err := UnmarshalAmazonTraceContext(header)
 	if assert.NoError(t, err) {
@@ -239,7 +239,7 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 		},
 		{
 			"all fields legit",
-			"Root=1-67891233-abcdef012345678912345678;Parent=1-67891233-abcdef0876543219876543210",
+			"Root=1-67891233-abcdef012345678912345678;Self=1-67891233-abcdef0876543219876543210",
 			&PropagationContext{
 				TraceID:      "1-67891233-abcdef012345678912345678",
 				ParentID:     "1-67891233-abcdef0876543219876543210",
@@ -249,7 +249,7 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 		},
 		{
 			"all fields legit with some context",
-			"Root=1-67891233-abcdef012345678912345678;Parent=1-67891233-abcdef0876543219876543210;Foo=bar;UserId=123;toRetry=true",
+			"Root=1-67891233-abcdef012345678912345678;Self=1-67891233-abcdef0876543219876543210;Foo=bar;UserId=123;toRetry=true",
 			&PropagationContext{
 				TraceID:  "1-67891233-abcdef012345678912345678",
 				ParentID: "1-67891233-abcdef0876543219876543210",
@@ -262,22 +262,26 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 			false,
 		},
 		{
-			"self, parent and root fields. last should win",
+			"self, parent and root fields. parent should end up in trace context",
 			"Root=foo;Parent=bar;Self=baz",
 			&PropagationContext{
 				TraceID:      "foo",
 				ParentID:     "baz",
-				TraceContext: make(map[string]interface{}),
+				TraceContext: map[string]interface{}{
+					"Parent": "bar",
+				},
 			},
 			false,
 		},
 		{
-			"self, parent and root fields. last should win",
+			"self, parent and root fields. parent should end up in trace context",
 			"Root=foo;Self=baz;Parent=bar",
 			&PropagationContext{
 				TraceID:      "foo",
-				ParentID:     "bar",
-				TraceContext: make(map[string]interface{}),
+				ParentID:     "baz",
+				TraceContext: map[string]interface{}{
+					"Parent": "bar",
+				},
 			},
 			false,
 		},
@@ -295,7 +299,7 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 		},
 		{
 			"Missing trace id and parent id is populated, error",
-			"Foo=bar;Parent=foobar;Bar=baz",
+			"Foo=bar;Self=foobar;Bar=baz",
 			nil,
 			true,
 		},
