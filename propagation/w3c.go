@@ -13,6 +13,8 @@ import (
 // that conform to the W3C Trace Context specification. The header values are set in headers,
 // which is an HTTPSupplier, an interface to which http.Header is an implementation. The headers
 // are also returned as a map[string]string.
+//
+// If prop is empty or nil, the return value will be an empty map.
 func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (context.Context, map[string]string) {
 	headerMap := make(map[string]string)
 	otelSpan, err := createOpenTelemetrySpan(prop)
@@ -32,6 +34,10 @@ func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (cont
 // UnmarshalW3CTraceContext parses the information provided in the appropriate headers
 // and creates a PropagationContext instance. Headers are passed in via an HTTPSupplier,
 // which is an interface that defines Get and Set methods, http.Header is an implementation.
+//
+// If the headers are missing or empty strings, the propagation object will have zero values.
+// In the case of Span IDs and Trace IDs, they will be populated with 16 and 32 character strings
+// containing all zeroes.
 func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (context.Context, *PropagationContext) {
 	supplier := newSupplier()
 	for k, v := range headers {

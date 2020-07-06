@@ -108,6 +108,20 @@ func TestW3CTraceContext(t *testing.T) {
 	ctx, prop = UnmarshalW3CTraceContext(ctx, headers)
 	ctx, marshaled := MarshalW3CTraceContext(ctx, prop)
 	assert.Equal(t, "foo=bar,bar=baz", marshaled["tracestate"])
+
+	// ensure that empty headers are handled the way we expect (silently)
+	headers = map[string]string{}
+	ctx, prop = UnmarshalW3CTraceContext(context.Background(), headers)
+	assert.Equal(t, "00000000000000000000000000000000", prop.TraceID)
+	assert.Equal(t, "0000000000000000", prop.ParentID)
+	ctx, marshaled = MarshalW3CTraceContext(ctx, prop)
+	assert.Equal(t, "", marshaled["traceparent"])
+	assert.Equal(t, "", marshaled["tracestate"])
+
+	prop = &PropagationContext{}
+	ctx, headers = MarshalW3CTraceContext(context.Background(), prop)
+	assert.Equal(t, "", marshaled["traceparent"])
+	assert.Equal(t, "", marshaled["tracestate"])
 }
 
 func TestUnmarshalTraceContext(t *testing.T) {
@@ -117,6 +131,12 @@ func TestUnmarshalTraceContext(t *testing.T) {
 		prop       *PropagationContext
 		returnsErr bool
 	}{
+		{
+			"empty header- we expect an error because the version string will be invalid",
+			"",
+			nil,
+			true,
+		},
 		{
 			"unsupported version",
 			"999999;....",
@@ -209,6 +229,14 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 		prop       *PropagationContext
 		returnsErr bool
 	}{
+		{
+			"empty header - expect an empty propagationcontext - there is no invalid data, just the absence of data",
+			"",
+			&PropagationContext{
+				TraceContext: make(map[string]interface{}),
+			},
+			false,
+		},
 		{
 			"all fields legit",
 			"Root=1-67891233-abcdef012345678912345678;Parent=1-67891233-abcdef0876543219876543210",

@@ -32,6 +32,8 @@ const (
 // MarshalHoneycombTraceContext uses the information in prop to create a trace context header
 // in the Honeycomb trace header format. It returns the serialized form of the trace context,
 // ready to be inserted into the headers of an outbound HTTP request.
+//
+// If prop is nil, the returned value will be an empty string.
 func MarshalHoneycombTraceContext(prop *PropagationContext) string {
 	if prop == nil {
 		return ""
@@ -61,6 +63,9 @@ func MarshalHoneycombTraceContext(prop *PropagationContext) string {
 
 // UnmarshalHoneycombTraceContext parses the information provided in header and creates a
 // PropagationContext instance.
+//
+// If the header cannot be parsed, or if the information parsed cannot be used to construct
+// a trace, (e.g. a parent id is specified, but not a trace id), an error will be returned.
 func UnmarshalHoneycombTraceContext(header string) (*PropagationContext, error) {
 	// pull the version out of the header
 	getVer := strings.SplitN(header, ";", 2)
@@ -71,8 +76,9 @@ func UnmarshalHoneycombTraceContext(header string) (*PropagationContext, error) 
 }
 
 // UnmarshalHoneycombTraceContextV1 takes the trace header, stripped of the
-// version string, and returns the component parts. Trace ID and Parent ID
-// are both required. If either is absent a nil trace header will be returned.
+// version string, and returns the component parts. If the header includes a
+// parent id but not a trace id, or if the header contains an unparseable
+// string in the trace context, an error will be returned.
 func UnmarshalHoneycombTraceContextV1(header string) (*PropagationContext, error) {
 	clauses := strings.Split(header, ",")
 	var prop = &PropagationContext{}

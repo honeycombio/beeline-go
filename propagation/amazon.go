@@ -10,14 +10,12 @@ const (
 )
 
 // MarshalAmazonTraceContext uses the information in prop to create a trace context header
-// in the Amazon X-Ray trace header format. It returns the serialized form of the trace
+// in the Amazon AWS trace header format. It returns the serialized form of the trace
 // context, ready to be inserted into the headers of an outbound HTTP request.
+//
+// If prop is nil, the returned value will be an empty string.
 func MarshalAmazonTraceContext(prop *PropagationContext) string {
 	if prop == nil {
-		return ""
-	}
-
-	if prop.TraceID == "" || prop.ParentID == "" {
 		return ""
 	}
 
@@ -37,8 +35,14 @@ func MarshalAmazonTraceContext(prop *PropagationContext) string {
 	return h
 }
 
-// UnmarshalAmazonTraceContext parses the information provided in header and creates a
-// PropagationContext instance.
+// UnmarshalAmazonTraceContext parses the information provided in the headers and creates
+// a PropagationContext instance. The provided headers is expected to contain an X-Amzn-Trace-Id
+// key which will contain the value of the Amazon header.
+//
+// If the information parsed from the header cannot be used to construct a trace,
+// (e.g. a parent id is specified, but not a trace id), an error will be returned.
+// If the header contains no data or is missing, an empty PropagationContext will
+// be returned.
 func UnmarshalAmazonTraceContext(header string) (*PropagationContext, error) {
 	segments := strings.Split(header, ";")
 	// From https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html
@@ -56,6 +60,9 @@ func UnmarshalAmazonTraceContext(header string) (*PropagationContext, error) {
 	prop.TraceContext = make(map[string]interface{})
 	for _, segment := range segments {
 		keyval := strings.SplitN(segment, "=", 2)
+		if len(keyval) < 2 {
+			continue
+		}
 		switch strings.ToLower(keyval[0]) {
 		case "self":
 			prop.ParentID = keyval[1]
