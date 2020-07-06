@@ -14,6 +14,10 @@ import (
 // which is an HTTPSupplier, an interface to which http.Header is an implementation. The headers
 // are also returned as a map[string]string.
 //
+// Context is passed into this function and returned so that we can maintain the value of the
+// tracestate header. This is required in order to use the Propagator interface exported by the
+// OpenTelemetry Go SDK and avoid writing our own W3C Trace Context parser and serializer.
+//
 // If prop is empty or nil, the return value will be an empty map.
 func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (context.Context, map[string]string) {
 	headerMap := make(map[string]string)
@@ -34,6 +38,10 @@ func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (cont
 // UnmarshalW3CTraceContext parses the information provided in the appropriate headers
 // and creates a PropagationContext instance. Headers are passed in via an HTTPSupplier,
 // which is an interface that defines Get and Set methods, http.Header is an implementation.
+//
+// Context is passed into this function and returned so that we can maintain the value of the
+// tracestate header. This is required in order to use the Propagator interface exported by the
+// OpenTelemetry Go SDK and avoid writing our own W3C Trace Context parser and serializer.
 //
 // If the headers are missing or empty strings, the propagation object will have zero values.
 // In the case of Span IDs and Trace IDs, they will be populated with 16 and 32 character strings
