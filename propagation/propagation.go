@@ -56,5 +56,5 @@ func UnmarshalTraceContext(header string) (*PropagationContext, error) {
 //
 // Deprecated: Use UnmarshalHoneycombTraceContext. Do not call this function directly.
 func UnmarshalTraceContextV1(header string) (*PropagationContext, error) {
-	return UnmarshalHoneycombTraceContextV1(header)
+	return unmarshalHoneycombTraceContextV1(header)
 }

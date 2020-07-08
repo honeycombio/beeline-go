@@ -70,16 +70,16 @@ func UnmarshalHoneycombTraceContext(header string) (*PropagationContext, error) 
 	// pull the version out of the header
 	getVer := strings.SplitN(header, ";", 2)
 	if getVer[0] == "1" {
-		return UnmarshalHoneycombTraceContextV1(getVer[1])
+		return unmarshalHoneycombTraceContextV1(getVer[1])
 	}
 	return nil, &PropagationError{fmt.Sprintf("unrecognized version for trace header %s", getVer[0]), nil}
 }
 
-// UnmarshalHoneycombTraceContextV1 takes the trace header, stripped of the
+// unmarshalHoneycombTraceContextV1 takes the trace header, stripped of the
 // version string, and returns the component parts. If the header includes a
 // parent id but not a trace id, or if the header contains an unparseable
 // string in the trace context, an error will be returned.
-func UnmarshalHoneycombTraceContextV1(header string) (*PropagationContext, error) {
+func unmarshalHoneycombTraceContextV1(header string) (*PropagationContext, error) {
 	clauses := strings.Split(header, ",")
 	var prop = &PropagationContext{}
 	var tcB64 string
