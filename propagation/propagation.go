@@ -18,6 +18,22 @@ type PropagationContext struct {
 	TraceFlags   byte
 }
 
+// hasTraceID checks that the trace ID is valid.
+func (prop PropagationContext) hasTraceID() bool {
+	return prop.TraceID != "" && prop.TraceID != "00000000000000000000000000000000"
+}
+
+// hasParentID checks that the parent ID is valid.
+func (prop PropagationContext) hasParentID() bool {
+	return prop.ParentID != "" && prop.ParentID != "0000000000000000"
+}
+
+// IsValid checks if the PropagationContext is valid. A valid PropagationContext has a valid
+// trace ID and parent ID.
+func (prop PropagationContext) IsValid() bool {
+	return prop.hasTraceID() && prop.hasParentID()
+}
+
 // Propagation contains information about a trace.
 //
 // Deprecated: use PropagationContext instead.

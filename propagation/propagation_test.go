@@ -2,10 +2,53 @@ package propagation
 
 import (
 	"context"
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestPropagationContextIsValid(t *testing.T) {
+	// an empty propagation context is obviously invalid
+	prop := &PropagationContext{}
+	assert.False(t, prop.IsValid())
+
+	// a propagation context with only a trace context is still invalid because it lacks a parent id and trace id
+	prop = &PropagationContext{
+		TraceContext: map[string]interface{}{
+			"foo": "bar",
+		},
+	}
+	assert.False(t, prop.IsValid())
+
+	// a propagation context with a trace id but no parent id is invalid
+	prop = &PropagationContext{
+		TraceID: "trace_id",
+	}
+	assert.False(t, prop.IsValid())
+
+	// as is the inverse (parent id but no trace id)
+	prop = &PropagationContext{
+		ParentID: "parent_id",
+	}
+	assert.False(t, prop.IsValid())
+
+	// a propagation context is valid when it has a parent id and a trace id
+	prop = &PropagationContext{
+		ParentID: "parent_id",
+		TraceID: "trace_id",
+	}
+	assert.True(t, prop.IsValid())
+
+	// but not one that is the zero value for a byte array
+	var spanID [8]byte
+	var traceID [16]byte
+	prop = &PropagationContext{
+		ParentID: hex.EncodeToString(spanID[:]),
+		TraceID: hex.EncodeToString(traceID[:]),
+	}
+	assert.Equal(t, false, prop.IsValid())
+}
 
 func TestMarshalTraceContext(t *testing.T) {
 	prop := &PropagationContext{
