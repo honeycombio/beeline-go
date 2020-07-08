@@ -42,6 +42,14 @@ func MarshalAmazonTraceContext(prop *PropagationContext) string {
 // a PropagationContext instance. The provided headers is expected to contain an X-Amzn-Trace-Id
 // key which will contain the value of the Amazon header.
 //
+// According to the documentation for load balancer request tracing:
+// https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html
+// An application can add arbitrary fields for its own purposes. The load balancer preserves these fields
+// but does not use them. In our implementation, we stick these fields in the TraceContext field of the
+// PropagationContext. We only support strings, so if the header contains foo=32,baz=true, both 32 and true
+// will be put into the map as strings. Note that this differs from the Honeycomb header, where trace context
+// fields are stored as a base64 encoded JSON object and unmarshaled into ints, bools, etc.
+//
 // If the information parsed from the header cannot be used to construct a trace,
 // (e.g. a parent id is specified, but not a trace id), an error will be returned.
 // If the header contains no data or is missing, an empty PropagationContext will
