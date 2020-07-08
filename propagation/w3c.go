@@ -27,10 +27,12 @@ func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (cont
 	}
 	ctx = trace.ContextWithSpan(ctx, otelSpan)
 	propagator := trace.DefaultHTTPPropagator()
-	supplier := newSupplier()
-	propagator.Inject(ctx, supplier)
+	supp := supplier{
+		values: make(map[string]string),
+	}
+	propagator.Inject(ctx, supp)
 	for _, key := range propagator.GetAllKeys() {
-		headerMap[key] = supplier.Get(key)
+		headerMap[key] = supp.Get(key)
 	}
 	return ctx, headerMap
 }
@@ -47,12 +49,11 @@ func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (cont
 // In the case of Span IDs and Trace IDs, they will be populated with 16 and 32 character strings
 // containing all zeroes.
 func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (context.Context, *PropagationContext) {
-	supplier := newSupplier()
-	for k, v := range headers {
-		supplier.Set(k, v)
+	supp := supplier{
+		values: headers,
 	}
 	propagator := trace.DefaultHTTPPropagator()
-	ctx = propagator.Extract(ctx, supplier)
+	ctx = propagator.Extract(ctx, supp)
 	spanContext := trace.RemoteSpanContextFromContext(ctx)
 	return ctx, &PropagationContext{
 		TraceID:    spanContext.TraceID.String(),
@@ -158,13 +159,6 @@ func (os otelSpan) SetName(name string) {
 // for the opentelemetry sdk but is not part of the beeline trace API.
 type supplier struct {
 	values map[string]string
-}
-
-// newSupplier creates and returns an empty supplier with an initialized map for values.
-func newSupplier() *supplier {
-	m := &supplier{}
-	m.values = make(map[string]string)
-	return m
 }
 
 // Get returns the value associated with the provided key, if any.
