@@ -95,8 +95,7 @@ func TestMarshalTraceContext(t *testing.T) {
 	assert.Equal(t, "1;trace_id=,parent_id=,dataset=imadataset,context=bnVsbA==", marshaled)
 
 	returned, err = UnmarshalTraceContext(marshaled)
-	assert.Equal(t, prop, returned, "roundtrip object")
-	assert.NoError(t, err, "roundtrip error")
+	assert.Error(t, err, "should not be able to unmarshal header without trace_id or parent_id")
 }
 
 func TestMarshalAmazonTraceContext(t *testing.T) {
@@ -148,23 +147,15 @@ func TestW3CTraceContext(t *testing.T) {
 		"traceparent": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-00",
 		"tracestate":  "foo=bar,bar=baz",
 	}
-	ctx, prop = UnmarshalW3CTraceContext(ctx, headers)
+	ctx, prop, err := UnmarshalW3CTraceContext(ctx, headers)
+	assert.NoError(t, err, "unmarshal w3c headers")
 	ctx, marshaled := MarshalW3CTraceContext(ctx, prop)
 	assert.Equal(t, "foo=bar,bar=baz", marshaled["tracestate"])
 
 	// ensure that empty headers are handled the way we expect (silently)
 	headers = map[string]string{}
-	ctx, prop = UnmarshalW3CTraceContext(context.Background(), headers)
-	assert.Equal(t, "00000000000000000000000000000000", prop.TraceID)
-	assert.Equal(t, "0000000000000000", prop.ParentID)
-	ctx, marshaled = MarshalW3CTraceContext(ctx, prop)
-	assert.Equal(t, "", marshaled["traceparent"])
-	assert.Equal(t, "", marshaled["tracestate"])
-
-	prop = &PropagationContext{}
-	ctx, headers = MarshalW3CTraceContext(context.Background(), prop)
-	assert.Equal(t, "", marshaled["traceparent"])
-	assert.Equal(t, "", marshaled["tracestate"])
+	ctx, prop, err = UnmarshalW3CTraceContext(context.Background(), headers)
+	assert.Error(t, err, "Cannot unmarshal empty header")
 }
 
 func TestUnmarshalTraceContext(t *testing.T) {
@@ -216,12 +207,10 @@ func TestUnmarshalTraceContext(t *testing.T) {
 			true,
 		},
 		{
-			"v1, missing parent_id",
+			"v1, missing parent_id, should return an error",
 			"1;trace_id=12345",
-			&PropagationContext{
-				TraceID: "12345",
-			},
-			false,
+			nil,
+			true,
 		},
 		{
 			"v1, garbled context",
@@ -273,12 +262,10 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 		returnsErr bool
 	}{
 		{
-			"empty header - expect an empty propagationcontext - there is no invalid data, just the absence of data",
+			"empty header - throw an error since it contains neither a trace id nor parent id",
 			"",
-			&PropagationContext{
-				TraceContext: make(map[string]interface{}),
-			},
-			false,
+			nil,
+			true,
 		},
 		{
 			"all fields legit",

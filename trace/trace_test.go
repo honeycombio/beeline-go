@@ -431,6 +431,8 @@ func TestPropagatedFields(t *testing.T) {
 	assert.Equal(t, tr.traceLevelFields, tr2.traceLevelFields, "trace fields should have propagated")
 
 	prop = &propagation.PropagationContext{
+		TraceID: "trace id",
+		ParentID: "parent id",
 		Dataset: "imadataset",
 		TraceContext: map[string]interface{}{
 			"userID": float64(1),
@@ -439,8 +441,8 @@ func TestPropagatedFields(t *testing.T) {
 	serial = propagation.MarshalTraceContext(prop)
 	ctx, tr = NewTrace(context.Background(), serial)
 	assert.NotNil(t, tr.builder, "traces should have a builder")
-	assert.NotEqual(t, "", tr.traceID, "trace id should have propagated")
-	assert.Equal(t, "", tr.parentID, "parent id should have propagated")
+	assert.Equal(t, "trace id", tr.traceID, "trace id should have propagated")
+	assert.Equal(t, "parent id", tr.parentID, "parent id should have propagated")
 	assert.Equal(t, prop.Dataset, tr.builder.Dataset, "dataset should have propagated")
 	assert.Equal(t, prop.TraceContext, tr.traceLevelFields, "trace fields should have propagated")
 

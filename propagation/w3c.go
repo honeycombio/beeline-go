@@ -2,6 +2,7 @@ package propagation
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.opentelemetry.io/otel/api/kv"
@@ -45,21 +46,26 @@ func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (cont
 // tracestate header. This is required in order to use the Propagator interface exported by the
 // OpenTelemetry Go SDK and avoid writing our own W3C Trace Context parser and serializer.
 //
-// If the headers are missing or empty strings, the propagation object will have zero values.
-// In the case of Span IDs and Trace IDs, they will be populated with 16 and 32 character strings
-// containing all zeroes.
-func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (context.Context, *PropagationContext) {
+// If the headers contain neither a trace id or parent id, an error will be returned.
+func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (context.Context, *PropagationContext, error) {
 	supp := supplier{
 		values: headers,
 	}
 	propagator := trace.DefaultHTTPPropagator()
 	ctx = propagator.Extract(ctx, supp)
 	spanContext := trace.RemoteSpanContextFromContext(ctx)
-	return ctx, &PropagationContext{
+	prop := &PropagationContext{
 		TraceID:    spanContext.TraceID.String(),
 		ParentID:   spanContext.SpanID.String(),
 		TraceFlags: spanContext.TraceFlags,
 	}
+	if !prop.IsValid() {
+		return ctx, nil, &PropagationError{
+			fmt.Sprintf("Could not parse headers into propagation context: %+v", headers),
+			nil,
+		}
+	}
+	return ctx, prop, nil
 }
 
 // createOpenTelemetrySpan creates a shell trace.Span with information from the provided

@@ -50,10 +50,7 @@ func MarshalAmazonTraceContext(prop *PropagationContext) string {
 // will be put into the map as strings. Note that this differs from the Honeycomb header, where trace context
 // fields are stored as a base64 encoded JSON object and unmarshaled into ints, bools, etc.
 //
-// If the information parsed from the header cannot be used to construct a trace,
-// (e.g. a parent id is specified, but not a trace id), an error will be returned.
-// If the header contains no data or is missing, an empty PropagationContext will
-// be returned.
+// If the header cannot be used to construct a valid PropagationContext, an error will be returned.
 func UnmarshalAmazonTraceContext(header string) (*PropagationContext, error) {
 	segments := strings.Split(header, ";")
 	// From https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html
@@ -65,8 +62,7 @@ func UnmarshalAmazonTraceContext(header string) (*PropagationContext, error) {
 	// value of the self field.
 	//
 	// Using the documentation above (that applies to amazon load balancers) we look for self as the parent id
-	// and root as the trace id. In the event that this context comes from a non-load balancer resource (e.g. a
-	// service instrumented with an X-Ray SDK) the parent segment ID will be included.
+	// and root as the trace id.
 	prop := &PropagationContext{}
 	prop.TraceContext = make(map[string]interface{})
 	for _, segment := range segments {
@@ -91,8 +87,8 @@ func UnmarshalAmazonTraceContext(header string) (*PropagationContext, error) {
 		prop.ParentID = prop.TraceID
 	}
 
-	if prop.TraceID == "" && prop.ParentID != "" {
-		return nil, &PropagationError{"parent_id without trace_id", nil}
+	if !prop.IsValid() {
+		return nil, &PropagationError{fmt.Sprintf("unable to parse header into propagationcontext: %s", header), nil}
 	}
 
 	return prop, nil
