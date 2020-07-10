@@ -17,8 +17,10 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/labstack/echo/v4 v4.1.15
 	github.com/rogpeppe/go-internal v1.5.2 // indirect
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
+	go.opentelemetry.io/otel v0.6.0
 	goji.io/v3 v3.0.0
 	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073 // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
+	google.golang.org/grpc v1.30.0
 )

@@ -30,8 +30,10 @@ const (
 )
 
 // MarshalHoneycombTraceContext uses the information in prop to create a trace context header
-// in the Honeycomb trace header format. It returns the serialized form of the trace context, 
+// in the Honeycomb trace header format. It returns the serialized form of the trace context,
 // ready to be inserted into the headers of an outbound HTTP request.
+//
+// If prop is nil, the returned value will be an empty string.
 func MarshalHoneycombTraceContext(prop *PropagationContext) string {
 	if prop == nil {
 		return ""
@@ -61,19 +63,23 @@ func MarshalHoneycombTraceContext(prop *PropagationContext) string {
 
 // UnmarshalHoneycombTraceContext parses the information provided in header and creates a
 // PropagationContext instance.
+//
+// If the header cannot be used to construct a PropagationContext with a trace id and parent id,
+// an error will be returned.
 func UnmarshalHoneycombTraceContext(header string) (*PropagationContext, error) {
 	// pull the version out of the header
 	getVer := strings.SplitN(header, ";", 2)
 	if getVer[0] == "1" {
-		return UnmarshalHoneycombTraceContextV1(getVer[1])
+		return unmarshalHoneycombTraceContextV1(getVer[1])
 	}
 	return nil, &PropagationError{fmt.Sprintf("unrecognized version for trace header %s", getVer[0]), nil}
 }
 
-// UnmarshalHoneycombTraceContextV1 takes the trace header, stripped of the
-// version string, and returns the component parts. Trace ID and Parent ID
-// are both required. If either is absent a nil trace header will be returned.
-func UnmarshalHoneycombTraceContextV1(header string) (*PropagationContext, error) {
+// unmarshalHoneycombTraceContextV1 takes the trace header, stripped of the
+// version string, and returns the component parts. If the header includes a
+// parent id but not a trace id, or if the header contains an unparseable
+// string in the trace context, an error will be returned.
+func unmarshalHoneycombTraceContextV1(header string) (*PropagationContext, error) {
 	clauses := strings.Split(header, ",")
 	var prop = &PropagationContext{}
 	var tcB64 string
@@ -90,8 +96,8 @@ func UnmarshalHoneycombTraceContextV1(header string) (*PropagationContext, error
 			tcB64 = keyval[1]
 		}
 	}
-	if prop.TraceID == "" && prop.ParentID != "" {
-		return nil, &PropagationError{"parent_id without trace_id", nil}
+	if !prop.IsValid() {
+		return nil, &PropagationError{fmt.Sprintf("Could not create propagation context from header: %s", header), nil}
 	}
 	if tcB64 != "" {
 		data, err := base64.StdEncoding.DecodeString(tcB64)

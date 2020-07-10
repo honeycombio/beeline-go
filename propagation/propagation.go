@@ -1,3 +1,7 @@
+// Package propagation includes types and functions for marshalling and unmarshalling trace
+// context headers between various supported formats and an internal representation. It
+// provides support for traces that cross process boundaries with support for interoperability
+// between various kinds of trace context header formats.
 package propagation
 
 import (
@@ -12,6 +16,22 @@ type PropagationContext struct {
 	Dataset      string
 	TraceContext map[string]interface{}
 	TraceFlags   byte
+}
+
+// hasTraceID checks that the trace ID is valid.
+func (prop PropagationContext) hasTraceID() bool {
+	return prop.TraceID != "" && prop.TraceID != "00000000000000000000000000000000"
+}
+
+// hasParentID checks that the parent ID is valid.
+func (prop PropagationContext) hasParentID() bool {
+	return prop.ParentID != "" && prop.ParentID != "0000000000000000"
+}
+
+// IsValid checks if the PropagationContext is valid. A valid PropagationContext has a valid
+// trace ID and parent ID.
+func (prop PropagationContext) IsValid() bool {
+	return prop.hasTraceID() && prop.hasParentID()
 }
 
 // Propagation contains information about a trace.
@@ -52,5 +72,5 @@ func UnmarshalTraceContext(header string) (*PropagationContext, error) {
 //
 // Deprecated: Use UnmarshalHoneycombTraceContext. Do not call this function directly.
 func UnmarshalTraceContextV1(header string) (*PropagationContext, error) {
-	return UnmarshalHoneycombTraceContextV1(header)
+	return unmarshalHoneycombTraceContextV1(header)
 }
