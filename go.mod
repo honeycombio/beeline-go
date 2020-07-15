@@ -10,7 +10,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gobuffalo/envy v1.9.0 // indirect
 	github.com/gobuffalo/packd v1.0.0 // indirect
-	github.com/gobuffalo/pop/v5 v5.0.9
+	github.com/gobuffalo/pop/v5 v5.2.3
 	github.com/gobuffalo/tags v2.1.7+incompatible // indirect
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/google/uuid v1.1.1
@@ -22,11 +22,9 @@ require (
 	github.com/labstack/echo/v4 v4.1.15
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
-	github.com/rogpeppe/go-internal v1.5.2 // indirect
 	github.com/stretchr/testify v1.6.1
 	go.opentelemetry.io/otel v0.6.0
 	goji.io/v3 v3.0.0
-	golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073 // indirect
 	golang.org/x/sys v0.0.0-20200622214017-ed371f2e16b4 // indirect
 	google.golang.org/grpc v1.30.0
 	google.golang.org/protobuf v1.25.0 // indirect
