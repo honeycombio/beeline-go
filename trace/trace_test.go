@@ -431,9 +431,9 @@ func TestPropagatedFields(t *testing.T) {
 	assert.Equal(t, tr.traceLevelFields, tr2.traceLevelFields, "trace fields should have propagated")
 
 	prop = &propagation.PropagationContext{
-		TraceID: "trace id",
+		TraceID:  "trace id",
 		ParentID: "parent id",
-		Dataset: "imadataset",
+		Dataset:  "imadataset",
 		TraceContext: map[string]interface{}{
 			"userID": float64(1),
 		},

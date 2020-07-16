@@ -36,7 +36,7 @@ func TestPropagationContextIsValid(t *testing.T) {
 	// a propagation context is valid when it has a parent id and a trace id
 	prop = &PropagationContext{
 		ParentID: "parent_id",
-		TraceID: "trace_id",
+		TraceID:  "trace_id",
 	}
 	assert.True(t, prop.IsValid())
 
@@ -45,7 +45,7 @@ func TestPropagationContextIsValid(t *testing.T) {
 	var traceID [16]byte
 	prop = &PropagationContext{
 		ParentID: hex.EncodeToString(spanID[:]),
-		TraceID: hex.EncodeToString(traceID[:]),
+		TraceID:  hex.EncodeToString(traceID[:]),
 	}
 	assert.Equal(t, false, prop.IsValid())
 }
@@ -295,8 +295,8 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 			"self, parent and root fields. parent should end up in trace context",
 			"Root=foo;Parent=bar;Self=baz",
 			&PropagationContext{
-				TraceID:      "foo",
-				ParentID:     "baz",
+				TraceID:  "foo",
+				ParentID: "baz",
 				TraceContext: map[string]interface{}{
 					"Parent": "bar",
 				},
@@ -307,8 +307,8 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 			"self, parent and root fields. parent should end up in trace context",
 			"Root=foo;Self=baz;Parent=bar",
 			&PropagationContext{
-				TraceID:      "foo",
-				ParentID:     "baz",
+				TraceID:  "foo",
+				ParentID: "baz",
 				TraceContext: map[string]interface{}{
 					"Parent": "bar",
 				},

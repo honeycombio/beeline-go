@@ -509,9 +509,9 @@ func (s *Span) createChildSpan(ctx context.Context, async bool) (context.Context
 // information in the current span.
 func (s *Span) PropagationContext() *propagation.PropagationContext {
 	return &propagation.PropagationContext{
-		TraceID:	  s.trace.traceID,
-		ParentID:	  s.spanID,
-		Dataset:	  s.trace.builder.Dataset,
+		TraceID:      s.trace.traceID,
+		ParentID:     s.spanID,
+		Dataset:      s.trace.builder.Dataset,
 		TraceContext: s.trace.traceLevelFields,
 	}
 }

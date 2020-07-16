@@ -84,7 +84,6 @@ func WrapHandler(handler http.Handler) http.Handler {
 	return WrapHandlerWithTraceParserHook(handler, nil)
 }
 
-
 // WrapHandlerFunc will create a Honeycomb event per invocation of this handler
 // function with all the standard HTTP fields attached.
 func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -122,7 +121,7 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 
 type hnyTripper struct {
 	// wrt is the wrapped round tripper
-	wrt http.RoundTripper
+	wrt             http.RoundTripper
 	propagationHook common.TracePropagationHook
 }
 
@@ -220,7 +219,7 @@ func WrapRoundTripper(r http.RoundTripper) http.RoundTripper {
 // headers of the outgoing request.
 func WrapRoundTripperWithTracePropagationHook(r http.RoundTripper, propagationHook common.TracePropagationHook) http.RoundTripper {
 	return &hnyTripper{
-		wrt: r,
+		wrt:             r,
 		propagationHook: propagationHook,
 	}
 }
