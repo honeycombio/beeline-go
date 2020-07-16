@@ -3,6 +3,7 @@ package hnynethttp
 import (
 	"context"
 	"net/http"
+	"net/http/httptrace"
 	"reflect"
 	"runtime"
 
@@ -148,7 +149,8 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 	// making a span around this HTTP call
 	ctx, span = span.CreateChild(ctx)
 	defer span.Send()
-
+	trace := NewHttpClientTrace(ctx)
+	ctx = httptrace.WithClientTrace(ctx, trace)
 	r = r.WithContext(ctx)
 	// add in common request headers.
 	for k, v := range common.GetRequestProps(r) {
