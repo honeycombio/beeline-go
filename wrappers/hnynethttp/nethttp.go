@@ -13,16 +13,24 @@ import (
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
-// WrapHandler will create a Honeycomb event per invocation of this handler with
-// all the standard HTTP fields attached. If passed a ServeMux instead, pull
-// what you can from there
-func WrapHandler(handler http.Handler) http.Handler {
+// WrapHandlerWithTraceParserHook will create a Honeycomb event per invocation
+// of this handler with all the standard HTTP fields attached. If passed a
+// ServeMux instead, pull what you can from there. The provided TraceParserHook
+// will be invoked when creating a new span or trace for each incoming HTTP
+// request.
+func WrapHandlerWithTraceParserHook(handler http.Handler, traceParserHook common.TraceParserHook) http.Handler {
 	// if we can cache handlerName here, let's do so for efficiency's sake
 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 
 	wrappedHandler := func(w http.ResponseWriter, r *http.Request) {
 		// get a new context with our trace from the request, and add common fields
-		ctx, span := common.StartSpanOrTraceFromHTTP(r)
+		var ctx context.Context
+		var span *trace.Span
+		if traceParserHook == nil {
+			ctx, span = common.StartSpanOrTraceFromHTTP(r)
+		} else {
+			ctx, span = common.StartSpanOrTraceFromHTTPWithTraceParserHook(r, traceParserHook)
+		}
 		defer span.Send()
 		// push the context with our trace and span on to the request
 		r = r.WithContext(ctx)
@@ -69,6 +77,14 @@ func WrapHandler(handler http.Handler) http.Handler {
 	return http.HandlerFunc(wrappedHandler)
 }
 
+// WrapHandler will create a Honeycomb event per invocation of this handler with
+// all the standard HTTP fields attached. If passed a ServeMux instead, pull
+// what you can from there
+func WrapHandler(handler http.Handler) http.Handler {
+	return WrapHandlerWithTraceParserHook(handler, nil)
+}
+
+
 // WrapHandlerFunc will create a Honeycomb event per invocation of this handler
 // function with all the standard HTTP fields attached.
 func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -107,6 +123,7 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 type hnyTripper struct {
 	// wrt is the wrapped round tripper
 	wrt http.RoundTripper
+	propagationHook common.TracePropagationHook
 }
 
 func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -156,7 +173,16 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 	}
 	span.AddField("meta.type", "http_client")
 	span.AddField("name", "http_client")
-	r.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
+	if ht.propagationHook == nil {
+		r.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
+	} else {
+		// if a propagationHook exists, call it to get a map of headers to
+		// inject in the outgoing request.
+		headers := ht.propagationHook(r, span.PropagationContext())
+		for header, value := range headers {
+			r.Header.Add(header, value)
+		}
+	}
 
 	resp, err := ht.wrt.RoundTrip(r)
 
@@ -185,5 +211,16 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 func WrapRoundTripper(r http.RoundTripper) http.RoundTripper {
 	return &hnyTripper{
 		wrt: r,
+	}
+}
+
+// WrapRoundTripperWithTracePropagationHook is a version of WrapRoundTripper that
+// accepts a TracePropagationHook that will be invoked on each outgoing HTTP call.
+// The return value, a map of header names to header strings, will be added to the
+// headers of the outgoing request.
+func WrapRoundTripperWithTracePropagationHook(r http.RoundTripper, propagationHook common.TracePropagationHook) http.RoundTripper {
+	return &hnyTripper{
+		wrt: r,
+		propagationHook: propagationHook,
 	}
 }
