@@ -44,7 +44,7 @@
 // Examples
 //
 // There are runnable examples at
-// https://github.com/honeycombio/beeline-go/tree/master/examples and examples
+// https://github.com/honeycombio/beeline-go/tree/main/examples and examples
 // of each wrapper in the godoc.
 //
 // The most complete example is in `nethttp`; it covers

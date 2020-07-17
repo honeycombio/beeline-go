@@ -9,6 +9,6 @@
 // be added for that request route.
 //
 // For a complete example showing this wrapper in use, please see the examples in
-// https://github.com/honeycombio/beeline-go/tree/master/examples
+// https://github.com/honeycombio/beeline-go/tree/main/examples
 //
 package hnyecho
