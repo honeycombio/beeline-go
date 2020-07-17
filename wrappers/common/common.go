@@ -11,29 +11,9 @@ import (
 	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/timer"
 	"github.com/honeycombio/beeline-go/trace"
+	"github.com/honeycombio/beeline-go/wrappers/config"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
-
-// TraceParserHook is a function that will be invoked on all incoming HTTP requests
-// when it is passed as a parameter to an http.Handler wrapper function such as the
-// one provided in the hnynethttp package. It can be used to create a PropagationContext
-// object using trace context propagation headers in the provided http.Request. It is
-// expected that this hook will use one of the unmarshal functions exported in the
-// propagation package for a number of supported formats (e.g. Honeycomb, AWS,
-// W3C Trace Context, etc).
-type TraceParserHook func(*http.Request) *propagation.PropagationContext
-
-// TracePropagationHook is a function that will be invoked on all outgoing HTTP requests
-// when it is passed as a parameter to a RoundTripper wrapper function such as the one
-// provided in the hnynethttp package. It can be used to create a map of header names
-// to header values that will be injected in the outgoing request. The information in
-// the provided http.Request can be used to make decisions about what headers to include
-// in the outgoing request, for example based on the hostname of the target of the request.
-// The information in the provided PropagationContext should be used to create the serialized
-// header values. It is expected that this hook will use one of the marshal functions exported
-// in the propagation package for a number of supported formats (e.g. Honeycomb, AWS,
-// W3C Trace Context, etc).
-type TracePropagationHook func(*http.Request, *propagation.PropagationContext) map[string]string
 
 type ResponseWriter struct {
 	// Wrapped is not embedded to prevent ResponseWriter from directly
@@ -74,7 +54,7 @@ func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
 // StartSpanOrTraceFromHTTPWithTraceParserHook is a version of StartSpanOrTraceFromHTTP that
 // accepts a TraceParserHook which will be invoked when creating a new trace for the incoming
 // HTTP request.
-func StartSpanOrTraceFromHTTPWithTraceParserHook(r *http.Request, parserHook TraceParserHook) (context.Context, *trace.Span) {
+func StartSpanOrTraceFromHTTPWithTraceParserHook(r *http.Request, parserHook config.HTTPTraceParserHook) (context.Context, *trace.Span) {
 	ctx := r.Context()
 	span := trace.GetSpanFromContext(ctx)
 	if span == nil {
