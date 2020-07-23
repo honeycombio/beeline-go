@@ -19,7 +19,7 @@ import (
 // ServeMux instead, pull what you can from there. The provided config has a
 // HTTPTraceParserHook, it will be invoked when creating a new span or trace for
 // each incoming HTTP request.
-func WrapHandlerWithConfig(handler http.Handler, cfg config.WrapperConfig) http.Handler {
+func WrapHandlerWithConfig(handler http.Handler, cfg config.HTTPIncomingConfig) http.Handler {
 	// if we can cache handlerName here, let's do so for efficiency's sake
 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 
@@ -82,7 +82,7 @@ func WrapHandlerWithConfig(handler http.Handler, cfg config.WrapperConfig) http.
 // all the standard HTTP fields attached. If passed a ServeMux instead, pull
 // what you can from there
 func WrapHandler(handler http.Handler) http.Handler {
-	return WrapHandlerWithConfig(handler, config.WrapperConfig{})
+	return WrapHandlerWithConfig(handler, config.HTTPIncomingConfig{})
 }
 
 // WrapHandlerFunc will create a Honeycomb event per invocation of this handler
@@ -218,7 +218,7 @@ func WrapRoundTripper(r http.RoundTripper) http.RoundTripper {
 // If the config contains a HTTPTracePropagationHook, it will be invoked on each outgoing
 // HTTP call. The return value, a map of header names to header strings, will be added
 // to the headers of the outgoing request.
-func WrapRoundTripperWithConfig(r http.RoundTripper, cfg config.WrapperConfig) http.RoundTripper {
+func WrapRoundTripperWithConfig(r http.RoundTripper, cfg config.HTTPOutgoingConfig) http.RoundTripper {
 	tripper := &hnyTripper{wrt: r}
 	if cfg.HTTPPropagationHook != nil {
 		tripper.propagationHook = cfg.HTTPPropagationHook

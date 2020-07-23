@@ -1,8 +1,8 @@
 package config
 
 import (
-	"net/http"
 	"github.com/honeycombio/beeline-go/propagation"
+	"net/http"
 )
 
 // HTTPTraceParserHook is a function that will be invoked on all incoming HTTP requests
@@ -26,8 +26,14 @@ type HTTPTraceParserHook func(*http.Request) *propagation.PropagationContext
 // W3C Trace Context, etc).
 type HTTPTracePropagationHook func(*http.Request, *propagation.PropagationContext) map[string]string
 
-// WraperConfig stores configuration options used by various wrappers.
-type WrapperConfig struct {
-	HTTPParserHook      HTTPTraceParserHook
+// HTTPIncomingConfig stores configuration options relevant to HTTP requests that are handled by
+// a wrapper.
+type HTTPIncomingConfig struct {
+	HTTPParserHook HTTPTraceParserHook
+}
+
+// HTTPOutgoingConfig stores configuration options relevant to HTTP requests being sent by an
+// instrumented application.
+type HTTPOutgoingConfig struct {
 	HTTPPropagationHook HTTPTracePropagationHook
 }
