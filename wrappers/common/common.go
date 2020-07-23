@@ -11,6 +11,7 @@ import (
 	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/timer"
 	"github.com/honeycombio/beeline-go/trace"
+	"github.com/honeycombio/beeline-go/wrappers/config"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
@@ -42,14 +43,33 @@ func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
 	return &rw
 }
 
+// StartSpanOrTraceFromHTTP creates and returns a span for the provided http.Request. If
+// there is an existing span in the Context, this function will create the new span as a
+// child span and return it. If not, it will create a new trace object and return the root
+// span.
 func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
+	return StartSpanOrTraceFromHTTPWithTraceParserHook(r, nil)
+}
+
+// StartSpanOrTraceFromHTTPWithTraceParserHook is a version of StartSpanOrTraceFromHTTP that
+// accepts a TraceParserHook which will be invoked when creating a new trace for the incoming
+// HTTP request.
+func StartSpanOrTraceFromHTTPWithTraceParserHook(r *http.Request, parserHook config.HTTPTraceParserHook) (context.Context, *trace.Span) {
 	ctx := r.Context()
 	span := trace.GetSpanFromContext(ctx)
 	if span == nil {
 		// there is no trace yet. We should make one! and use the root span.
-		beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
 		var tr *trace.Trace
-		ctx, tr = trace.NewTrace(ctx, beelineHeader)
+		if parserHook == nil {
+			beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
+			ctx, tr = trace.NewTrace(ctx, beelineHeader)
+		} else {
+			// Call the provided TraceParserHook to get the propagation context
+			// from the incoming request. This information will then be used when
+			// create the new trace.
+			prop := parserHook(r)
+			ctx, tr = trace.NewTraceFromPropagationContext(ctx, prop)
+		}
 		span = tr.GetRootSpan()
 	} else {
 		// we had a parent! let's make a new child for this handler
