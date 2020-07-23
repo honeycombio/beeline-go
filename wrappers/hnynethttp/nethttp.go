@@ -173,6 +173,7 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 	}
 	span.AddField("meta.type", "http_client")
 	span.AddField("name", "http_client")
+	// If no propagation hook is defined, default to using the Honeycomb header format.
 	if ht.propagationHook == nil {
 		r.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
 	} else {
