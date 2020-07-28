@@ -22,7 +22,7 @@ func MarshalAmazonTraceContext(prop *PropagationContext) string {
 	// From https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html:
 	// "If the X-Amzn-Trace-Id header is present and has a Self field, the load balancer updates
 	// the value of the Self field."
-	h := fmt.Sprintf("Root=%s;Self=%s", prop.TraceID, prop.ParentID)
+	h := fmt.Sprintf("Root=%s;Parent=%s", prop.TraceID, prop.ParentID)
 
 	if len(prop.TraceContext) != 0 {
 		elems := make([]string, len(prop.TraceContext))
