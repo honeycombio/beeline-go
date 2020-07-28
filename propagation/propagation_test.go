@@ -118,7 +118,7 @@ func TestMarshalAmazonTraceContext(t *testing.T) {
 	header := MarshalAmazonTraceContext(prop)
 	// Note: we don't test trace context because we can't gaurantee the order.
 	// It's covered by the roundtrip test below.
-	assert.Equal(t, "Root=abcdef123456;Self=0102030405", header[0:33])
+	assert.Equal(t, "Root=abcdef123456;Parent=0102030405", header[0:35])
 
 	returned, err := UnmarshalAmazonTraceContext(header)
 	if assert.NoError(t, err) {
@@ -292,26 +292,12 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 			false,
 		},
 		{
-			"self, parent and root fields. parent should end up in trace context",
-			"Root=foo;Parent=bar;Self=baz",
-			&PropagationContext{
-				TraceID:  "foo",
-				ParentID: "baz",
-				TraceContext: map[string]interface{}{
-					"Parent": "bar",
-				},
-			},
-			false,
-		},
-		{
-			"self, parent and root fields. parent should end up in trace context",
+			"self, parent and root fields. parent should end up dropped",
 			"Root=foo;Self=baz;Parent=bar",
 			&PropagationContext{
 				TraceID:  "foo",
 				ParentID: "baz",
-				TraceContext: map[string]interface{}{
-					"Parent": "bar",
-				},
+				TraceContext: map[string]interface{}{},
 			},
 			false,
 		},
