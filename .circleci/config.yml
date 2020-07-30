@@ -30,12 +30,25 @@ jobs:
           name: go-test
           command: go test -race -v ./...
 
+versions: &versions
+  jobs:
+    - test_beeline:
+        goversion: "12"
+    - test_beeline:
+        goversion: "13"
+    - test_beeline:
+        goversion: "14"
+
 workflows:
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - main
+    <<: *versions
+
   build:
-    jobs:
-      - test_beeline:
-          goversion: "12"
-      - test_beeline:
-          goversion: "13"
-      - test_beeline:
-          goversion: "14"
+    <<: *versions
