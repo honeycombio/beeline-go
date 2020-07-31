@@ -1,3 +1,12 @@
+# Release v0.6.0 (2020-07-31)
+
+### Additions
+
+- Generated Span and Trace IDs have changed from UUID4 strings to 16 and 32 character hex encoded strings. These are compatible with the W3C Trace Context specification.
+- Auto-instrumentation support for Gingonic applications (thank you @Nalum!)
+- Marshal / unmarshal functions for Amazon load balancer trace headers and W3C Trace Context headers (used by OpenTelemetry).
+- The hnynethttp package now supports configurable hooks for parsing trace context headers from incoming HTTP requests and injecting trace context headers in outgoing HTTP requests
+
 # Release v0.4.10 (2020-02-19)
 
 ### Additions
