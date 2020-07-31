@@ -22,7 +22,7 @@ func MarshalAmazonTraceContext(prop *PropagationContext) string {
 	// From https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-request-tracing.html:
 	// "If the X-Amzn-Trace-Id header is present and has a Self field, the load balancer updates
 	// the value of the Self field."
-	h := fmt.Sprintf("Root=%s;Self=%s", prop.TraceID, prop.ParentID)
+	h := fmt.Sprintf("Root=%s;Parent=%s", prop.TraceID, prop.ParentID)
 
 	if len(prop.TraceContext) != 0 {
 		elems := make([]string, len(prop.TraceContext))
@@ -65,6 +65,7 @@ func UnmarshalAmazonTraceContext(header string) (*PropagationContext, error) {
 	// and root as the trace id.
 	prop := &PropagationContext{}
 	prop.TraceContext = make(map[string]interface{})
+	var parent string
 	for _, segment := range segments {
 		keyval := strings.SplitN(segment, "=", 2)
 		if len(keyval) < 2 {
@@ -75,9 +76,17 @@ func UnmarshalAmazonTraceContext(header string) (*PropagationContext, error) {
 			prop.ParentID = keyval[1]
 		case "root":
 			prop.TraceID = keyval[1]
+		case "parent":
+			parent = keyval[1]
 		default:
 			prop.TraceContext[keyval[0]] = keyval[1]
 		}
+	}
+
+	// Our primary use case is to support load balancers, so favor self over parent.
+	// If, however, a parent is present and self is not, use it.
+	if prop.ParentID == "" && parent != "" {
+		prop.ParentID = parent
 	}
 
 	// If no header is provided to an ALB or ELB, it will generate a header
