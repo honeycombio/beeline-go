@@ -93,9 +93,6 @@ func TestMarshalTraceContext(t *testing.T) {
 	marshaled = MarshalTraceContext(prop)
 	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
 	assert.Equal(t, "1;trace_id=,parent_id=,dataset=imadataset,context=bnVsbA==", marshaled)
-
-	returned, err = UnmarshalTraceContext(marshaled)
-	assert.Error(t, err, "should not be able to unmarshal header without trace_id or parent_id")
 }
 
 func TestMarshalAmazonTraceContext(t *testing.T) {
@@ -203,12 +200,6 @@ func TestUnmarshalTraceContext(t *testing.T) {
 		{
 			"v1, parent_id without trace_id",
 			"1;parent_id=12345",
-			nil,
-			true,
-		},
-		{
-			"v1, missing parent_id, should return an error",
-			"1;trace_id=12345",
 			nil,
 			true,
 		},
