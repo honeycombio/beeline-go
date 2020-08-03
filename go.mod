@@ -25,7 +25,7 @@ require (
 	go.opentelemetry.io/otel v0.8.0
 	goji.io/v3 v3.0.0
 	golang.org/x/sys v0.0.0-20200622214017-ed371f2e16b4 // indirect
-	google.golang.org/grpc v1.30.0
+	google.golang.org/grpc v1.31.0
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
