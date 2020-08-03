@@ -1,3 +1,9 @@
+# Release v0.6.1 (2020-07-31)
+
+### Bugfixes
+
+- Calling IsValid() on Honeycomb header unmarshal was preventing manual creation of trace from PropagationContext. Only verify that trace_id is provided whenever parent_id is.
+
 # Release v0.6.0 (2020-07-31)
 
 ### Additions
