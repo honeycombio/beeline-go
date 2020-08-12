@@ -455,6 +455,57 @@ func TestPropagatedFields(t *testing.T) {
 
 }
 
+func TestSerializePropagation(t *testing.T) {
+	_, tr := NewTrace(context.Background(), "")
+	sp := tr.GetRootSpan()
+	serialized := sp.SerializeHeaders()
+	assert.NotEmpty(t, serialized, "serialized headers on a span should not be empty")
+
+	prop := sp.PropagationContext()
+	assert.NotZero(t, prop, "span propagation context should not be empty")
+}
+
+func TestSerializePropagationDoesNotRaceWithTraceFields(t *testing.T) {
+	_, tr := NewTrace(context.Background(), "")
+	sp := tr.GetRootSpan()
+
+	// simultaneously serialize headers and modify the trace leve fields map
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		for i := 0; i < 100; i++ {
+			sp.SerializeHeaders()
+		}
+		wg.Done()
+	}()
+	wg.Add(1)
+	go func() {
+		for i := 0; i < 100; i++ {
+			sp.AddTraceField("field", i)
+		}
+		wg.Done()
+	}()
+	wg.Wait()
+
+	// simultaneously get a propagation then serialize it and modify the trace leve fields map
+	wg.Add(1)
+	go func() {
+		for i := 0; i < 100; i++ {
+			prop := sp.PropagationContext()
+			propagation.MarshalHoneycombTraceContext(prop)
+		}
+		wg.Done()
+	}()
+	wg.Add(1)
+	go func() {
+		for i := 0; i < 100; i++ {
+			sp.AddTraceField("field", i)
+		}
+		wg.Done()
+	}()
+	wg.Wait()
+}
+
 // TestGetNewID ensures that ID is always a lowercase hex string of the requested length
 func TestGetNewID(t *testing.T) {
 	id := getNewID(8)
