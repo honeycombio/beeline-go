@@ -140,7 +140,7 @@ func (t *Trace) serializeHeaders(spanID string) string {
 // propagationContext returns a partially populated propagation context. It only
 // has the fields that come from the trace level - after getting the returned
 // object the caller must still fill in the span ID in order to fully populate
-// the PopulationContext struct for use creating serialized headers.
+// the PropagationContext struct for use creating serialized headers.
 func (t *Trace) propagationContext() *propagation.PropagationContext {
 	// make a copy of the trace level fields map since we can't lock our
 	// returned value to protect it
