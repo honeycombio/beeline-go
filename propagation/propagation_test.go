@@ -50,7 +50,119 @@ func TestPropagationContextIsValid(t *testing.T) {
 	assert.Equal(t, false, prop.IsValid())
 }
 
-func TestMarshalTraceContext(t *testing.T) {
+func TestMarshalHoneycombTraceContext(t *testing.T) {
+	testCases := []struct {
+		name          string
+		prop          *PropagationContext
+		marshaledProp string
+	}{
+		{
+			"nil propagation - we expect an error because marshaling needs a valid pointer to a propagation context object",
+			nil,
+			"",
+		},
+		{
+			"broken propagation context: it's empty",
+			&PropagationContext{},
+			"1;trace_id=,parent_id=,context=bnVsbA==",
+		},
+		{
+			"minimal propagation context, only trace and parent IDs",
+			&PropagationContext{
+				TraceID:      "abc123",
+				ParentID:     "def456",
+				TraceContext: nil,
+			},
+			"1;trace_id=abc123,parent_id=def456,context=bnVsbA==",
+		},
+		{
+			"minimal propagation context: trace and parent IDs and empty map for context",
+			&PropagationContext{
+				TraceID:      "abc123",
+				ParentID:     "def456",
+				TraceContext: map[string]interface{}{},
+			},
+			"1;trace_id=abc123,parent_id=def456,context=e30=",
+		},
+		{
+			"broken propagation context: missing parent ID",
+			&PropagationContext{
+				TraceID:      "abc123",
+				TraceContext: map[string]interface{}{},
+			},
+			"1;trace_id=abc123,parent_id=,context=e30=",
+		},
+		{
+			"broken propagation context: missing trace ID",
+			&PropagationContext{
+				ParentID:     "def456",
+				TraceContext: map[string]interface{}{},
+			},
+			"1;trace_id=,parent_id=def456,context=e30=",
+		},
+		{
+			"broken propagation context: missing both trace ID and parent ID",
+			&PropagationContext{
+				TraceContext: map[string]interface{}{},
+			},
+			"1;trace_id=,parent_id=,context=e30=",
+		},
+		{
+			"broken propagation context: only dataset",
+			&PropagationContext{
+				Dataset:      "donquin",
+				TraceContext: map[string]interface{}{},
+			},
+			"1;trace_id=,parent_id=,dataset=donquin,context=e30=",
+		},
+		{
+			"propagation context: include dataset",
+			&PropagationContext{
+				TraceID:  "abc123",
+				ParentID: "def456",
+				Dataset:  "donquin",
+			},
+			"1;trace_id=abc123,parent_id=def456,dataset=donquin,context=bnVsbA==",
+		},
+		{
+			"propagation context: include extra context",
+			&PropagationContext{
+				TraceID:  "abc123",
+				ParentID: "def456",
+				TraceContext: map[string]interface{}{
+					"userID":   float64(1),
+					"errorMsg": "failed to sign on",
+					"toRetry":  true,
+				},
+			},
+			"1;trace_id=abc123,parent_id=def456,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==",
+		},
+		{
+			"propagation context: include dataset and extra context",
+			&PropagationContext{
+				TraceID:  "abc123",
+				ParentID: "def456",
+				Dataset:  "donquin",
+				TraceContext: map[string]interface{}{
+					"userID":   float64(1),
+					"errorMsg": "failed to sign on",
+					"toRetry":  true,
+				},
+			},
+			"1;trace_id=abc123,parent_id=def456,dataset=donquin,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==",
+		},
+	}
+
+	for _, tt := range testCases {
+		marshaled := MarshalTraceContext(tt.prop)
+		assert.Equal(t, tt.marshaledProp, marshaled, tt.name)
+	}
+
+}
+
+// TestRoundTripHoneycombTraceContext ensures that marshaling a struct then
+// unmarshaling it gets you back the original contents
+func TestRoundTripHoneycombTraceContext(t *testing.T) {
 	prop := &PropagationContext{
 		TraceID:  "abcdef123456",
 		ParentID: "0102030405",
@@ -286,8 +398,8 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 			"self, parent and root fields. parent should end up dropped",
 			"Root=foo;Self=baz;Parent=bar",
 			&PropagationContext{
-				TraceID:  "foo",
-				ParentID: "baz",
+				TraceID:      "foo",
+				ParentID:     "baz",
 				TraceContext: map[string]interface{}{},
 			},
 			false,
