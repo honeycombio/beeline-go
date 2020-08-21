@@ -132,15 +132,29 @@ func (t *Trace) AddField(key string, val interface{}) {
 // The serialized form may be passed to NewTrace() in order to create a new
 // trace that will be connected to this trace.
 func (t *Trace) serializeHeaders(spanID string) string {
-	var prop = &propagation.PropagationContext{
-		TraceID:      t.traceID,
-		ParentID:     spanID,
-		Dataset:      t.builder.Dataset,
-		TraceContext: t.traceLevelFields,
-	}
-	t.tlfLock.RLock()
-	defer t.tlfLock.RUnlock()
+	prop := t.propagationContext()
+	prop.ParentID = spanID
 	return propagation.MarshalTraceContext(prop)
+}
+
+// propagationContext returns a partially populated propagation context. It only
+// has the fields that come from the trace level - after getting the returned
+// object the caller must still fill in the span ID in order to fully populate
+// the PropagationContext struct for use creating serialized headers.
+func (t *Trace) propagationContext() *propagation.PropagationContext {
+	// make a copy of the trace level fields map since we can't lock our
+	// returned value to protect it
+	t.tlfLock.Lock()
+	defer t.tlfLock.Unlock()
+	localTLF := map[string]interface{}{}
+	for k, v := range t.traceLevelFields {
+		localTLF[k] = v
+	}
+	return &propagation.PropagationContext{
+		TraceID:      t.traceID,
+		Dataset:      t.builder.Dataset,
+		TraceContext: localTLF,
+	}
 }
 
 // addRollupField is here to let a span contribute a field to the trace while
@@ -508,10 +522,7 @@ func (s *Span) createChildSpan(ctx context.Context, async bool) (context.Context
 // PropagationContext creates and returns a new propagation.PropagationContext using the
 // information in the current span.
 func (s *Span) PropagationContext() *propagation.PropagationContext {
-	return &propagation.PropagationContext{
-		TraceID:      s.trace.traceID,
-		ParentID:     s.spanID,
-		Dataset:      s.trace.builder.Dataset,
-		TraceContext: s.trace.traceLevelFields,
-	}
+	prop := s.trace.propagationContext()
+	prop.ParentID = s.spanID
+	return prop
 }
