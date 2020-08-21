@@ -1,3 +1,9 @@
+# Release v0.6.2 (2020-08-21)
+
+- Upgrade dependencies
+- Fixing some flaky tests
+- Protection from potential data race condition in propagation context generating code.
+
 # Release v0.6.1 (2020-07-31)
 
 ### Bugfixes
