@@ -278,6 +278,8 @@ func readResponses(responses chan transmission.Response) {
 				message += fmt.Sprintf(": %s", metadata)
 			}
 			fmt.Printf("%s\n", message)
+		} else if r.StatusCode == 401 {
+			fmt.Printf("Error sending event to honeycomb! The APIKey was rejected, please verify your APIKey. %s", metadata)
 		} else {
 			fmt.Printf("Error sending event to Honeycomb! %s had code %d, err %v and response body %s \n",
 				metadata, r.StatusCode, r.Err, r.Body)
