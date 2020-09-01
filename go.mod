@@ -11,7 +11,6 @@ require (
 	github.com/gobuffalo/envy v1.9.0 // indirect
 	github.com/gobuffalo/packd v1.0.0 // indirect
 	github.com/gobuffalo/pop/v5 v5.2.3
-	github.com/gobuffalo/tags v2.1.7+incompatible // indirect
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/honeycombio/libhoney-go v1.12.4
@@ -22,10 +21,9 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/stretchr/testify v1.6.1
-	go.opentelemetry.io/otel v0.10.0
+	go.opentelemetry.io/otel v0.11.0
 	goji.io/v3 v3.0.0
 	golang.org/x/sys v0.0.0-20200622214017-ed371f2e16b4 // indirect
-	google.golang.org/grpc v1.31.0
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
