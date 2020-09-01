@@ -13,7 +13,7 @@ require (
 	github.com/gobuffalo/pop/v5 v5.2.3
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
-	github.com/honeycombio/libhoney-go v1.12.4
+	github.com/honeycombio/libhoney-go v1.13.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/julienschmidt/httprouter v1.3.0
