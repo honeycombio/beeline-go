@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"go.opentelemetry.io/otel/api/kv"
 	"go.opentelemetry.io/otel/api/trace"
-	"google.golang.org/grpc/codes"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/label"
 )
 
 // MarshalHoneycombTraceContext uses the information in prop to create trace context headers
@@ -126,7 +126,7 @@ func (os otelSpan) SetAttribute(k string, v interface{}) {
 }
 
 // SetAttributes does nothing. It exists to satisfy the trace.Span interface.
-func (os otelSpan) SetAttributes(attributes ...kv.KeyValue) {
+func (os otelSpan) SetAttributes(attributes ...label.KeyValue) {
 	return
 }
 
@@ -146,12 +146,12 @@ func (os otelSpan) Tracer() trace.Tracer {
 }
 
 // AddEvent does nothing. It exists to satisfy the trace.Span interface.
-func (os otelSpan) AddEvent(ctx context.Context, name string, attrs ...kv.KeyValue) {
+func (os otelSpan) AddEvent(ctx context.Context, name string, attrs ...label.KeyValue) {
 	return
 }
 
 // AddEventWithTimestamp does nothing. It exists to satisfy the trace.Span interface.
-func (os otelSpan) AddEventWithTimestamp(ctx context.Context, timestamp time.Time, name string, attrs ...kv.KeyValue) {
+func (os otelSpan) AddEventWithTimestamp(ctx context.Context, timestamp time.Time, name string, attrs ...label.KeyValue) {
 	return
 }
 
