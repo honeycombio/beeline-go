@@ -18,6 +18,7 @@ const (
 	defaultWriteKey   = "apikey-placeholder"
 	defaultDataset    = "beeline-go"
 	defaultSampleRate = 1
+	warningColor      = "\033[1;33m%s\033[0m"
 )
 
 // Config is the place where you configure your Honeycomb write key and dataset
@@ -119,6 +120,9 @@ func Init(config Config) {
 	if config.Client == nil {
 		var tx transmission.Sender
 		if config.STDOUT == true {
+			fmt.Println(
+				warningColor,
+				`WARNING: Writing to STDOUT in a production environment is dangerous and can cause issues.`)
 			tx = &transmission.WriterSender{}
 		}
 		if config.Mute == true {
