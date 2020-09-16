@@ -1,3 +1,9 @@
+# Release v0.7.0 (2020-09-16)
+
+- Update dependencies
+- Add extra warnings when enabling STDOUT (#134)
+- Add log when event is rejected with invalid api key (#135)
+
 # Release v0.6.2 (2020-08-21)
 
 - Upgrade dependencies
