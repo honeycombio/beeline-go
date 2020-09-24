@@ -1,3 +1,7 @@
+# Release v0.7.1 (2020-09-24)
+
+- Add .editorconfig to help provide consistent IDE styling (#143)
+
 # Release v0.7.0 (2020-09-16)
 
 - Update dependencies
