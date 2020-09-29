@@ -8,7 +8,7 @@ import (
 	"go.opentelemetry.io/otel/api/trace"
 )
 
-// MarshalHoneycombTraceContext uses the information in prop to create trace context headers
+// MarshalB3TraceContext uses the information in prop to create trace context headers
 // that conform to the B3 Trace Context specification. The header values are set in headers,
 // which is an HTTPSupplier, an interface to which http.Header is an implementation. The headers
 // are also returned as a map[string]string.
