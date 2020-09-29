@@ -8,6 +8,7 @@ import (
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/propagators"
 )
 
 // MarshalHoneycombTraceContext uses the information in prop to create trace context headers
@@ -27,7 +28,7 @@ func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (cont
 		return ctx, headerMap
 	}
 	ctx = trace.ContextWithSpan(ctx, otelSpan)
-	propagator := trace.DefaultHTTPPropagator()
+	propagator := propagators.DefaultHTTPPropagator()
 	supp := supplier{
 		values: make(map[string]string),
 	}
@@ -51,7 +52,7 @@ func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (c
 	supp := supplier{
 		values: headers,
 	}
-	propagator := trace.DefaultHTTPPropagator()
+	propagator := propagators.DefaultHTTPPropagator()
 	ctx = propagator.Extract(ctx, supp)
 	spanContext := trace.RemoteSpanContextFromContext(ctx)
 	prop := &PropagationContext{
@@ -131,7 +132,7 @@ func (os otelSpan) SetAttributes(attributes ...label.KeyValue) {
 }
 
 // End does nothing. It exists to satisfy the trace.Span interface.
-func (os otelSpan) End(options ...trace.EndOption) {
+func (os otelSpan) End(options ...trace.SpanOption) {
 	return
 }
 

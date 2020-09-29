@@ -267,6 +267,51 @@ func TestW3CTraceContext(t *testing.T) {
 	assert.Error(t, err, "Cannot unmarshal empty header")
 }
 
+func TestB3TraceContext(t *testing.T) {
+	prop := &PropagationContext{
+		TraceID:  "0af7651916cd43dd8448eb211c80319c",
+		ParentID: "b7ad6b7169203331",
+	}
+	ctx, headers := MarshalB3TraceContext(context.Background(), prop)
+	assert.Equal(t, 4, len(headers), "B3 Trace Context should have three headers")
+	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", headers["x-b3-traceid"])
+	assert.Equal(t, "b7ad6b7169203331", headers["x-b3-spanid"])
+	// should result in empty headers
+	prop = &PropagationContext{
+		TraceID:  "invalid-trace-id",
+		ParentID: "invalid-parent-id",
+	}
+	ctx, headers = MarshalB3TraceContext(ctx, prop)
+	assert.Equal(t, 0, len(headers))
+
+	// ensure that roundtrip keeps tracestate intact
+	headers = map[string]string{
+		"x-b3-traceid": "0af7651916cd43dd8448eb211c80319c",
+		"x-b3-spanid": "b7ad6b7169203331",
+		"x-b3-sampled":  "1",
+	}
+	ctx, prop, err := UnmarshalB3TraceContext(ctx, headers)
+	assert.NoError(t, err, "unmarshal B3 headers")
+	ctx, marshaled := MarshalB3TraceContext(ctx, prop)
+	assert.Equal(t, "1", marshaled["x-b3-sampled"])
+
+	// ensure that single header mode is accepted
+	headers = map[string]string{
+		"b3": "0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-1",
+	}
+	ctx, prop, err = UnmarshalB3TraceContext(ctx, headers)
+	assert.NoError(t, err, "unmarshal B3 headers")
+	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", prop.TraceID)
+	assert.Equal(t, "b7ad6b7169203331", prop.ParentID)
+	ctx, marshaled = MarshalB3TraceContext(ctx, prop)
+	assert.Equal(t, "1", marshaled["x-b3-sampled"])
+
+	// ensure that empty headers are handled the way we expect (silently)
+	headers = map[string]string{}
+	ctx, prop, err = UnmarshalB3TraceContext(context.Background(), headers)
+	assert.Error(t, err, "Cannot unmarshal empty header")
+}
+
 func TestUnmarshalTraceContext(t *testing.T) {
 	testCases := []struct {
 		name       string
