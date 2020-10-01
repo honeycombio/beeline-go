@@ -11,7 +11,7 @@ require (
 	github.com/gobuffalo/envy v1.9.0 // indirect
 	github.com/gobuffalo/packd v1.0.0 // indirect
 	github.com/gobuffalo/pop/v5 v5.2.3
-	github.com/google/uuid v1.1.1
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.7.4
 	github.com/honeycombio/libhoney-go v1.14.0
 	github.com/jmoiron/sqlx v1.2.0
