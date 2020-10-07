@@ -149,6 +149,8 @@ github.com/gorilla/mux v1.8.0/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB7
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
 github.com/honeycombio/libhoney-go v1.14.0 h1:e764aeqc8d1jCcqvhAFCuuZ7S8nqJsg1DMazT/yRlGM=
 github.com/honeycombio/libhoney-go v1.14.0/go.mod h1:SPNdLieCW/Ryt6cAIeELQENobj8H9bYXezWkA5ZI+u4=
+github.com/honeycombio/libhoney-go v1.14.1 h1:TyFJrPua66YodzBf/eyi0nWEOL/YMhtegkAHVBocUa8=
+github.com/honeycombio/libhoney-go v1.14.1/go.mod h1:SPNdLieCW/Ryt6cAIeELQENobj8H9bYXezWkA5ZI+u4=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/jackc/chunkreader v1.0.0 h1:4s39bBR8ByfqH+DKm8rQA3E1LHZWB9XWcrz8fqaZbe0=
 github.com/jackc/chunkreader v1.0.0/go.mod h1:RT6O25fNZIuasFJRyZ4R/Y2BbhasbmZXF9QQ7T3kePo=
