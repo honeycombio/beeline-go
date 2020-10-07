@@ -1,3 +1,7 @@
+# Release v0.8.0 (2020-10-07)
+
+- Implemented B3 Propagator (#146) Thanks @Wilhansen!
+
 # Release v0.7.1 (2020-09-24)
 
 - Add .editorconfig to help provide consistent IDE styling (#143)
