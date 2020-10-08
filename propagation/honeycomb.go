@@ -22,7 +22,7 @@ import (
 //  dataset=${datasetId}   - datasetId is the slug for the honeycomb dataset to which downstream spans should be sent; shall not include ','
 //  context=${contextBlob} - contextBlob is a base64 encoded json object.
 //
-// ex: X-Honeycomb-Trace: 1;trace_id=weofijwoeifj,parent_id=owefjoweifj,context=SGVsbG8gV29ybGQ=
+// ex: X-Honeycomb-Trace: 1;trace_id=weofijwoeifj,parent_id=owefjoweifj,context=eyJoZWxsbyI6IndvcmxkIn0=
 
 const (
 	TracePropagationHTTPHeader = "X-Honeycomb-Trace"
