@@ -60,6 +60,66 @@ func Example() {
 	}
 }
 
+func TestDBBindNamed(t *testing.T) {
+	// Initialize beeline. The only required field is WriteKey.
+	beeline.Init(beeline.Config{
+		WriteKey: "abcabc123123",
+		Dataset:  "sqlx",
+		// for demonstration, send the event to STDOUT intead of Honeycomb.
+		// Remove the STDOUT setting when filling in a real write key.
+		// NOTE: This should *only* be set to true in development environments.
+		// Setting to true is Production environments can cause problems.
+		STDOUT: true,
+	})
+	// and make sure we close to force flushing all pending events before shutdown
+	defer beeline.Close()
+
+	// open a regular sqlx connection
+	odb, err := sqlx.Open("mysql", "root:@tcp(127.0.0.1)/donut")
+	if err != nil {
+		fmt.Println("connection err")
+	}
+
+	// replace it with a wrapped hnysqlx.DB
+	db := hnysqlx.WrapDB(odb)
+	// and start up a trace for these statements to join
+	_, span := beeline.StartSpan(context.Background(), "start")
+	defer span.Send()
+
+	originalQ := `select :named`
+	originalArgs := struct {
+		Named string `db:"named"`
+	}{"namedValue"}
+
+	q, args, err := db.BindNamed(originalQ, originalArgs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	expectedQ, expectedArgs, err := db.GetWrappedDB().BindNamed(originalQ, originalArgs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if q != expectedQ {
+		t.Errorf("expected query: %s, got: %s", expectedQ, q)
+	}
+
+	var argsOK bool
+	if len(expectedArgs) == len(args) {
+		argsOK = true
+		for i, arg := range args {
+			if arg != expectedArgs[i] {
+				argsOK = false
+				break
+			}
+		}
+	}
+	if !argsOK {
+		t.Errorf("expected args: %v, got: %v", expectedArgs, args)
+	}
+}
+
 func TestSQLXMiddleware(t *testing.T) {
 	beeline.Init(beeline.Config{
 		WriteKey: "abcabc123123",

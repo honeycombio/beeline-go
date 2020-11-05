@@ -46,6 +46,22 @@ func (db *DB) GetWrappedDB() *sqlx.DB {
 	return db.wdb
 }
 
+func (db *DB) BindNamed(query string, arg interface{}) (string, []interface{}, error) {
+	var err error
+	_, sender := common.BuildDBEvent(db.Builder, db.Stats(), query, arg)
+	defer func() {
+		sender(err)
+	}()
+
+	// ensure any changes to the Mapper get passed along
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
+
+	str, i, err := db.wdb.BindNamed(query, arg)
+	return str, i, err
+}
+
 func (db *DB) Beginx() (*Tx, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, db.Stats(), "")
