@@ -1,3 +1,7 @@
+# Release v0.9.0 (2020-11-06)
+
+- Add DB.BindNamed to hnysql wrapper (#157) | @matiasanaya
+
 # Release v0.8.0 (2020-10-07)
 
 - Implemented B3 Propagator (#146) Thanks @Wilhansen!
