@@ -30,7 +30,7 @@ func MarshalB3TraceContext(ctx context.Context, prop *PropagationContext) (conte
 		values: make(map[string]string),
 	}
 	propagator.Inject(ctx, supp)
-	for _, key := range propagator.GetAllKeys() {
+	for _, key := range propagator.Fields() {
 		headerMap[key] = supp.Get(key)
 	}
 	return ctx, headerMap
