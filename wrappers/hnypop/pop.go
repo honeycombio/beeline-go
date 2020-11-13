@@ -71,3 +71,7 @@ func (m *DB) PrepareNamedContext(ctx context.Context, query string) (*sqlx.Named
 func (m *DB) TransactionContext(ctx context.Context) (*pop.Tx, error) {
 	return m.tx.TransactionContext(ctx)
 }
+
+func (m *DB) TransactionContextOptions(ctx context.Context, options *sql.TxOptions) (*pop.Tx, error) {
+	return m.tx.TransactionContextOptions(ctx, options)
+}
