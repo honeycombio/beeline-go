@@ -28,12 +28,12 @@ func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (cont
 		return ctx, headerMap
 	}
 	ctx = trace.ContextWithSpan(ctx, otelSpan)
-	propagator := propagators.DefaultHTTPPropagator()
+	propagator := propagators.TraceContext{}
 	supp := supplier{
 		values: make(map[string]string),
 	}
 	propagator.Inject(ctx, supp)
-	for _, key := range propagator.GetAllKeys() {
+	for _, key := range propagator.Fields() {
 		headerMap[key] = supp.Get(key)
 	}
 	return ctx, headerMap
@@ -52,7 +52,7 @@ func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (c
 	supp := supplier{
 		values: headers,
 	}
-	propagator := propagators.DefaultHTTPPropagator()
+	propagator := propagators.TraceContext{}
 	ctx = propagator.Extract(ctx, supp)
 	spanContext := trace.RemoteSpanContextFromContext(ctx)
 	prop := &PropagationContext{
