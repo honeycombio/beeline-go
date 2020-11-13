@@ -54,6 +54,7 @@ workflows:
               tags:
                 only: /.*/
       - publish_github:
+          context: Honeycomb Secrets
           filters:
               tags:
                 only: /^v.*/
