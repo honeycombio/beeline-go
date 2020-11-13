@@ -4,7 +4,7 @@ orbs:
   go: circleci/go@1.5.0
 
 jobs:
-  build:
+  test:
     parameters:
       go-version:
         type: string
