@@ -20,6 +20,14 @@ jobs:
       - go/test:
           race: true
           verbose: true
+  publish_github:
+    docker:
+       - image: cibuilds/github:0.13.0
+     steps:
+       - run:
+           name: "GHR Draft"
+           command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG}
+
 workflows:
   nightly:
     triggers:
@@ -39,4 +47,16 @@ workflows:
                 - "1.14"
   build:
     jobs:
-      - test: *test
+      - test:
+          <<: *test
+          filters:
+              tags:
+                only: /.*/
+      - publish_github:
+          filters:
+              tags:
+                only: /^v.*/
+              branches:
+                ignore: /.*/
+          requires:
+            - test
