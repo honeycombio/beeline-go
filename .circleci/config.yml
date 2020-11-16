@@ -1,43 +1,33 @@
 version: 2.1
 
-executors:
-  go:
-    parameters:
-      goversion:
-        type: string
-        default: "11"
-    working_directory: /home/circleci/go/src/github.com/honeycombio/beeline-go
-    docker:
-      - image: cimg/go:1.<< parameters.goversion >>
-        environment:
-          GO111MODULE: "on"
+orbs:
+  go: circleci/go@1.5.0
 
 jobs:
-  test_beeline:
+  test:
     parameters:
-      goversion:
+      go-version:
         type: string
-        default: "12"
+        default: "1.12"
     executor:
-      name: go
-      goversion: "<< parameters.goversion >>"
+      name: go/default
+      tag: << parameters.go-version >>
     steps:
       - checkout
+      - go/load-cache
+      - go/mod-download
+      - go/save-cache
+      - go/test:
+          race: true
+          verbose: true
+          covermode: atomic
+  publish_github:
+    docker:
+      - image: cibuilds/github:0.13.0
+    steps:
       - run:
-          name: go-get
-          command: go get -v -t -d ./...
-      - run:
-          name: go-test
-          command: go test -race -v ./...
-
-versions: &versions
-  jobs:
-    - test_beeline:
-        goversion: "12"
-    - test_beeline:
-        goversion: "13"
-    - test_beeline:
-        goversion: "14"
+          name: "GHR Draft"
+          command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG}
 
 workflows:
   nightly:
@@ -48,7 +38,27 @@ workflows:
             branches:
               only:
                 - main
-    <<: *versions
-
+    jobs:
+      - test: &test
+          matrix:
+            parameters:
+              go-version:
+                - "1.12"
+                - "1.13"
+                - "1.14"
   build:
-    <<: *versions
+    jobs:
+      - test:
+          <<: *test
+          filters:
+              tags:
+                only: /.*/
+      - publish_github:
+          context: Honeycomb Secrets
+          filters:
+              tags:
+                only: /^v.*/
+              branches:
+                ignore: /.*/
+          requires:
+            - test
