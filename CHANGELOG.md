@@ -1,3 +1,9 @@
+# Release v0.10.0 (2020-11-20)
+
+- Add GitHub release publish step (#159)
+- Bump go.opentelemetry.io/contrib/propagators from 0.12.0 to 0.13.0 (#156)
+- Bump github.com/gobuffalo/pop/v5 from 5.2.4 to 5.3.1 (#155)
+
 # Release v0.9.0 (2020-11-06)
 
 - Add DB.BindNamed to hnysql wrapper (#157) | @matiasanaya
