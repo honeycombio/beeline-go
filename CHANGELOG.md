@@ -1,3 +1,8 @@
+# Release v0.10.1 (2020-12-15)
+
+- Bump github.com/honeycombio/libhoney-go from 0.14.1 to 0.15.0
+- Write keys / API keys will now be masked in debug / console logs.
+
 # Release v0.10.0 (2020-11-20)
 
 - Add GitHub release publish step (#159)
