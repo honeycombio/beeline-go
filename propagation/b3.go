@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"go.opentelemetry.io/contrib/propagators/b3"
-	"go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // MarshalB3TraceContext uses the information in prop to create trace context headers

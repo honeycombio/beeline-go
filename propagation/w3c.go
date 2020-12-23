@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/label"
-	"go.opentelemetry.io/otel/propagators"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 // MarshalHoneycombTraceContext uses the information in prop to create trace context headers
@@ -28,7 +28,7 @@ func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (cont
 		return ctx, headerMap
 	}
 	ctx = trace.ContextWithSpan(ctx, otelSpan)
-	propagator := propagators.TraceContext{}
+	propagator := propagation.TraceContext{}
 	supp := supplier{
 		values: make(map[string]string),
 	}
@@ -52,7 +52,7 @@ func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (c
 	supp := supplier{
 		values: headers,
 	}
-	propagator := propagators.TraceContext{}
+	propagator := propagation.TraceContext{}
 	ctx = propagator.Extract(ctx, supp)
 	spanContext := trace.RemoteSpanContextFromContext(ctx)
 	prop := &PropagationContext{
@@ -76,7 +76,7 @@ func createOpenTelemetrySpan(prop *PropagationContext) (trace.Span, error) {
 		return otelSpan{}, nil
 	}
 
-	traceID, err := trace.IDFromHex(prop.TraceID)
+	traceID, err := trace.TraceIDFromHex(prop.TraceID)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func (os otelSpan) End(options ...trace.SpanOption) {
 }
 
 // RecordError does nothing. It exists to satisfy the trace.Span interface.
-func (os otelSpan) RecordError(ctx context.Context, err error, opts ...trace.ErrorOption) {
+func (os otelSpan) RecordError(err error, opts ...trace.EventOption) {
 	return
 }
 
@@ -147,7 +147,7 @@ func (os otelSpan) Tracer() trace.Tracer {
 }
 
 // AddEvent does nothing. It exists to satisfy the trace.Span interface.
-func (os otelSpan) AddEvent(ctx context.Context, name string, attrs ...label.KeyValue) {
+func (os otelSpan) AddEvent(name string, options ...trace.EventOption) {
 	return
 }
 
