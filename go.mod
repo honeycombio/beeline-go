@@ -10,6 +10,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gobuffalo/envy v1.9.0 // indirect
 	github.com/gobuffalo/pop/v5 v5.3.1
+	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
 	github.com/honeycombio/libhoney-go v1.15.0
@@ -23,7 +24,6 @@ require (
 	go.opentelemetry.io/contrib/propagators v0.15.0
 	go.opentelemetry.io/otel v0.15.0
 	goji.io/v3 v3.0.0
-	google.golang.org/grpc v1.27.0
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
