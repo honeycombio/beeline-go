@@ -1,3 +1,7 @@
+# Release v0.10.2 (2020-12-23)
+
+- Bump otel dependencies from 0.13.0 to 0.15.1
+
 # Release v0.10.1 (2020-12-15)
 
 - Bump github.com/honeycombio/libhoney-go from 0.14.1 to 0.15.0
