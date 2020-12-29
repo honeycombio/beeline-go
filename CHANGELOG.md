@@ -1,3 +1,7 @@
+# Release v0.11.0 (2020-12-29)
+
+- Add hnygrpc package including support for gRPC interceptor wrapping. (#169)
+
 # Release v0.10.2 (2020-12-23)
 
 - Bump otel dependencies from 0.13.0 to 0.15.1
