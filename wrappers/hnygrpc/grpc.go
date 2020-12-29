@@ -43,7 +43,7 @@ func startSpanOrTraceFromUnaryGRPC(
 		md, ok := metadata.FromIncomingContext(ctx)
 		if ok {
 			if parserHook == nil {
-				beelineHeader := getMetadataStringValue(md, propagation.TracePropagationHTTPHeader)
+				beelineHeader := getMetadataStringValue(md, propagation.TracePropagationGRPCHeader)
 				ctx, tr = trace.NewTrace(ctx, beelineHeader)
 			} else {
 				prop := parserHook(ctx)
