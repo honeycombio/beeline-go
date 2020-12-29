@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	beeline "github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/propagation"
+	"github.com/honeycombio/beeline-go/trace"
 	"github.com/honeycombio/beeline-go/wrappers/config"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
@@ -14,6 +16,56 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 )
+
+func TestStartSpanOrTrace(t *testing.T) {
+	info := &grpc.UnaryServerInfo{
+		FullMethod: "test.method",
+	}
+	// no current span, no parser hook, expect a new trace
+	ctx := context.Background()
+	ctx, span := startSpanOrTraceFromUnaryGRPC(ctx, info, nil)
+	assert.Equal(t, 0, len(span.GetChildren()), "Span should not have children")
+	assert.Equal(t, "", span.GetParentID(), "Span should not have parent")
+
+	// now let's create a child span
+	ctx = trace.PutSpanInContext(ctx, span)
+	ctx, spanTwo := startSpanOrTraceFromUnaryGRPC(ctx, info, nil)
+	assert.Equal(t, 1, len(span.GetChildren()), "Should have one child span")
+	assert.Equal(t, span, spanTwo.GetParent(), "Span should have been created as child")
+
+	// metadata, no parser hook
+	ctx = context.Background()
+	ctx = metadata.NewIncomingContext(ctx, metadata.New(map[string]string{
+		"content-type": "application/grpc",
+	}))
+	ctx, spanThree := startSpanOrTraceFromUnaryGRPC(ctx, info, nil)
+	assert.Equal(t, 0, len(spanThree.GetChildren()), "span should not have children")
+	assert.Equal(t, "", span.GetParentID(), "Span should not have parent")
+
+	// metadata, no parser hook, x-honeycomb-trace header
+	ctx = metadata.NewIncomingContext(context.Background(), metadata.New(map[string]string{
+		"x-honeycomb-trace": "1;trace_id=4bf92f3577b34da6a3ce929d0e0e473,parent_id=00f067aa0ba902b7,context=",
+	}))
+	ctx, spanFour := startSpanOrTraceFromUnaryGRPC(ctx, info, nil)
+	assert.Equal(t, 0, len(spanFour.GetChildren()), "span should not have children")
+	assert.Equal(t, "00f067aa0ba902b7", spanFour.GetParentID(), "Expected parent_id from header")
+	assert.Equal(t, "4bf92f3577b34da6a3ce929d0e0e473", spanFour.GetTrace().GetTraceID(), "Expected trace id from header")
+
+	// metadata, parserhook
+	ctx = metadata.NewIncomingContext(context.Background(), metadata.New(map[string]string{
+		"content-type": "application/grpc",
+	}))
+	parserHook := func(ctx context.Context) *propagation.PropagationContext {
+		return &propagation.PropagationContext{
+			TraceID:  "fffffffffffffffffffffffffffffff",
+			ParentID: "aaaaaaaaaaaaaaaa",
+		}
+	}
+	ctx, spanFive := startSpanOrTraceFromUnaryGRPC(ctx, info, parserHook)
+	assert.Equal(t, 0, len(spanFive.GetChildren()), "span should not have children")
+	assert.Equal(t, "aaaaaaaaaaaaaaaa", spanFive.GetParentID(), "Expected parent id from propagation context")
+	assert.Equal(t, "fffffffffffffffffffffffffffffff", spanFive.GetTrace().GetTraceID(), "Expected trace id from propagation context")
+}
 
 func TestUnaryInterceptor(t *testing.T) {
 	mo := &transmission.MockSender{}
