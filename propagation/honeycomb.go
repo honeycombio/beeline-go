@@ -25,6 +25,7 @@ import (
 // ex: X-Honeycomb-Trace: 1;trace_id=weofijwoeifj,parent_id=owefjoweifj,context=eyJoZWxsbyI6IndvcmxkIn0=
 
 const (
+	TracePropagationGRPCHeader = "x-honeycomb-trace" // difference in case matters here
 	TracePropagationHTTPHeader = "X-Honeycomb-Trace"
 	TracePropagationVersion    = 1
 )
