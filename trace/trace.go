@@ -470,7 +470,7 @@ func (s *Span) send() {
 	s.childrenLock.Unlock()
 	s.AddField("meta.span_type", spanType)
 
-	if spanType == "root" {
+	if s.isRoot {
 		// add the trace's rollup fields to the root span
 		for k, v := range s.trace.getRollupFields() {
 			s.AddField("rollup."+k, v)
