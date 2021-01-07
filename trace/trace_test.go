@@ -115,6 +115,34 @@ func TestRollupField(t *testing.T) {
 	assert.Equal(t, 0.1, tr.rollupFields["smallnum"], "addRollupField on a trace should sum the fields added")
 }
 
+func TestRollupFieldsPropagateToRoot(t *testing.T) {
+	t.Run("check rolling up to the root of a trace that was created in this process", func(t *testing.T) {
+		mo := setupLibhoney()
+
+		_, tr := NewTrace(context.Background(), "")
+		tr.addRollupField("bignum", 5)
+		tr.Send()
+
+		events := mo.Events()
+
+		assert.Equal(t, 1, len(events), "should have sent 1 event for the root span")
+		assert.Equal(t, 5.0, events[0].Data["rollup.bignum"], "bignum should have been rolled up to the root span")
+	})
+	t.Run("check rolling up to the root span of a trace that was propagated from a different system", func(t *testing.T) {
+		mo := setupLibhoney()
+		_, parentTr := NewTrace(context.Background(), "")
+
+		_, tr := NewTrace(context.Background(), propagation.MarshalTraceContext(parentTr.GetRootSpan().PropagationContext()))
+		tr.addRollupField("bignum", 5)
+		tr.Send()
+
+		events := mo.Events()
+
+		assert.Equal(t, 1, len(events), "should have sent 1 event for the root span")
+		assert.Equal(t, 5.0, events[0].Data["rollup.bignum"], "bignum should have been rolled up to the root span")
+	})
+}
+
 // TestGetRootSpan verifies the real root span is returned
 func TestGetRootSpan(t *testing.T) {
 	_, tr := NewTrace(context.Background(), "")
