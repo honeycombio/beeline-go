@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"go.opentelemetry.io/otel/trace"
 	"sync"
 	"time"
 
@@ -154,6 +155,7 @@ func (t *Trace) propagationContext() *propagation.PropagationContext {
 		TraceID:      t.traceID,
 		Dataset:      t.builder.Dataset,
 		TraceContext: localTLF,
+		TraceFlags:   trace.FlagsSampled, // TODO: set the sampled flag based on sampler decision
 	}
 }
 
