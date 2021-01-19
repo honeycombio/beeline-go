@@ -3,6 +3,7 @@ package propagation
 import (
 	"context"
 	"encoding/hex"
+	"go.opentelemetry.io/otel/trace"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -243,6 +244,16 @@ func TestW3CTraceContext(t *testing.T) {
 	ctx, headers := MarshalW3CTraceContext(context.Background(), prop)
 	assert.Equal(t, 2, len(headers), "W3C Trace Context should have two headers")
 	assert.Equal(t, "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-00", headers["traceparent"])
+
+	// traceFlags sampled
+	prop = &PropagationContext{
+		TraceID:    "0af7651916cd43dd8448eb211c80319c",
+		ParentID:   "b7ad6b7169203331",
+		TraceFlags: trace.FlagsSampled,
+	}
+	ctx, headers = MarshalW3CTraceContext(context.Background(), prop)
+	assert.Equal(t, "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", headers["traceparent"])
+
 	// should result in empty headers
 	prop = &PropagationContext{
 		TraceID:  "invalid-trace-id",
@@ -287,8 +298,8 @@ func TestB3TraceContext(t *testing.T) {
 	// ensure that roundtrip keeps tracestate intact
 	headers = map[string]string{
 		"x-b3-traceid": "0af7651916cd43dd8448eb211c80319c",
-		"x-b3-spanid": "b7ad6b7169203331",
-		"x-b3-sampled":  "1",
+		"x-b3-spanid":  "b7ad6b7169203331",
+		"x-b3-sampled": "1",
 	}
 	ctx, prop, err := UnmarshalB3TraceContext(ctx, headers)
 	assert.NoError(t, err, "unmarshal B3 headers")
