@@ -1,3 +1,12 @@
+# Release v0.11.1 (2021-01-22)
+
+- Bump github.com/google/uuid from 1.1.2 to 1.1.4 (#171, #174)
+
+### Fixed
+
+- Ensure rollup fields are included on subroot spans (#173) | [@BRMatt](https://github.com/BRMatt)
+- Default the w3c propagation header sampled flag to `01` (#176)
+
 # Release v0.11.0 (2020-12-29)
 
 - Add hnygrpc package including support for gRPC interceptor wrapping. (#169)
