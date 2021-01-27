@@ -6,6 +6,8 @@ package propagation
 
 import (
 	"fmt"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 // PropagationContext contains information about a trace that can cross process boundaries.
@@ -16,6 +18,7 @@ type PropagationContext struct {
 	Dataset      string
 	TraceContext map[string]interface{}
 	TraceFlags   byte
+	TraceState   trace.TraceState
 }
 
 // hasTraceID checks that the trace ID is valid.
