@@ -3,8 +3,9 @@ package propagation
 import (
 	"context"
 	"encoding/hex"
-	"go.opentelemetry.io/otel/trace"
 	"testing"
+
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/stretchr/testify/assert"
 )

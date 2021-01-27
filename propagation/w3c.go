@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // MarshalHoneycombTraceContext uses the information in prop to create trace context headers
@@ -59,6 +59,7 @@ func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (c
 		TraceID:    spanContext.TraceID.String(),
 		ParentID:   spanContext.SpanID.String(),
 		TraceFlags: spanContext.TraceFlags,
+		TraceState: spanContext.TraceState,
 	}
 	if !prop.IsValid() {
 		return ctx, nil, &PropagationError{
@@ -89,6 +90,7 @@ func createOpenTelemetrySpan(prop *PropagationContext) (trace.Span, error) {
 		TraceID:    traceID,
 		SpanID:     spanID,
 		TraceFlags: prop.TraceFlags,
+		TraceState: prop.TraceState,
 	}
 
 	return otelSpan{
