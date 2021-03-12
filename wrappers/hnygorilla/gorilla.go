@@ -58,6 +58,15 @@ func Middleware(handler http.Handler) http.Handler {
 		if wrappedWriter.Status == 0 {
 			wrappedWriter.Status = 200
 		}
+		if cl := wrappedWriter.Wrapped.Header().Get("Content-Length"); cl != "" {
+			span.AddField("response.content_length", cl)
+		}
+		if ct := wrappedWriter.Wrapped.Header().Get("Content-Type"); ct != "" {
+			span.AddField("response.content_type", ct)
+		}
+		if ce := wrappedWriter.Wrapped.Header().Get("Content-Encoding"); ce != "" {
+			span.AddField("response.content_encoding", ce)
+		}
 		span.AddField("response.status_code", wrappedWriter.Status)
 	}
 	return http.HandlerFunc(wrappedHandler)
