@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -129,7 +129,7 @@ func (os otelSpan) SetAttribute(k string, v interface{}) {
 }
 
 // SetAttributes does nothing. It exists to satisfy the trace.Span interface.
-func (os otelSpan) SetAttributes(attributes ...attribute.KeyValue) {
+func (os otelSpan) SetAttributes(attributes ...label.KeyValue) {
 	return
 }
 
@@ -154,7 +154,7 @@ func (os otelSpan) AddEvent(name string, options ...trace.EventOption) {
 }
 
 // AddEventWithTimestamp does nothing. It exists to satisfy the trace.Span interface.
-func (os otelSpan) AddEventWithTimestamp(ctx context.Context, timestamp time.Time, name string, attrs ...attribute.KeyValue) {
+func (os otelSpan) AddEventWithTimestamp(ctx context.Context, timestamp time.Time, name string, attrs ...label.KeyValue) {
 	return
 }
 
@@ -181,14 +181,4 @@ func (m supplier) Get(key string) string {
 // Set associates the provided value with the provided key.
 func (m supplier) Set(key string, value string) {
 	m.values[key] = value
-}
-
-// Keys returns the keys for which this carrier has a value.
-func (m supplier) Keys() []string {
-	keys := make([]string, 0, len(m.values))
-
-	for k := range m.values {
-		keys = append(keys, k)
-	}
-	return keys
 }
