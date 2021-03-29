@@ -23,6 +23,6 @@ require (
 	go.opentelemetry.io/contrib/propagators v0.16.0
 	go.opentelemetry.io/otel v0.16.0
 	goji.io/v3 v3.0.0
-	google.golang.org/grpc v1.35.0
+	google.golang.org/grpc v1.36.1
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
