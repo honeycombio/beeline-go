@@ -25,7 +25,7 @@ func MarshalB3TraceContext(ctx context.Context, prop *PropagationContext) (conte
 		return ctx, headerMap
 	}
 	ctx = trace.ContextWithSpan(ctx, otelSpan)
-	propagator := b3.B3{}
+	propagator := b3.B3{InjectEncoding: b3.B3MultipleHeader}
 	supp := supplier{
 		values: make(map[string]string),
 	}
@@ -53,9 +53,9 @@ func UnmarshalB3TraceContext(ctx context.Context, headers map[string]string) (co
 	ctx = propagator.Extract(ctx, supp)
 	spanContext := trace.RemoteSpanContextFromContext(ctx)
 	prop := &PropagationContext{
-		TraceID:    spanContext.TraceID.String(),
-		ParentID:   spanContext.SpanID.String(),
-		TraceFlags: spanContext.TraceFlags,
+		TraceID:    spanContext.TraceID().String(),
+		ParentID:   spanContext.SpanID().String(),
+		TraceFlags: spanContext.TraceFlags(),
 	}
 	if !prop.IsValid() {
 		return ctx, nil, &PropagationError{

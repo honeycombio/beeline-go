@@ -56,10 +56,10 @@ func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (c
 	ctx = propagator.Extract(ctx, supp)
 	spanContext := trace.RemoteSpanContextFromContext(ctx)
 	prop := &PropagationContext{
-		TraceID:    spanContext.TraceID.String(),
-		ParentID:   spanContext.SpanID.String(),
-		TraceFlags: spanContext.TraceFlags,
-		TraceState: spanContext.TraceState,
+		TraceID:    spanContext.TraceID().String(),
+		ParentID:   spanContext.SpanID().String(),
+		TraceFlags: spanContext.TraceFlags(),
+		TraceState: spanContext.TraceState(),
 	}
 	if !prop.IsValid() {
 		return ctx, nil, &PropagationError{
@@ -86,12 +86,12 @@ func createOpenTelemetrySpan(prop *PropagationContext) (trace.Span, error) {
 		return nil, err
 	}
 
-	spanCtx := trace.SpanContext{
+	spanCtx := trace.NewSpanContext(trace.SpanContextConfig{
 		TraceID:    traceID,
 		SpanID:     spanID,
 		TraceFlags: prop.TraceFlags,
 		TraceState: prop.TraceState,
-	}
+	})
 
 	return otelSpan{
 		ctx: spanCtx,
