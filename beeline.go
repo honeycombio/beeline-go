@@ -262,7 +262,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) 
 		// there is no trace active; we should make one, but use the root span
 		// as the "new" span instead of creating a child of this mostly empty
 		// span
-		ctx, _ = trace.NewTrace(ctx, "")
+		ctx, _ = trace.NewTrace(ctx, nil)
 		newSpan = trace.GetSpanFromContext(ctx)
 	}
 	newSpan.AddField("name", name)

@@ -37,11 +37,6 @@ func (prop PropagationContext) IsValid() bool {
 	return prop.hasTraceID() && prop.hasParentID()
 }
 
-// Propagation contains information about a trace.
-//
-// Deprecated: use PropagationContext instead.
-type Propagation = PropagationContext
-
 // PropagationError wraps any error encountered while parsing or serializing trace propagation
 // contexts.
 type PropagationError struct {
@@ -55,25 +50,4 @@ func (p *PropagationError) Error() string {
 		return p.message
 	}
 	return fmt.Sprintf(p.message, p.wrappedError)
-}
-
-// MarshalTraceContext wraps MarshalHoneycombTraceContext for backwards compatibility.
-//
-// Deprecated: Use MarshalHoneycombTraceContext.
-func MarshalTraceContext(prop *PropagationContext) string {
-	return MarshalHoneycombTraceContext(prop)
-}
-
-// UnmarshalTraceContext wraps UnmarshalHoneycombTraceContext for backwards compatibility.
-//
-// Deprecated: Use UnmarshalHoneycombTraceContext
-func UnmarshalTraceContext(header string) (*PropagationContext, error) {
-	return UnmarshalHoneycombTraceContext(header)
-}
-
-// UnmarshalTraceContextV1 wraps UnmarshalHoneycombTraceContextV1 for backwards compatibility.
-//
-// Deprecated: Use UnmarshalHoneycombTraceContext. Do not call this function directly.
-func UnmarshalTraceContextV1(header string) (*PropagationContext, error) {
-	return unmarshalHoneycombTraceContextV1(header)
 }

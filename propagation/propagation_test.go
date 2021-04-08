@@ -156,7 +156,7 @@ func TestMarshalHoneycombTraceContext(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		marshaled := MarshalTraceContext(tt.prop)
+		marshaled := MarshalHoneycombTraceContext(tt.prop)
 		assert.Equal(t, tt.marshaledProp, marshaled, tt.name)
 	}
 
@@ -175,36 +175,36 @@ func TestRoundTripHoneycombTraceContext(t *testing.T) {
 		},
 	}
 
-	marshaled := MarshalTraceContext(prop)
+	marshaled := MarshalHoneycombTraceContext(prop)
 	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
 	assert.Equal(t, "1;trace_id=abcdef123456,parent_id=0102030405,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==", marshaled)
 
-	returned, err := UnmarshalTraceContext(marshaled)
+	returned, err := UnmarshalHoneycombTraceContext(marshaled)
 	assert.Equal(t, prop, returned, "roundtrip object")
 	assert.NoError(t, err, "roundtrip error")
 
 	prop.Dataset = "imadataset"
-	marshaled = MarshalTraceContext(prop)
+	marshaled = MarshalHoneycombTraceContext(prop)
 	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
 	assert.Equal(t, "1;trace_id=abcdef123456,parent_id=0102030405,dataset=imadataset,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==", marshaled)
 
-	returned, err = UnmarshalTraceContext(marshaled)
+	returned, err = UnmarshalHoneycombTraceContext(marshaled)
 	assert.Equal(t, prop, returned, "roundtrip object")
 	assert.NoError(t, err, "roundtrip error")
 
 	prop.Dataset = "ill;egal"
-	marshaled = MarshalTraceContext(prop)
+	marshaled = MarshalHoneycombTraceContext(prop)
 	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
 	assert.Equal(t, "1;trace_id=abcdef123456,parent_id=0102030405,dataset=ill%3Begal,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==", marshaled)
 
-	returned, err = UnmarshalTraceContext(marshaled)
+	returned, err = UnmarshalHoneycombTraceContext(marshaled)
 	assert.Equal(t, prop, returned, "roundtrip object")
 	assert.NoError(t, err, "roundtrip error")
 
 	prop = &PropagationContext{
 		Dataset: "imadataset",
 	}
-	marshaled = MarshalTraceContext(prop)
+	marshaled = MarshalHoneycombTraceContext(prop)
 	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
 	assert.Equal(t, "1;trace_id=,parent_id=,dataset=imadataset,context=bnVsbA==", marshaled)
 }
@@ -324,7 +324,7 @@ func TestB3TraceContext(t *testing.T) {
 	assert.Error(t, err, "Cannot unmarshal empty header")
 }
 
-func TestUnmarshalTraceContext(t *testing.T) {
+func TestUnmarshalHoneycombTraceContext(t *testing.T) {
 	testCases := []struct {
 		name       string
 		contextStr string
@@ -404,7 +404,7 @@ func TestUnmarshalTraceContext(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		prop, err := UnmarshalTraceContext(tt.contextStr)
+		prop, err := UnmarshalHoneycombTraceContext(tt.contextStr)
 		assert.Equal(t, tt.prop, prop, tt.name)
 		if tt.returnsErr {
 			assert.Error(t, err, tt.name)

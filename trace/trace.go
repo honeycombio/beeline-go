@@ -57,6 +57,8 @@ func getNewID(length uint16) string {
 
 // NewTraceFromPropagationContext creates a brand new trace. prop is optional, and if included,
 // should be populated with data from a trace context header.
+//
+// Deprecated: use NewTrace instead.
 func NewTraceFromPropagationContext(ctx context.Context, prop *propagation.PropagationContext) (context.Context, *Trace) {
 	trace := &Trace{
 		builder:          client.NewBuilder(),
@@ -98,7 +100,7 @@ func NewTraceFromPropagationContext(ctx context.Context, prop *propagation.Propa
 // included, should be the header as written by trace.SerializeHeaders(). When
 // not starting from an upstream trace, pass the empty string here.
 //
-// Deprecated: users should call NewTraceFromPropagationContext instead.
+// Deprecated: use NewTrace instead.
 func NewTraceFromSerializedHeaders(ctx context.Context, serializedHeaders string) (context.Context, *Trace) {
 	var prop *propagation.PropagationContext
 	if serializedHeaders != "" {
@@ -107,11 +109,10 @@ func NewTraceFromSerializedHeaders(ctx context.Context, serializedHeaders string
 	return NewTraceFromPropagationContext(ctx, prop)
 }
 
-// NewTrace creates a new trace. This wraps NewTraceFromSerializedHeaders and may be changed in
-// a future release to wrap NewTraceFromPropagationContext instead. Users should start calling
-// that method to avoid backwards incompatibilities with the next major release.
-func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *Trace) {
-	return NewTraceFromSerializedHeaders(ctx, serializedHeaders)
+// NewTrace creates a new trace. prop is optional, and if included,
+// should be populated with data from a trace context header.
+func NewTrace(ctx context.Context, prop *propagation.PropagationContext) (context.Context, *Trace) {
+	return NewTraceFromPropagationContext(ctx, prop)
 }
 
 // AddField adds a field to the trace. Every span in the trace will have this
@@ -135,7 +136,7 @@ func (t *Trace) AddField(key string, val interface{}) {
 func (t *Trace) serializeHeaders(spanID string) string {
 	prop := t.propagationContext()
 	prop.ParentID = spanID
-	return propagation.MarshalTraceContext(prop)
+	return propagation.MarshalHoneycombTraceContext(prop)
 }
 
 // propagationContext returns a partially populated propagation context. It only
