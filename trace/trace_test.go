@@ -16,11 +16,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestNewTrace create traces and make sure they're populated with all the
+// TestNewTraceFromSerializedHeaders create traces and make sure they're populated with all the
 // expected things
-func TestNewTrace(t *testing.T) {
+func TestNewTraceFromSerializedHeaders(t *testing.T) {
 	// test basic new trace
-	ctx, tr := NewTrace(context.Background(), "")
+	ctx, tr := NewTraceFromSerializedHeaders(context.Background(), "")
 	assert.NotNil(t, tr.builder, "traces should have a builder")
 	assert.NotEmpty(t, tr.traceID, "trace should have a trace ID")
 	assert.Empty(t, tr.parentID, "trace created with no headers should have an empty parent ID")
@@ -38,7 +38,7 @@ func TestNewTrace(t *testing.T) {
 	// three fields are {"userID":1,"errorMsg":"failed to sign on","toRetry":true}
 	// string taken from propagation_test.go
 	serializedHeaders := "1;trace_id=abcdef123456,parent_id=0102030405,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ=="
-	_, tr = NewTrace(context.Background(), serializedHeaders)
+	_, tr = NewTraceFromSerializedHeaders(context.Background(), serializedHeaders)
 	assert.Equal(t, "abcdef123456", tr.traceID, "trace with headers should take trace ID")
 	assert.Equal(t, "0102030405", tr.parentID, "trace with headers should take parent ID")
 	assert.Equal(t, float64(1), tr.traceLevelFields["userID"], "trace with headers should populate trace level fields")
@@ -60,10 +60,10 @@ func TestNewTrace(t *testing.T) {
 	})
 }
 
-// TestNewTraceFromPropagationContext creates traces using data in a struct and
+// TestNewTrace creates traces using data in a struct and
 // makes sure they're populated with all the things we want.
-func TestNewTraceFromPropagationContext(t *testing.T) {
-	ctx, tr := NewTraceFromPropagationContext(context.Background(), nil)
+func TestNewTrace(t *testing.T) {
+	ctx, tr := NewTrace(context.Background(), nil)
 	assert.NotNil(t, tr.builder, "traces should have a builder")
 	assert.NotEmpty(t, tr.traceID, "trace should have a trace ID")
 	assert.Empty(t, tr.parentID, "trace created with no propagation context should have an empty parent ID")
@@ -90,7 +90,7 @@ func TestNewTraceFromPropagationContext(t *testing.T) {
 			"toRetry":  true,
 		},
 	}
-	_, tr = NewTraceFromPropagationContext(ctx, prop)
+	_, tr = NewTrace(ctx, prop)
 	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", tr.traceID, "trace with a propagation context should take trace ID")
 	assert.Equal(t, "00f067aa0ba902b7", tr.parentID, "trace with a propagation context should take parent ID")
 	assert.Equal(t, int(1), tr.traceLevelFields["userID"], "trace with a propagation context should populate trace level fields")
@@ -100,14 +100,14 @@ func TestNewTraceFromPropagationContext(t *testing.T) {
 
 // TestAddField tests adding a field to a trace
 func TestAddField(t *testing.T) {
-	_, tr := NewTrace(context.Background(), "")
+	_, tr := NewTrace(context.Background(), nil)
 	tr.AddField("wander", "lust")
 	assert.Equal(t, "lust", tr.traceLevelFields["wander"], "AddField on a trace should add the field to the trace level fields map")
 }
 
 // TestRollupField tests adding a field to a trace
 func TestRollupField(t *testing.T) {
-	_, tr := NewTrace(context.Background(), "")
+	_, tr := NewTrace(context.Background(), nil)
 	tr.addRollupField("bignum", 5)
 	tr.addRollupField("bignum", 5)
 	tr.addRollupField("smallnum", 0.1)
@@ -119,7 +119,7 @@ func TestRollupFieldsPropagateToRoot(t *testing.T) {
 	t.Run("check rolling up to the root of a trace that was created in this process", func(t *testing.T) {
 		mo := setupLibhoney()
 
-		_, tr := NewTrace(context.Background(), "")
+		_, tr := NewTrace(context.Background(), nil)
 		tr.addRollupField("bignum", 5)
 		tr.Send()
 
@@ -130,9 +130,9 @@ func TestRollupFieldsPropagateToRoot(t *testing.T) {
 	})
 	t.Run("check rolling up to the root span of a trace that was propagated from a different system", func(t *testing.T) {
 		mo := setupLibhoney()
-		_, parentTr := NewTrace(context.Background(), "")
+		_, parentTr := NewTrace(context.Background(), nil)
 
-		_, tr := NewTrace(context.Background(), propagation.MarshalTraceContext(parentTr.GetRootSpan().PropagationContext()))
+		_, tr := NewTrace(context.Background(), parentTr.GetRootSpan().PropagationContext())
 		tr.addRollupField("bignum", 5)
 		tr.Send()
 
@@ -145,7 +145,7 @@ func TestRollupFieldsPropagateToRoot(t *testing.T) {
 
 // TestGetRootSpan verifies the real root span is returned
 func TestGetRootSpan(t *testing.T) {
-	_, tr := NewTrace(context.Background(), "")
+	_, tr := NewTrace(context.Background(), nil)
 	sp := tr.GetRootSpan()
 	assert.Equal(t, tr.rootSpan, sp, "get root span should return the trace's root span")
 }
@@ -154,7 +154,7 @@ func TestGetRootSpan(t *testing.T) {
 // synchronous children
 func TestSendTrace(t *testing.T) {
 	mo := setupLibhoney()
-	ctx, tr := NewTrace(context.Background(), "")
+	ctx, tr := NewTrace(context.Background(), nil)
 	rs := tr.GetRootSpan()
 	rs.AddField("name", "rs")
 	ctx, c1 := rs.CreateChild(ctx)
@@ -203,7 +203,7 @@ func TestSendTrace(t *testing.T) {
 func TestSpan(t *testing.T) {
 	mo := setupLibhoney()
 
-	ctx, tr := NewTrace(context.Background(), "")
+	ctx, tr := NewTrace(context.Background(), nil)
 	rs := tr.GetRootSpan()
 
 	ctx, span := rs.CreateChild(ctx)
@@ -318,7 +318,7 @@ func TestSpan(t *testing.T) {
 
 func TestCreateAsyncSpanDoesNotCauseRaceInSend(t *testing.T) {
 	setupLibhoney()
-	ctx, tr := NewTrace(context.Background(), t.Name())
+	ctx, tr := NewTrace(context.Background(), nil)
 	rs := tr.GetRootSpan()
 
 	wg := &sync.WaitGroup{}
@@ -340,7 +340,7 @@ func TestCreateAsyncSpanDoesNotCauseRaceInSend(t *testing.T) {
 // on the number of chilrden in a span.
 func TestCreateSubSpanDoesNotCauseRaceInSend(t *testing.T) {
 	setupLibhoney()
-	ctx, tr := NewTrace(context.Background(), t.Name())
+	ctx, tr := NewTrace(context.Background(), nil)
 	rs := tr.GetRootSpan()
 	ctx, subsp := rs.CreateChild(ctx)
 
@@ -363,7 +363,7 @@ func TestChildAndParentSendsDoNotRace(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(10)
 	for i := 0; i < 5; i++ {
-		ctx, tr := NewTrace(context.Background(), t.Name())
+		ctx, tr := NewTrace(context.Background(), nil)
 		rs := tr.GetRootSpan()
 
 		go func() {
@@ -412,7 +412,7 @@ func TestAddFieldDoesNotCauseRaceInSendHooks(t *testing.T) {
 		wg.Done()
 	}()
 
-	ctx, tr := NewTrace(context.Background(), "")
+	ctx, tr := NewTrace(context.Background(), nil)
 	rs := tr.GetRootSpan()
 
 	for i := 0; i < 100; i++ {
@@ -440,8 +440,7 @@ func TestPropagatedFields(t *testing.T) {
 			"toRetry":  true,
 		},
 	}
-	serial := propagation.MarshalTraceContext(prop)
-	ctx, tr := NewTrace(context.Background(), serial)
+	ctx, tr := NewTrace(context.Background(), prop)
 
 	assert.NotNil(t, tr.builder, "traces should have a builder")
 	assert.Equal(t, prop.TraceID, tr.traceID, "trace id should have propagated")
@@ -452,7 +451,7 @@ func TestPropagatedFields(t *testing.T) {
 	trFromContext := GetTraceFromContext(ctx)
 	assert.Equal(t, tr, trFromContext, "new trace should put the trace in the context")
 
-	_, tr2 := NewTrace(context.Background(), tr.GetRootSpan().SerializeHeaders())
+	_, tr2 := NewTrace(context.Background(), tr.GetRootSpan().PropagationContext())
 	assert.Equal(t, tr.traceID, tr2.traceID, "trace ID should shave propagated")
 	assert.NotEqual(t, tr.parentID, tr2.parentID, "parent ID should have changed")
 	assert.Equal(t, tr.builder.Dataset, tr2.builder.Dataset, "dataset should have propagated")
@@ -466,15 +465,14 @@ func TestPropagatedFields(t *testing.T) {
 			"userID": float64(1),
 		},
 	}
-	serial = propagation.MarshalTraceContext(prop)
-	ctx, tr = NewTrace(context.Background(), serial)
+	ctx, tr = NewTrace(context.Background(), prop)
 	assert.NotNil(t, tr.builder, "traces should have a builder")
 	assert.Equal(t, "trace id", tr.traceID, "trace id should have propagated")
 	assert.Equal(t, "parent id", tr.parentID, "parent id should have propagated")
 	assert.Equal(t, prop.Dataset, tr.builder.Dataset, "dataset should have propagated")
 	assert.Equal(t, prop.TraceContext, tr.traceLevelFields, "trace fields should have propagated")
 
-	ctx, tr = NewTrace(context.Background(), "garbage")
+	ctx, tr = NewTrace(context.Background(), nil)
 	assert.NotNil(t, tr.builder, "traces should have a builder")
 	assert.NotEqual(t, "", tr.traceID, "trace id should have propagated")
 	assert.Equal(t, "", tr.parentID, "parent id should have propagated")
@@ -484,7 +482,7 @@ func TestPropagatedFields(t *testing.T) {
 }
 
 func TestSerializePropagation(t *testing.T) {
-	_, tr := NewTrace(context.Background(), "")
+	_, tr := NewTrace(context.Background(), nil)
 	sp := tr.GetRootSpan()
 	serialized := sp.SerializeHeaders()
 	assert.NotEmpty(t, serialized, "serialized headers on a span should not be empty")
@@ -494,7 +492,7 @@ func TestSerializePropagation(t *testing.T) {
 }
 
 func TestSerializePropagationDoesNotRaceWithTraceFields(t *testing.T) {
-	_, tr := NewTrace(context.Background(), "")
+	_, tr := NewTrace(context.Background(), nil)
 	sp := tr.GetRootSpan()
 
 	// simultaneously serialize headers and modify the trace leve fields map
@@ -550,7 +548,7 @@ func TestGetNewID(t *testing.T) {
 // check to ensure that we don't regress the performance of sending spans.
 func BenchmarkSendChildSpans(b *testing.B) {
 	setupLibhoney()
-	ctx, tr := NewTrace(context.Background(), b.Name())
+	ctx, tr := NewTrace(context.Background(), nil)
 	rs := tr.GetRootSpan()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -563,7 +561,7 @@ func BenchmarkSendChildSpans(b *testing.B) {
 func BenchmarkSendSpan(b *testing.B) {
 	setupLibhoney()
 
-	_, tr := NewTrace(context.Background(), b.Name())
+	_, tr := NewTrace(context.Background(), nil)
 	rs := tr.GetRootSpan()
 	for n := 0; n < b.N; n++ {
 		rs.sendLocked()

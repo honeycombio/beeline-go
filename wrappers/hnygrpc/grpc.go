@@ -44,13 +44,14 @@ func startSpanOrTraceFromUnaryGRPC(
 		if ok {
 			if parserHook == nil {
 				beelineHeader := getMetadataStringValue(md, propagation.TracePropagationGRPCHeader)
-				ctx, tr = trace.NewTrace(ctx, beelineHeader)
+				prop, _ := propagation.UnmarshalHoneycombTraceContext(beelineHeader)
+				ctx, tr = trace.NewTrace(ctx, prop)
 			} else {
 				prop := parserHook(ctx)
 				ctx, tr = trace.NewTraceFromPropagationContext(ctx, prop)
 			}
 		} else {
-			ctx, tr = trace.NewTrace(ctx, "")
+			ctx, tr = trace.NewTrace(ctx, nil)
 		}
 		span = tr.GetRootSpan()
 	} else {

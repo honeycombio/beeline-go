@@ -62,7 +62,8 @@ func StartSpanOrTraceFromHTTPWithTraceParserHook(r *http.Request, parserHook con
 		var tr *trace.Trace
 		if parserHook == nil {
 			beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
-			ctx, tr = trace.NewTrace(ctx, beelineHeader)
+			prop, _ := propagation.UnmarshalHoneycombTraceContext(beelineHeader)
+			ctx, tr = trace.NewTrace(ctx, prop)
 		} else {
 			// Call the provided TraceParserHook to get the propagation context
 			// from the incoming request. This information will then be used when
@@ -204,7 +205,7 @@ func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, stats sql.DBStats, 
 		// least confusing possibility. Would be nice to indicate this had
 		// happened in a better way than yet another meta. field.
 		var tr *trace.Trace
-		ctx, tr = trace.NewTrace(ctx, "")
+		ctx, tr = trace.NewTrace(ctx, nil)
 		span = tr.GetRootSpan()
 		span.AddField("meta.orphaned", true)
 	} else {
