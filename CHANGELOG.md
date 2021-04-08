@@ -1,3 +1,38 @@
+# Release v1.0.0 (2021-04-09)
+
+### Minimum Go version required: 1.14
+
+### Changed
+
+- trace.NewTrace now takes *propagation.PropagationContext instead of serialized headers (#209)
+  - You can still use trace.NewTraceFromSerializedHeaders to ease migration 
+
+### Removed
+
+- propagation.Propagation: use propagation.PropagationContext (#209)
+- propagation.MarshalTraceContext: use propagation.MarshalHoneycombTraceContext (#209)
+- propagation.UnmarshalTraceContext: use propagation.UnmarshalHoneycombTraceContext (#209)
+- propagation.UnmarshalTraceContextV1: use propagation.UnmarshalHoneycombTraceContext (#209)
+
+### Deprecated
+
+- trace.NewTraceFromPropagationContext: use trace.NewTrace instead (#209)
+
+### Added
+
+- Set additional response header values in hnygorilla wrapper (#196) | [@nathancoleman](https://github.com/nathancoleman)
+
+### Dependencies
+
+- Bump go.opentelemetry.io/otel from 0.15.0 to 0.19.0 (#179) (#208)
+- Bump go.opentelemetry.io/contrib/propagators from 0.15.1 to 0.18.0 (#180) (#193) (#200)
+- Bump github.com/go-sql-driver/mysql from 1.5.0 to 1.6.0 (#204)
+- Bump google.golang.org/grpc from 1.27.0 to 1.36.1 (#178) (#203)
+- Bump github.com/labstack/echo/v4 from 4.1.17 to 4.2.1 (#194)
+- Bump github.com/jmoiron/sqlx from 1.2.0 to 1.3.1 (#188)
+- Bump github.com/google/uuid from 1.1.4 to 1.2.0 (#186)
+- Bump github.com/honeycombio/libhoney-go from 1.15.0 to 1.15.2 (#183)
+
 # Release v0.11.1 (2021-01-22)
 
 - Bump github.com/google/uuid from 1.1.2 to 1.1.4 (#171, #174)
