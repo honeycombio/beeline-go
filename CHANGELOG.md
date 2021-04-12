@@ -1,4 +1,4 @@
-# Release v1.0.0 (2021-04-09)
+# Release v1.0.0 (2021-04-12)
 
 ### Minimum Go version required: 1.14
 
