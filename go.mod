@@ -1,6 +1,6 @@
 module github.com/honeycombio/beeline-go
 
-go 1.13
+go 1.14
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
