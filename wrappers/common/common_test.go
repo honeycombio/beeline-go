@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -30,6 +31,26 @@ func TestURLHostHeader(t *testing.T) {
 	req := httptest.NewRequest("GET", "https://doorcom.com/", nil)
 	props := GetRequestProps(req)
 	assert.Equal(t, "doorcom.com", props["request.host"])
+}
+
+func TestClientReqHostAfterRedirect(t *testing.T) {
+	// This test constructs a request the same way the http client constructs
+	// one when generating a new request to follow a redirect:
+	// https://github.com/golang/go/blob/9baddd3f21230c55f0ad2a10f5f20579dcf0a0bb/src/net/http/client.go#L644-L662
+	//
+	// When the redirect Location header contains an absolute URL, the new
+	// request will have an empty Host field. This ensures we capture a useful
+	// request.host property based on the URL itself.
+	u, err := url.Parse("http://example.com/")
+	assert.NoError(t, err)
+	req := &http.Request{
+		Method: "GET",
+		URL:    u,
+		Header: make(http.Header),
+	}
+	assert.Equal(t, "", req.Host)
+	props := GetRequestProps(req)
+	assert.Equal(t, "example.com", props["request.host"])
 }
 
 func TestUserAgentHeader(t *testing.T) {
