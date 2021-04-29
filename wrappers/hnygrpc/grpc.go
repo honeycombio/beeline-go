@@ -6,8 +6,10 @@ import (
 	"runtime"
 
 	"github.com/honeycombio/beeline-go/propagation"
+	"github.com/honeycombio/beeline-go/timer"
 	"github.com/honeycombio/beeline-go/trace"
 	"github.com/honeycombio/beeline-go/wrappers/config"
+	"github.com/honeycombio/libhoney-go"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -136,9 +138,19 @@ func UnaryClientInterceptorWithConfig(cfg config.GRPCOutgoingConfig) grpc.UnaryC
 	) error {
 		span := trace.GetSpanFromContext(ctx)
 
-		// If there's no active trace or span, just pass through the request.
+		// If there's no active trace or span, just send an event.
 		if span == nil {
-			return invoker(ctx, method, req, reply, cc, opts...)
+			tm := timer.Start()
+			ev := libhoney.NewEvent()
+			defer ev.Send()
+
+			err := invoker(ctx, method, req, reply, cc, opts...)
+			if err != nil {
+				ev.AddField("error", err.Error())
+			}
+			dur := tm.Finish()
+			ev.AddField("duration_ms", dur)
+			return err
 		}
 
 		ctx, span = span.CreateChild(ctx)
