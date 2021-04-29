@@ -110,3 +110,66 @@ func UnaryServerInterceptorWithConfig(cfg config.GRPCIncomingConfig) grpc.UnaryS
 		return resp, err
 	}
 }
+
+// UnaryServerInterceptor is identical to UnaryServerInterceptorWithConfig called
+// with an empty config.GRPCIncomingConfig.
+func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
+	return UnaryServerInterceptorWithConfig(config.GRPCIncomingConfig{})
+}
+
+// UnaryClientInterceptorWithConfig will create a Honeycomb span per invocation
+// of the returned interceptor. It will also serialize the trace propagation
+// context into the gRPC metadata so it can be deserialized by the server. If
+// passed a config.GRPCOutgoingConfig with a GRPCTracePropagationHook, the hook
+// will be called when populating the gRPC metadata, allowing it to specify how
+// trace context information should be included in the metadata (e.g. if the
+// remote server expects it to come in a specific format).
+func UnaryClientInterceptorWithConfig(cfg config.GRPCOutgoingConfig) grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req interface{},
+		reply interface{},
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		span := trace.GetSpanFromContext(ctx)
+
+		// If there's no active trace or span, just pass through the request.
+		if span == nil {
+			return invoker(ctx, method, req, reply, cc, opts...)
+		}
+
+		ctx, span = span.CreateChild(ctx)
+		defer span.Send()
+
+		md, ok := metadata.FromOutgoingContext(ctx)
+		if !ok {
+			md = metadata.New(nil)
+		} else {
+			// Modifying the result of FromOutgoingContext may race, so copy instead.
+			md = md.Copy()
+		}
+
+		if cfg.GRPCPropagationHook == nil {
+			md.Set(propagation.TracePropagationGRPCHeader, span.SerializeHeaders())
+		} else {
+			// If a propagationHook exists, call it to get a metadata to append.
+			md = metadata.Join(md, cfg.GRPCPropagationHook(span.PropagationContext()))
+		}
+
+		ctx = metadata.NewOutgoingContext(ctx, md)
+		err := invoker(ctx, method, req, reply, cc, opts...)
+		if err != nil {
+			span.AddField("error", err.Error())
+		}
+		return err
+	}
+}
+
+// UnaryClientInterceptor is identical to UnaryClientInterceptorWithConfig called
+// with an empty config.GRPCOutgoingConfig.
+func UnaryClientInterceptor() grpc.UnaryClientInterceptor {
+	return UnaryClientInterceptorWithConfig(config.GRPCOutgoingConfig{})
+}
