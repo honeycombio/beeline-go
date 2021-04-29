@@ -1,6 +1,5 @@
 syntax = "proto3";
 
-package hnydemo;
 option go_package = "github.com/honeycombio/examples/grpc/proto";
 
 service HelloService {

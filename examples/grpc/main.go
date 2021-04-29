@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"net/http"
 
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/trace"
@@ -16,33 +14,12 @@ import (
 	hpb "github.com/honeycombio/beeline-go/examples/grpc/proto"
 )
 
-type grpcHelloServer struct {
+type helloServer struct {
 	hpb.UnimplementedHelloServiceServer
 }
 
-func (hs *grpcHelloServer) SayHello(ctx context.Context, req *hpb.HelloRequest) (*hpb.HelloResponse, error) {
+func (hs *helloServer) SayHello(ctx context.Context, req *hpb.HelloRequest) (*hpb.HelloResponse, error) {
 	return &hpb.HelloResponse{Greeting: fmt.Sprintf("Hello, %s!", req.GetName())}, nil
-}
-
-type httpHelloServer struct {
-	c hpb.HelloServiceClient
-}
-
-func (hs *httpHelloServer) makeHandler() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		res1, err := hs.c.SayHello(ctx, &hpb.HelloRequest{Name: "Foo"})
-		if err != nil {
-			io.WriteString(w, fmt.Sprintf("Failed gRPC: %v", err))
-			return
-		}
-		res2, _ := hs.c.SayHello(ctx, &hpb.HelloRequest{Name: "Bar"})
-		if err != nil {
-			io.WriteString(w, fmt.Sprintf("Failed gRPC: %v", err))
-			return
-		}
-		io.WriteString(w, fmt.Sprintf("%s\n%s\n", res1.GetGreeting(), res2.GetGreeting()))
-	}
 }
 
 func main() {
@@ -68,7 +45,7 @@ func main() {
 		grpc.UnaryInterceptor(hnygrpc.UnaryServerInterceptor()),
 	}
 	s := grpc.NewServer(serverOpts...)
-	hpb.RegisterHelloServiceServer(s, &grpcHelloServer{})
+	hpb.RegisterHelloServiceServer(s, &helloServer{})
 	go s.Serve(ln)
 
 	// Set up a gRPC client.
@@ -89,7 +66,7 @@ func main() {
 	ctx, tr := trace.NewTrace(ctx, nil)
 	defer tr.Send()
 
-	// Finally, make some calls.
+	// Finally, make a call.
 	req := &hpb.HelloRequest{Name: "Foo"}
 	fmt.Printf("Making request: %v\n", req)
 	res, err := c.SayHello(ctx, req)
