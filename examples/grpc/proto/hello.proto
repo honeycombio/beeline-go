@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package hnydemo;
+option go_package = "github.com/honeycombio/examples/grpc/proto";
+
+service HelloService {
+  rpc SayHello(HelloRequest) returns (HelloResponse) {}
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloResponse {
+  string greeting = 1;
+}
