@@ -67,8 +67,9 @@ func startSpanOrTraceFromUnaryGRPC(
 func addFields(ctx context.Context, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler, span *trace.Span) {
 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 
-	span.AddField("handler.name", handlerName)
 	span.AddField("name", handlerName)
+	span.AddField("meta.type", "grpc_request")
+	span.AddField("handler.name", handlerName)
 	span.AddField("handler.method", info.FullMethod)
 
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -144,6 +145,10 @@ func UnaryClientInterceptorWithConfig(cfg config.GRPCOutgoingConfig) grpc.UnaryC
 			ev := libhoney.NewEvent()
 			defer ev.Send()
 
+			ev.AddField("name", method)
+			ev.AddField("meta.type", "grpc_client")
+			ev.AddField("request.target", cc.Target())
+
 			err := invoker(ctx, method, req, reply, cc, opts...)
 			if err != nil {
 				ev.AddField("error", err.Error())
@@ -155,6 +160,10 @@ func UnaryClientInterceptorWithConfig(cfg config.GRPCOutgoingConfig) grpc.UnaryC
 
 		ctx, span = span.CreateChild(ctx)
 		defer span.Send()
+
+		span.AddField("name", method)
+		span.AddField("meta.type", "grpc_client")
+		span.AddField("request.target", cc.Target())
 
 		md, ok := metadata.FromOutgoingContext(ctx)
 		if !ok {
