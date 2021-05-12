@@ -2,8 +2,10 @@ package config
 
 import (
 	"context"
-	"github.com/honeycombio/beeline-go/propagation"
 	"net/http"
+
+	"github.com/honeycombio/beeline-go/propagation"
+	"google.golang.org/grpc/metadata"
 )
 
 // HTTPTraceParserHook is a function that will be invoked on all incoming HTTP requests
@@ -46,8 +48,21 @@ type HTTPOutgoingConfig struct {
 // identical to its HTTP counterpart, HTTPTraceParserHook.
 type GRPCTraceParserHook func(context.Context) *propagation.PropagationContext
 
+// GRPCTracePropagationHook is a function that will be invoked on all outgoing gRPC requests
+// when it is passed as a parameter to a client interceptor wrapper function such as the one
+// provided in the hnygrpc package. It can be used to create a gRPC metadata object
+// that will be injected into the outgoing request. It is functionally identical
+// to its HTTP counterpart, HTTPTracePropagationHook.
+type GRPCTracePropagationHook func(*propagation.PropagationContext) metadata.MD
+
 // GRPCIncomingConfig stores configuration options relevant to gRPC requests that are
 // handled by a wrapped gRPC interceptor provided in the hnygrpc package.
 type GRPCIncomingConfig struct {
 	GRPCParserHook GRPCTraceParserHook
+}
+
+// GRPCOutgoingConfig stores configuration options relevant to gRPC requests being sent
+// by an instrumented application.
+type GRPCOutgoingConfig struct {
+	GRPCPropagationHook GRPCTracePropagationHook
 }
