@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/honeycombio/libhoney-go v1.15.2
-	github.com/jmoiron/sqlx v1.3.1
+	github.com/jmoiron/sqlx v1.3.4
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/labstack/echo/v4 v4.2.1
@@ -25,6 +25,6 @@ require (
 	go.opentelemetry.io/otel/trace v0.19.0
 	goji.io/v3 v3.0.0
 	google.golang.org/grpc v1.36.1
-	google.golang.org/protobuf v1.25.0 // indirect
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
