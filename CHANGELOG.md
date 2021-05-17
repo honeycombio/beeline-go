@@ -1,3 +1,19 @@
+# Release v1.1.0 (2021-05-18)
+
+### Added
+
+- Add gRPC UnaryClientInterceptor which includes trace context in the outgoing request metadata (#217) | [@aarongable](https://github.com/aarongable)
+
+### Fixed
+
+- Capture request.host property on http client redirects (#216) | [@mccutchen](https://github.com/mccutchen)
+
+### Dependencies
+
+- Bump github.com/labstack/echo/v4 from 4.2.1 to 4.3.0 (#218)
+- Bump github.com/gin-gonic/gin from 1.6.3 to 1.7.1 (#213)
+- Bump github.com/jmoiron/sqlx from 1.3.1 to 1.3.4 (#221)
+
 # Release v1.0.0 (2021-04-12)
 
 ### Minimum Go version required: 1.14
