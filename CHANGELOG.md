@@ -1,3 +1,9 @@
+# Release v1.1.1 (2021-05-21)
+
+### Fixed
+
+- Add missing go.sum entry, which caused issues with go 1.16+ builds (#227) | [@vreynolds](https://github.com/vreynolds)
+
 # Release v1.1.0 (2021-05-18)
 
 ### Added
