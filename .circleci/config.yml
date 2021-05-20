@@ -15,12 +15,11 @@ jobs:
     steps:
       - checkout
       - go/load-cache
-      - go/mod-download
-      - go/save-cache
       - go/test:
           race: true
           verbose: true
           covermode: atomic
+      - go/save-cache
   publish_github:
     docker:
       - image: cibuilds/github:0.13.0
