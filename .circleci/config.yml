@@ -21,6 +21,7 @@ jobs:
           race: true
           verbose: true
           covermode: atomic
+      - run: go version
   publish_github:
     docker:
       - image: cibuilds/github:0.13.0
