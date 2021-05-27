@@ -51,7 +51,7 @@ func UnmarshalB3TraceContext(ctx context.Context, headers map[string]string) (co
 	}
 	propagator := b3.B3{}
 	ctx = propagator.Extract(ctx, supp)
-	spanContext := trace.RemoteSpanContextFromContext(ctx)
+	spanContext := trace.SpanContextFromContext(ctx)
 	prop := &PropagationContext{
 		TraceID:    spanContext.TraceID().String(),
 		ParentID:   spanContext.SpanID().String(),

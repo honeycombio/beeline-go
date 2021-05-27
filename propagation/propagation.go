@@ -17,7 +17,7 @@ type PropagationContext struct {
 	ParentID     string
 	Dataset      string
 	TraceContext map[string]interface{}
-	TraceFlags   byte
+	TraceFlags   trace.TraceFlags
 	TraceState   trace.TraceState
 }
 

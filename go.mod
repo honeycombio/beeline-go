@@ -19,9 +19,9 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/stretchr/testify v1.7.0
-	go.opentelemetry.io/contrib/propagators v0.19.0
-	go.opentelemetry.io/otel v0.19.0
-	go.opentelemetry.io/otel/trace v0.19.0
+	go.opentelemetry.io/contrib/propagators v0.20.0
+	go.opentelemetry.io/otel v0.20.0
+	go.opentelemetry.io/otel/trace v0.20.0
 	goji.io/v3 v3.0.0
 	google.golang.org/grpc v1.36.1
 	google.golang.org/protobuf v1.25.0
