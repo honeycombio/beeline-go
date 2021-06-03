@@ -1,3 +1,13 @@
+# Release v1.1.2 (2021-06-03)
+
+### Dependencies
+
+- Bump github.com/gin-gonic/gin from 1.7.1 to 1.7.2 (#234)
+- Bump github.com/felixge/httpsnoop from 1.0.1 to 1.0.2 (#233)
+- Bump go.opentelemetry.io/contrib/propagators from 0.19.0 to 0.20.0 (#232)
+- Bump go.opentelemetry.io/otel from 0.19.0 to 0.20.0 (#232)
+- Bump go.opentelemetry.io/otel/trace from 0.19.0 to 0.20.0 (#232)
+
 # Release v1.1.1 (2021-05-21)
 
 ### Fixed
