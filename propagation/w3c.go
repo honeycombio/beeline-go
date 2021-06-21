@@ -134,7 +134,7 @@ func (os otelSpan) SetAttributes(attributes ...attribute.KeyValue) {
 }
 
 // End does nothing. It exists to satisfy the trace.Span interface.
-func (os otelSpan) End(options ...trace.SpanOption) {
+func (os otelSpan) End(options ...trace.SpanEndOption) {
 	return
 }
 
@@ -143,8 +143,8 @@ func (os otelSpan) RecordError(err error, opts ...trace.EventOption) {
 	return
 }
 
-// Tracer returns nil. It exists to satisfy the trace.Span interface.
-func (os otelSpan) Tracer() trace.Tracer {
+// TracerProvider returns nil. It exists to satisfy the trace.Span interface.
+func (os otelSpan) TracerProvider() trace.TracerProvider {
 	return nil
 }
 
