@@ -104,7 +104,6 @@ func TestAddField(t *testing.T) {
 	_, tr := NewTrace(context.Background(), nil)
 	tr.AddField("wander", "lust")
 	assert.Equal(t, "lust", tr.traceLevelFields["wander"], "AddField on a trace should add the field to the trace level fields map")
-
 }
 
 // TestRollupField tests adding a field to a trace
