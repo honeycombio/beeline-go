@@ -15,7 +15,6 @@ import (
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestNewTraceFromSerializedHeaders create traces and make sure they're populated with all the
