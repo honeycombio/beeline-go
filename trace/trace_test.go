@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestNewTraceFromSerializedHeaders create traces and make sure they're populated with all the
@@ -103,6 +105,7 @@ func TestAddField(t *testing.T) {
 	_, tr := NewTrace(context.Background(), nil)
 	tr.AddField("wander", "lust")
 	assert.Equal(t, "lust", tr.traceLevelFields["wander"], "AddField on a trace should add the field to the trace level fields map")
+
 }
 
 // TestRollupField tests adding a field to a trace
@@ -242,6 +245,13 @@ func TestSpan(t *testing.T) {
 
 	span.AddField("f1", "v1")
 	assert.Equal(t, "v1", span.ev.Fields()["f1"].(string), "after adding a field, field should exist on the span")
+	// add an error
+	expected := errors.New("test error")
+	span.AddField("error", expected)
+	assert.Contains(t, span.ev.Fields(), "error")
+	msg, ok := span.ev.Fields()["error"].(string)
+	require.True(t, ok)
+	assert.Equal(t, expected.Error(), msg)
 
 	// add some rollup fields
 	span.AddRollupField("r1", 2)
