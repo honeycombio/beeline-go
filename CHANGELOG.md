@@ -1,3 +1,16 @@
+# Release v1.1.3 (2021-07-13)
+
+### Dependencies
+
+- Bump go.opentelemetry.io/contrib/propagators from 0.20.0 to 0.21.0 (#237)
+- Bump github.com/honeycombio/libhoney-go from 1.15.2 to 1.15.3 (#236)
+
+### Maintenance
+
+- Updates Github Action Workflows (#243)
+- Updates Dependabot Config (#240)
+- Switches CODEOWNERS to telemetry-team (#239)
+
 # Release v1.1.2 (2021-06-03)
 
 ### Dependencies
