@@ -264,8 +264,7 @@ func (s *Span) AddField(key string, val interface{}) {
 	s.eventLock.Lock()
 	defer s.eventLock.Unlock()
 	if s.ev != nil {
-		err, ok := val.(error)
-		if ok {
+		if err, ok := val.(error); ok {
 			s.ev.AddField(key, err.Error())
 		} else {
 			s.ev.AddField(key, val)
