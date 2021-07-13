@@ -250,7 +250,7 @@ func TestSpan(t *testing.T) {
 	span.AddField("error", expected)
 	assert.Contains(t, span.ev.Fields(), "error")
 	msg, ok := span.ev.Fields()["error"].(string)
-	require.True(t, ok)
+	assert.Equal(t, true, ok)
 	assert.Equal(t, expected.Error(), msg)
 
 	// add some rollup fields
