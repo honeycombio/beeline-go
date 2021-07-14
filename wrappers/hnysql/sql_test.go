@@ -77,7 +77,7 @@ func TestSQLMiddleware(t *testing.T) {
 	defer beeline.Close()
 
 	// Open a mock sql connection.
-	odb, mock, err := sqlmock.New()
+	odb, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
@@ -85,6 +85,7 @@ func TestSQLMiddleware(t *testing.T) {
 
 	mock.ExpectExec("insert into flavors.+").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery("SELECT id FROM flavors.+").WillReturnRows(sqlmock.NewRows([]string{"1"}))
+	mock.ExpectPing()
 
 	// replace it with a wrapped hnysql.DB
 	db := hnysql.WrapDB(odb)
@@ -110,6 +111,10 @@ func TestSQLMiddleware(t *testing.T) {
 		fmt.Printf("%d is %s\n", id, fv)
 	}
 	if err := rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := db.PingContext(ctx); err != nil {
 		log.Fatal(err)
 	}
 
