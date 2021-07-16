@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -242,6 +243,13 @@ func TestSpan(t *testing.T) {
 
 	span.AddField("f1", "v1")
 	assert.Equal(t, "v1", span.ev.Fields()["f1"].(string), "after adding a field, field should exist on the span")
+	// add an error
+	expected := errors.New("test error")
+	span.AddField("error", expected)
+	assert.Contains(t, span.ev.Fields(), "error")
+	msg, ok := span.ev.Fields()["error"].(string)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, expected.Error(), msg)
 
 	// add some rollup fields
 	span.AddRollupField("r1", 2)

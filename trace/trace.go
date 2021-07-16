@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"go.opentelemetry.io/otel/trace"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/propagation"
@@ -254,13 +255,20 @@ func newSpan() *Span {
 }
 
 // AddField adds a key/value pair to this span
+//
+// Errors are treated as a special case for convenience: if `val` is of type
+// `error` then the key is set to the error's message in the span.
 func (s *Span) AddField(key string, val interface{}) {
 	// The call to event's AddField is protected by a lock, but this is not always sufficient
 	// See send for why this lock exists
 	s.eventLock.Lock()
 	defer s.eventLock.Unlock()
 	if s.ev != nil {
-		s.ev.AddField(key, val)
+		if err, ok := val.(error); ok {
+			s.ev.AddField(key, err.Error())
+		} else {
+			s.ev.AddField(key, val)
+		}
 	}
 }
 

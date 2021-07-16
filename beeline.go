@@ -213,6 +213,9 @@ func Close() {
 // context from the request (`r.Context()`) and the key and value you wish to
 // add.This function is good for span-level data, eg timers or the arguments to
 // a specific function call, etc. Fields added here are prefixed with `app.`
+//
+// Errors are treated as a special case for convenience: if `val` is of type
+// `error` then the key is set to the error's message in the span.
 func AddField(ctx context.Context, key string, val interface{}) {
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
