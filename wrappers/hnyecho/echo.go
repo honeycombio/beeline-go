@@ -49,12 +49,17 @@ func (e *EchoWrapper) Middleware() echo.MiddlewareFunc {
 
 			// invoke next middleware in chain
 			err := next(c)
+			if err != nil {
+				span.AddField("echo.error", err.Error())
+				// invokes the registered HTTP error handler
+				c.Error(err)
+			}
 
 			// add fields for http response code and size
 			span.AddField("response.status_code", c.Response().Status)
 			span.AddField("response.size", c.Response().Size)
 
-			return err
+			return nil
 		}
 	}
 }
