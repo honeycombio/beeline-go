@@ -15,5 +15,6 @@ func ExampleMiddleware() {
 	router.GET("/bye/:name", bye)
 
 	// add hnyecho to middleware chain to provide honeycomb instrumentation
+	// note this should be registered first to enable capturing of errors
 	router.Use(New().Middleware())
 }
