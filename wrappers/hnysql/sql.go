@@ -190,7 +190,7 @@ func (db *DB) PingContext(ctx context.Context) error {
 	defer func() {
 		sender(err)
 	}()
-	err = db.wdb.Ping()
+	err = db.wdb.PingContext(ctx)
 	return err
 }
 

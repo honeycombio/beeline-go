@@ -46,6 +46,22 @@ func (db *DB) GetWrappedDB() *sqlx.DB {
 	return db.wdb
 }
 
+func (db *DB) BindNamed(query string, arg interface{}) (string, []interface{}, error) {
+	var err error
+	_, sender := common.BuildDBEvent(db.Builder, db.Stats(), query, arg)
+	defer func() {
+		sender(err)
+	}()
+
+	// ensure any changes to the Mapper get passed along
+	if db.Mapper != nil {
+		db.wdb.Mapper = db.Mapper
+	}
+
+	str, i, err := db.wdb.BindNamed(query, arg)
+	return str, i, err
+}
+
 func (db *DB) Beginx() (*Tx, error) {
 	var err error
 	ev, sender := common.BuildDBEvent(db.Builder, db.Stats(), "")
@@ -261,7 +277,7 @@ func (db *DB) MustBegin() *Tx {
 	wrapTx.wtx = tx
 
 	if err != nil {
-		ev.AddField("db.panic", err)
+		ev.AddField("db.panic", err.Error())
 		panic(err)
 	}
 	return wrapTx
@@ -304,7 +320,7 @@ func (db *DB) MustBeginTx(ctx context.Context, opts *sql.TxOptions) *Tx {
 	// manually wrap the panic in order to report it
 	if err != nil {
 		if span != nil {
-			span.AddField("db.panic", err)
+			span.AddField("db.panic", err.Error())
 		}
 		panic(err)
 	}
@@ -328,7 +344,7 @@ func (db *DB) MustExec(query string, args ...interface{}) sql.Result {
 
 	// manually wrap the panic in order to report it
 	if err != nil {
-		ev.AddField("db.panic", err)
+		ev.AddField("db.panic", err.Error())
 		panic(err)
 	}
 
@@ -363,7 +379,7 @@ func (db *DB) MustExecContext(ctx context.Context, query string, args ...interfa
 	// manually wrap the panic in order to report it
 	if err != nil {
 		if span != nil {
-			span.AddField("db.panic", err)
+			span.AddField("db.panic", err.Error())
 		}
 		panic(err)
 	}
@@ -1025,7 +1041,7 @@ func (n *NamedStmt) MustExec(arg interface{}) sql.Result {
 
 	// manually wrap the panic in order to report it
 	if err != nil {
-		ev.AddField("db.panic", err)
+		ev.AddField("db.panic", err.Error())
 		panic(err)
 	}
 
@@ -1054,7 +1070,7 @@ func (n *NamedStmt) MustExecContext(ctx context.Context, arg interface{}) sql.Re
 	// manually wrap the panic in order to report it
 	if err != nil {
 		if span != nil {
-			span.AddField("db.panic", err)
+			span.AddField("db.panic", err.Error())
 		}
 		panic(err)
 	}
@@ -1277,7 +1293,7 @@ func (s *Stmt) MustExec(args ...interface{}) sql.Result {
 
 	// manually wrap the panic in order to report it
 	if err != nil {
-		ev.AddField("db.panic", err)
+		ev.AddField("db.panic", err.Error())
 		panic(err)
 	}
 
@@ -1311,7 +1327,7 @@ func (s *Stmt) MustExecContext(ctx context.Context, args ...interface{}) sql.Res
 	// manually wrap the panic in order to report it
 	if err != nil {
 		if span != nil {
-			span.AddField("db.panic", err)
+			span.AddField("db.panic", err.Error())
 		}
 		panic(err)
 	}
@@ -1662,7 +1678,7 @@ func (tx *Tx) MustExec(query string, args ...interface{}) sql.Result {
 
 	// manually wrap the panic in order to report it
 	if err != nil {
-		ev.AddField("db.panic", err)
+		ev.AddField("db.panic", err.Error())
 		panic(err)
 	}
 
@@ -1696,7 +1712,7 @@ func (tx *Tx) MustExecContext(ctx context.Context, query string, args ...interfa
 	// manually wrap the panic in order to report it
 	if err != nil {
 		if span != nil {
-			span.AddField("db.panic", err)
+			span.AddField("db.panic", err.Error())
 		}
 		panic(err)
 	}

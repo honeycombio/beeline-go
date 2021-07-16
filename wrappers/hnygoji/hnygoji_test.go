@@ -3,8 +3,8 @@ package hnygoji
 import (
 	"net/http"
 
-	"goji.io"
-	"goji.io/pat"
+	"goji.io/v3"
+	"goji.io/v3/pat"
 )
 
 func ExampleMiddleware() {

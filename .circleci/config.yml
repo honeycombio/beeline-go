@@ -1,37 +1,63 @@
 version: 2.1
 
-executors:
-  go:
-    parameters:
-      goversion:
-        type: string
-        default: "11"
-    working_directory: /go/src/github.com/honeycombio/beeline-go
-    docker:
-      - image: circleci/golang:1.<< parameters.goversion >>
+orbs:
+  go: circleci/go@1.6.0
 
 jobs:
-  test_beeline:
+  test:
     parameters:
-      goversion:
+      go-version:
         type: string
-        default: "11"
+        default: "1.14"
     executor:
-      name: go
-      goversion: "<< parameters.goversion >>"
+      name: go/default
+      tag: << parameters.go-version >>
     steps:
       - checkout
-      - run: go get -v -t -d ./...
-      - run: go test -race -v ./...
+      - go/load-cache
+      - go/test:
+          race: true
+          verbose: true
+          covermode: atomic
+      - go/save-cache
+  publish_github:
+    docker:
+      - image: cibuilds/github:0.13.0
+    steps:
+      - run:
+          name: "GHR Draft"
+          command: ghr -draft -n ${CIRCLE_TAG} -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG}
 
 workflows:
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - main
+    jobs:
+      - test: &test
+          matrix:
+            parameters:
+              go-version:
+                - "1.14"
+                - "1.15"
+                - "1.16"
   build:
     jobs:
-      - test_beeline:
-          goversion: "10"
-      - test_beeline:
-          goversion: "11"
-      - test_beeline:
-          goversion: "12"
-      - test_beeline:
-          goversion: "13"
+      - test:
+          <<: *test
+          filters:
+              tags:
+                only: /.*/
+      - publish_github:
+          context: Honeycomb Secrets for Public Repos
+          filters:
+              tags:
+                only: /^v.*/
+              branches:
+                ignore: /.*/
+          requires:
+            - test

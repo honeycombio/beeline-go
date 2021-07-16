@@ -8,7 +8,7 @@ import (
 )
 
 func TestTraceFromContext(t *testing.T) {
-	ctx, tr := NewTrace(context.Background(), "")
+	ctx, tr := NewTrace(context.Background(), nil)
 	trInCtx := GetTraceFromContext(ctx)
 	assert.Equal(t, tr, trInCtx, "trace from context should be the trace we got from making a new trace")
 	emptyTrace := &Trace{}
@@ -18,7 +18,7 @@ func TestTraceFromContext(t *testing.T) {
 }
 
 func TestSpanFromContext(t *testing.T) {
-	ctx, tr := NewTrace(context.Background(), "")
+	ctx, tr := NewTrace(context.Background(), nil)
 	rs := tr.GetRootSpan()
 	spanInCtx := GetSpanFromContext(ctx)
 	assert.Equal(t, rs, spanInCtx, "span from context should be the root span we got from making a new trace")
@@ -29,7 +29,7 @@ func TestSpanFromContext(t *testing.T) {
 }
 
 func TestCopyContext(t *testing.T) {
-	ctx, tr := NewTrace(context.Background(), "")
+	ctx, tr := NewTrace(context.Background(), nil)
 	rs := tr.GetRootSpan()
 
 	newCtx, err := CopyContext(context.Background(), ctx)

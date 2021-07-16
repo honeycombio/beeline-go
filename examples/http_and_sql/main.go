@@ -21,6 +21,8 @@ func main() {
 		Dataset:  "http+sql",
 		// for demonstration, send the event to STDOUT instead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
+		// NOTE: This should *only* be set to true in development environments.
+		// Setting to true is Production environments can cause problems.
 		STDOUT: true,
 	})
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gobuffalo/pop"
+	"github.com/gobuffalo/pop/v5"
 	beeline "github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/wrappers/hnypop"
 	"github.com/honeycombio/beeline-go/wrappers/hnysqlx"
@@ -32,6 +32,8 @@ func main() {
 		Dataset:  "sqlx",
 		// for demonstration, send the event to STDOUT intead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
+		// NOTE: This should *only* be set to true in development environments.
+		// Setting to true is Production environments can cause problems.
 		STDOUT: true,
 	})
 	defer beeline.Close()

@@ -8,8 +8,8 @@ import (
 	"github.com/honeycombio/beeline-go/wrappers/hnygoji"
 	"github.com/honeycombio/beeline-go/wrappers/hnynethttp"
 
-	"goji.io"
-	"goji.io/pat"
+	"goji.io/v3"
+	"goji.io/v3/pat"
 )
 
 func main() {
@@ -19,6 +19,8 @@ func main() {
 		Dataset:  "http-goji",
 		// for demonstration, send the event to STDOUT instead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
+		// NOTE: This should *only* be set to true in development environments.
+		// Setting to true is Production environments can cause problems.
 		STDOUT: true,
 	})
 	// ensure everything gets sent off before we exit

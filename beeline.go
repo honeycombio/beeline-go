@@ -3,6 +3,7 @@ package beeline
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -18,6 +19,7 @@ const (
 	defaultWriteKey   = "apikey-placeholder"
 	defaultDataset    = "beeline-go"
 	defaultSampleRate = 1
+	warningColor      = "\033[1;33m%s\033[0m"
 )
 
 // Config is the place where you configure your Honeycomb write key and dataset
@@ -119,6 +121,9 @@ func Init(config Config) {
 	if config.Client == nil {
 		var tx transmission.Sender
 		if config.STDOUT == true {
+			fmt.Println(
+				warningColor,
+				`WARNING: Writing to STDOUT in a production environment is dangerous and can cause issues.`)
 			tx = &transmission.WriterSender{}
 		}
 		if config.Mute == true {
@@ -257,7 +262,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, *trace.Span) 
 		// there is no trace active; we should make one, but use the root span
 		// as the "new" span instead of creating a child of this mostly empty
 		// span
-		ctx, _ = trace.NewTrace(ctx, "")
+		ctx, _ = trace.NewTrace(ctx, nil)
 		newSpan = trace.GetSpanFromContext(ctx)
 	}
 	newSpan.AddField("name", name)
@@ -278,6 +283,8 @@ func readResponses(responses chan transmission.Response) {
 				message += fmt.Sprintf(": %s", metadata)
 			}
 			fmt.Printf("%s\n", message)
+		} else if r.StatusCode == http.StatusUnauthorized {
+			fmt.Printf("Error sending event to honeycomb! The APIKey was rejected, please verify your APIKey. %s", metadata)
 		} else {
 			fmt.Printf("Error sending event to Honeycomb! %s had code %d, err %v and response body %s \n",
 				metadata, r.StatusCode, r.Err, r.Body)

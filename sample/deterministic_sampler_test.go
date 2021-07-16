@@ -3,13 +3,12 @@ package sample
 import (
 	"math/rand"
 	"testing"
-	"time"
 )
 
 const requestIDBytes = `abcdef0123456789`
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(1)
 }
 
 func randomRequestID() string {

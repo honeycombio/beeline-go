@@ -22,6 +22,8 @@ func Example() {
 		Dataset:  "sql",
 		// for demonstration, send the event to STDOUT intead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
+		// NOTE: This should *only* be set to true in development environments.
+		// Setting to true is Production environments can cause problems.
 		STDOUT: true,
 	})
 	// and make sure we close to force flushing all pending events before shutdown
@@ -67,13 +69,15 @@ func TestSQLMiddleware(t *testing.T) {
 		Dataset:  "sql",
 		// for demonstration, send the event to STDOUT intead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
+		// NOTE: This should *only* be set to true in development environments.
+		// Setting to true is Production environments can cause problems.
 		STDOUT: true,
 	})
 	// and make sure we close to force flushing all pending events before shutdown
 	defer beeline.Close()
 
 	// Open a mock sql connection.
-	odb, mock, err := sqlmock.New()
+	odb, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
@@ -81,6 +85,7 @@ func TestSQLMiddleware(t *testing.T) {
 
 	mock.ExpectExec("insert into flavors.+").WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectQuery("SELECT id FROM flavors.+").WillReturnRows(sqlmock.NewRows([]string{"1"}))
+	mock.ExpectPing()
 
 	// replace it with a wrapped hnysql.DB
 	db := hnysql.WrapDB(odb)
@@ -106,6 +111,10 @@ func TestSQLMiddleware(t *testing.T) {
 		fmt.Printf("%d is %s\n", id, fv)
 	}
 	if err := rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := db.PingContext(ctx); err != nil {
 		log.Fatal(err)
 	}
 

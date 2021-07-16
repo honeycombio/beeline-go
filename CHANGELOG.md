@@ -1,3 +1,157 @@
+# Release v1.1.3 (2021-07-13)
+
+### Dependencies
+
+- Bump go.opentelemetry.io/contrib/propagators from 0.20.0 to 0.21.0 (#237)
+- Bump github.com/honeycombio/libhoney-go from 1.15.2 to 1.15.3 (#236)
+
+### Maintenance
+
+- Updates Github Action Workflows (#243)
+- Updates Dependabot Config (#240)
+- Switches CODEOWNERS to telemetry-team (#239)
+
+# Release v1.1.2 (2021-06-03)
+
+### Dependencies
+
+- Bump github.com/gin-gonic/gin from 1.7.1 to 1.7.2 (#234)
+- Bump github.com/felixge/httpsnoop from 1.0.1 to 1.0.2 (#233)
+- Bump go.opentelemetry.io/contrib/propagators from 0.19.0 to 0.20.0 (#232)
+- Bump go.opentelemetry.io/otel from 0.19.0 to 0.20.0 (#232)
+- Bump go.opentelemetry.io/otel/trace from 0.19.0 to 0.20.0 (#232)
+
+# Release v1.1.1 (2021-05-21)
+
+### Fixed
+
+- Add missing go.sum entry, which caused issues with go 1.16+ builds (#227) | [@vreynolds](https://github.com/vreynolds)
+
+# Release v1.1.0 (2021-05-18)
+
+### Added
+
+- Add gRPC UnaryClientInterceptor which includes trace context in the outgoing request metadata (#217) | [@aarongable](https://github.com/aarongable)
+
+### Fixed
+
+- Capture request.host property on http client redirects (#216) | [@mccutchen](https://github.com/mccutchen)
+
+### Dependencies
+
+- Bump github.com/labstack/echo/v4 from 4.2.1 to 4.3.0 (#218)
+- Bump github.com/gin-gonic/gin from 1.6.3 to 1.7.1 (#213)
+- Bump github.com/jmoiron/sqlx from 1.3.1 to 1.3.4 (#221)
+
+# Release v1.0.0 (2021-04-12)
+
+### Minimum Go version required: 1.14
+
+### Changed
+
+- trace.NewTrace now takes *propagation.PropagationContext instead of serialized headers (#209)
+  - You can still use trace.NewTraceFromSerializedHeaders to ease migration 
+
+### Removed
+
+- propagation.Propagation: use propagation.PropagationContext (#209)
+- propagation.MarshalTraceContext: use propagation.MarshalHoneycombTraceContext (#209)
+- propagation.UnmarshalTraceContext: use propagation.UnmarshalHoneycombTraceContext (#209)
+- propagation.UnmarshalTraceContextV1: use propagation.UnmarshalHoneycombTraceContext (#209)
+
+### Deprecated
+
+- trace.NewTraceFromPropagationContext: use trace.NewTrace instead (#209)
+
+### Added
+
+- Set additional response header values in hnygorilla wrapper (#196) | [@nathancoleman](https://github.com/nathancoleman)
+
+### Dependencies
+
+- Bump go.opentelemetry.io/otel from 0.15.0 to 0.19.0 (#179) (#208)
+- Bump go.opentelemetry.io/contrib/propagators from 0.15.1 to 0.18.0 (#180) (#193) (#200)
+- Bump github.com/go-sql-driver/mysql from 1.5.0 to 1.6.0 (#204)
+- Bump google.golang.org/grpc from 1.27.0 to 1.36.1 (#178) (#203)
+- Bump github.com/labstack/echo/v4 from 4.1.17 to 4.2.1 (#194)
+- Bump github.com/jmoiron/sqlx from 1.2.0 to 1.3.1 (#188)
+- Bump github.com/google/uuid from 1.1.4 to 1.2.0 (#186)
+- Bump github.com/honeycombio/libhoney-go from 1.15.0 to 1.15.2 (#183)
+
+# Release v0.11.1 (2021-01-22)
+
+- Bump github.com/google/uuid from 1.1.2 to 1.1.4 (#171, #174)
+
+### Fixed
+
+- Ensure rollup fields are included on subroot spans (#173) | [@BRMatt](https://github.com/BRMatt)
+- Default the w3c propagation header sampled flag to `01` (#176)
+
+# Release v0.11.0 (2020-12-29)
+
+- Add hnygrpc package including support for gRPC interceptor wrapping. (#169)
+
+# Release v0.10.2 (2020-12-23)
+
+- Bump otel dependencies from 0.13.0 to 0.15.1
+
+# Release v0.10.1 (2020-12-15)
+
+- Bump github.com/honeycombio/libhoney-go from 0.14.1 to 0.15.0
+- Write keys / API keys will now be masked in debug / console logs.
+
+# Release v0.10.0 (2020-11-20)
+
+- Add GitHub release publish step (#159)
+- Bump go.opentelemetry.io/contrib/propagators from 0.12.0 to 0.13.0 (#156)
+- Bump github.com/gobuffalo/pop/v5 from 5.2.4 to 5.3.1 (#155)
+
+# Release v0.9.0 (2020-11-06)
+
+- Add DB.BindNamed to hnysql wrapper (#157) | @matiasanaya
+
+# Release v0.8.0 (2020-10-07)
+
+- Implemented B3 Propagator (#146) Thanks @Wilhansen!
+
+# Release v0.7.1 (2020-09-24)
+
+- Add .editorconfig to help provide consistent IDE styling (#143)
+
+# Release v0.7.0 (2020-09-16)
+
+- Update dependencies
+- Add extra warnings when enabling STDOUT (#134)
+- Add log when event is rejected with invalid api key (#135)
+
+# Release v0.6.2 (2020-08-21)
+
+- Upgrade dependencies
+- Fixing some flaky tests
+- Protection from potential data race condition in propagation context generating code.
+
+# Release v0.6.1 (2020-07-31)
+
+### Bugfixes
+
+- Calling IsValid() on Honeycomb header unmarshal was preventing manual creation of trace from PropagationContext. Only verify that trace_id is provided whenever parent_id is.
+
+# Release v0.6.0 (2020-07-31)
+
+### Additions
+
+- Generated Span and Trace IDs have changed from UUID4 strings to 16 and 32 character hex encoded strings. These are compatible with the W3C Trace Context specification.
+- Auto-instrumentation support for Gingonic applications (thank you @Nalum!)
+- Marshal / unmarshal functions for Amazon load balancer trace headers and W3C Trace Context headers (used by OpenTelemetry).
+- The hnynethttp package now supports configurable hooks for parsing trace context headers from incoming HTTP requests and injecting trace context headers in outgoing HTTP requests
+
+# Release v0.4.10 (2020-02-19)
+
+### Additions
+
+- Added content encoding field to `hnynethttp` responses.
+- Added context methods to `hnypop.DB`. Now working with latest version of `pop`.
+
 # Release v0.4.9 (2019-12-31)
 
 ### Additions

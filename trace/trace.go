@@ -2,14 +2,21 @@ package trace
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"go.opentelemetry.io/otel/trace"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/sample"
 	libhoney "github.com/honeycombio/libhoney-go"
+)
+
+const (
+	traceIDLengthBytes = 16
+	spanIDLengthBytes  = 8
 )
 
 var GlobalConfig Config
@@ -39,31 +46,39 @@ type Trace struct {
 	traceLevelFields map[string]interface{}
 }
 
-// NewTrace creates a brand new trace. serializedHeaders is optional, and if
-// included, should be the header as written by trace.SerializeHeaders(). When
-// not starting from an upstream trace, pass the empty string here.
-func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *Trace) {
+// getNewID generates a lowercase hex encoded string with the specified number
+// of bytes. It is used for ID generation for traces and spans.
+func getNewID(length uint16) string {
+	id := make([]byte, length)
+	// rand.Seed is called in libhoney's init, so this is sure to have well-seeded random content.
+	_, _ = rand.Read(id)
+	return hex.EncodeToString(id)
+}
+
+// NewTraceFromPropagationContext creates a brand new trace. prop is optional, and if included,
+// should be populated with data from a trace context header.
+//
+// Deprecated: use NewTrace instead.
+func NewTraceFromPropagationContext(ctx context.Context, prop *propagation.PropagationContext) (context.Context, *Trace) {
 	trace := &Trace{
 		builder:          client.NewBuilder(),
 		rollupFields:     make(map[string]float64),
 		traceLevelFields: make(map[string]interface{}),
 	}
-	if serializedHeaders != "" {
-		prop, err := propagation.UnmarshalTraceContext(serializedHeaders)
-		if err == nil {
-			trace.traceID = prop.TraceID
-			trace.parentID = prop.ParentID
-			for k, v := range prop.TraceContext {
-				trace.traceLevelFields[k] = v
-			}
-			if prop.Dataset != "" {
-				trace.builder.Dataset = prop.Dataset
-			}
+
+	if prop != nil {
+		trace.traceID = prop.TraceID
+		trace.parentID = prop.ParentID
+		for k, v := range prop.TraceContext {
+			trace.traceLevelFields[k] = v
+		}
+		if prop.Dataset != "" {
+			trace.builder.Dataset = prop.Dataset
 		}
 	}
 
 	if trace.traceID == "" {
-		trace.traceID = uuid.Must(uuid.NewRandom()).String()
+		trace.traceID = getNewID(traceIDLengthBytes)
 	}
 
 	rootSpan := newSpan()
@@ -79,6 +94,25 @@ func NewTrace(ctx context.Context, serializedHeaders string) (context.Context, *
 	ctx = PutTraceInContext(ctx, trace)
 	ctx = PutSpanInContext(ctx, rootSpan)
 	return ctx, trace
+}
+
+// NewTraceFromSerializedHeaders creates a brand new trace. serializedHeaders is optional, and if
+// included, should be the header as written by trace.SerializeHeaders(). When
+// not starting from an upstream trace, pass the empty string here.
+//
+// Deprecated: use NewTrace instead.
+func NewTraceFromSerializedHeaders(ctx context.Context, serializedHeaders string) (context.Context, *Trace) {
+	var prop *propagation.PropagationContext
+	if serializedHeaders != "" {
+		prop, _ = propagation.UnmarshalHoneycombTraceContext(serializedHeaders)
+	}
+	return NewTraceFromPropagationContext(ctx, prop)
+}
+
+// NewTrace creates a new trace. prop is optional, and if included,
+// should be populated with data from a trace context header.
+func NewTrace(ctx context.Context, prop *propagation.PropagationContext) (context.Context, *Trace) {
+	return NewTraceFromPropagationContext(ctx, prop)
 }
 
 // AddField adds a field to the trace. Every span in the trace will have this
@@ -100,15 +134,30 @@ func (t *Trace) AddField(key string, val interface{}) {
 // The serialized form may be passed to NewTrace() in order to create a new
 // trace that will be connected to this trace.
 func (t *Trace) serializeHeaders(spanID string) string {
-	var prop = &propagation.Propagation{
-		TraceID:      t.traceID,
-		ParentID:     spanID,
-		Dataset:      t.builder.Dataset,
-		TraceContext: t.traceLevelFields,
+	prop := t.propagationContext()
+	prop.ParentID = spanID
+	return propagation.MarshalHoneycombTraceContext(prop)
+}
+
+// propagationContext returns a partially populated propagation context. It only
+// has the fields that come from the trace level - after getting the returned
+// object the caller must still fill in the span ID in order to fully populate
+// the PropagationContext struct for use creating serialized headers.
+func (t *Trace) propagationContext() *propagation.PropagationContext {
+	// make a copy of the trace level fields map since we can't lock our
+	// returned value to protect it
+	t.tlfLock.Lock()
+	defer t.tlfLock.Unlock()
+	localTLF := map[string]interface{}{}
+	for k, v := range t.traceLevelFields {
+		localTLF[k] = v
 	}
-	t.tlfLock.RLock()
-	defer t.tlfLock.RUnlock()
-	return propagation.MarshalTraceContext(prop)
+	return &propagation.PropagationContext{
+		TraceID:      t.traceID,
+		Dataset:      t.builder.Dataset,
+		TraceContext: localTLF,
+		TraceFlags:   trace.FlagsSampled, // TODO: set the sampled flag based on sampler decision
+	}
 }
 
 // addRollupField is here to let a span contribute a field to the trace while
@@ -199,7 +248,7 @@ type Span struct {
 // create a well formed span.
 func newSpan() *Span {
 	return &Span{
-		spanID:  uuid.Must(uuid.NewRandom()).String(),
+		spanID:  getNewID(spanIDLengthBytes),
 		started: time.Now(),
 	}
 }
@@ -424,7 +473,7 @@ func (s *Span) send() {
 	s.childrenLock.Unlock()
 	s.AddField("meta.span_type", spanType)
 
-	if spanType == "root" {
+	if s.isRoot {
 		// add the trace's rollup fields to the root span
 		for k, v := range s.trace.getRollupFields() {
 			s.AddField("rollup."+k, v)
@@ -471,4 +520,12 @@ func (s *Span) createChildSpan(ctx context.Context, async bool) (context.Context
 	s.childrenLock.Unlock()
 	ctx = PutSpanInContext(ctx, newSpan)
 	return ctx, newSpan
+}
+
+// PropagationContext creates and returns a new propagation.PropagationContext using the
+// information in the current span.
+func (s *Span) PropagationContext() *propagation.PropagationContext {
+	prop := s.trace.propagationContext()
+	prop.ParentID = s.spanID
+	return prop
 }

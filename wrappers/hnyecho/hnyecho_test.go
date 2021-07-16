@@ -1,7 +1,7 @@
 package hnyecho
 
 import (
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 func ExampleMiddleware() {
@@ -15,5 +15,6 @@ func ExampleMiddleware() {
 	router.GET("/bye/:name", bye)
 
 	// add hnyecho to middleware chain to provide honeycomb instrumentation
+	// note this should be registered first to enable capturing of errors
 	router.Use(New().Middleware())
 }

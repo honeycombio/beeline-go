@@ -6,7 +6,7 @@ import (
 
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/wrappers/hnyecho"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 func main() {
@@ -16,6 +16,8 @@ func main() {
 		Dataset:  "http-echo",
 		// for demonstration, send the event to STDOUT instead of Honeycomb.
 		// Remove the STDOUT setting when filling in a real write key.
+		// NOTE: This should *only* be set to true in development environments.
+		// Setting to true is Production environments can cause problems.
 		STDOUT: true,
 	})
 	// ensure everything gets sent off before we exit

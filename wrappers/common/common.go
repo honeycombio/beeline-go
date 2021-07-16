@@ -11,6 +11,7 @@ import (
 	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/timer"
 	"github.com/honeycombio/beeline-go/trace"
+	"github.com/honeycombio/beeline-go/wrappers/config"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
@@ -42,14 +43,34 @@ func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
 	return &rw
 }
 
+// StartSpanOrTraceFromHTTP creates and returns a span for the provided http.Request. If
+// there is an existing span in the Context, this function will create the new span as a
+// child span and return it. If not, it will create a new trace object and return the root
+// span.
 func StartSpanOrTraceFromHTTP(r *http.Request) (context.Context, *trace.Span) {
+	return StartSpanOrTraceFromHTTPWithTraceParserHook(r, nil)
+}
+
+// StartSpanOrTraceFromHTTPWithTraceParserHook is a version of StartSpanOrTraceFromHTTP that
+// accepts a TraceParserHook which will be invoked when creating a new trace for the incoming
+// HTTP request.
+func StartSpanOrTraceFromHTTPWithTraceParserHook(r *http.Request, parserHook config.HTTPTraceParserHook) (context.Context, *trace.Span) {
 	ctx := r.Context()
 	span := trace.GetSpanFromContext(ctx)
 	if span == nil {
 		// there is no trace yet. We should make one! and use the root span.
-		beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
 		var tr *trace.Trace
-		ctx, tr = trace.NewTrace(ctx, beelineHeader)
+		if parserHook == nil {
+			beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
+			prop, _ := propagation.UnmarshalHoneycombTraceContext(beelineHeader)
+			ctx, tr = trace.NewTrace(ctx, prop)
+		} else {
+			// Call the provided TraceParserHook to get the propagation context
+			// from the incoming request. This information will then be used when
+			// create the new trace.
+			prop := parserHook(r)
+			ctx, tr = trace.NewTraceFromPropagationContext(ctx, prop)
+		}
 		span = tr.GetRootSpan()
 	} else {
 		// we had a parent! let's make a new child for this handler
@@ -68,6 +89,10 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 	userAgent := req.UserAgent()
 	xForwardedFor := req.Header.Get("x-forwarded-for")
 	xForwardedProto := req.Header.Get("x-forwarded-proto")
+	host := req.Host
+	if host == "" {
+		host = req.URL.Hostname()
+	}
 
 	reqProps := make(map[string]interface{})
 	// identify the type of event
@@ -80,7 +105,7 @@ func GetRequestProps(req *http.Request) map[string]interface{} {
 		reqProps["request.query"] = req.URL.RawQuery
 	}
 	reqProps["request.url"] = req.URL.String()
-	reqProps["request.host"] = req.Host
+	reqProps["request.host"] = host
 	reqProps["request.http_version"] = req.Proto
 	reqProps["request.content_length"] = req.ContentLength
 	reqProps["request.remote_addr"] = req.RemoteAddr
@@ -164,7 +189,7 @@ func BuildDBEvent(bld *libhoney.Builder, stats sql.DBStats, query string, args .
 		// rollup(ctx, ev, duration)
 		ev.AddField("duration_ms", duration)
 		if err != nil {
-			ev.AddField("db.error", err)
+			ev.AddField("db.error", err.Error())
 		}
 		ev.Metadata, _ = ev.Fields()["name"]
 		ev.Send()
@@ -184,7 +209,7 @@ func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, stats sql.DBStats, 
 		// least confusing possibility. Would be nice to indicate this had
 		// happened in a better way than yet another meta. field.
 		var tr *trace.Trace
-		ctx, tr = trace.NewTrace(ctx, "")
+		ctx, tr = trace.NewTrace(ctx, nil)
 		span = tr.GetRootSpan()
 		span.AddField("meta.orphaned", true)
 	} else {
@@ -199,7 +224,7 @@ func BuildDBSpan(ctx context.Context, bld *libhoney.Builder, stats sql.DBStats, 
 	fn := func(err error) {
 		duration := timer.Finish()
 		if err != nil {
-			span.AddField("db.error", err)
+			span.AddField("db.error", err.Error())
 		}
 		span.AddRollupField("db.duration_ms", duration)
 		span.AddRollupField("db.call_count", 1)
