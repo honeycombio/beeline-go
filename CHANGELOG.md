@@ -1,3 +1,21 @@
+# Release v1.2.0 (2021-07-21)
+
+### Dependencies
+
+- Update libhoney from 1.15.3 to 1.15.4 (#253)
+- Bump github.com/labstack/echo/v4 from 4.3.0 to 4.4.0 (#251)
+- Bump github.com/google/uuid from 1.2.0 to 1.3.0 (#250)
+
+### Added
+
+- feat: span.AddField() support adding error (#246)
+
+### Fixed
+
+- Avoid hnynethttp.WrapHandler panic with non-pointer handlers (#92)
+- fix(echo): this change ensures honeycomb captures errors correctly (#249)
+- Use PingContext in the wrapped PingContext method (#245)
+
 # Release v1.1.3 (2021-07-13)
 
 ### Dependencies
