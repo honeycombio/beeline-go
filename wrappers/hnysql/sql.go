@@ -2,14 +2,19 @@ package hnysql
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
 	"time"
-
-	"github.com/google/uuid"
 
 	"github.com/honeycombio/beeline-go/wrappers/common"
 	libhoney "github.com/honeycombio/libhoney-go"
+)
+
+const (
+	traceIDLengthBytes = 16
+	spanIDLengthBytes  = 8
 )
 
 type DB struct {
@@ -25,6 +30,15 @@ type DB struct {
 	// Builder is available in case you wish to add fields to every SQL event
 	// that will be created.
 	Builder *libhoney.Builder
+}
+
+// getNewID generates a lowercase hex encoded string with the specified number
+// of bytes. It is used for ID generation for traces and spans.
+func getNewID(length uint16) string {
+	id := make([]byte, length)
+	// rand.Seed is called in libhoney's init, so this is sure to have well-seeded random content.
+	_, _ = rand.Read(id)
+	return hex.EncodeToString(id)
 }
 
 func WrapDB(s *sql.DB) *DB {
@@ -49,8 +63,7 @@ func (db *DB) Begin() (*Tx, error) {
 		db:      db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	txid := newid.String()
+	txid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.txId", txid)
 	ev.AddField("db.txId", txid)
 
@@ -76,8 +89,7 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 		db:      db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	txid := newid.String()
+	txid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.txId", txid)
 	if span != nil {
 		span.AddField("db.txId", txid)
@@ -103,8 +115,7 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 		sender(err)
 	}()
 	bld := db.Builder.Clone()
-	id, _ := uuid.NewRandom()
-	connid := id.String()
+	connid := getNewID(traceIDLengthBytes)
 	wrapConn := &Conn{
 		db:      db,
 		Builder: bld,
@@ -202,8 +213,7 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 	}()
 
 	bld := db.Builder.Clone()
-	id, _ := uuid.NewRandom()
-	stmtid := id.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	wrapStmt := &Stmt{
 		db:      db,
 		Builder: bld,
@@ -228,8 +238,7 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	}()
 
 	bld := db.Builder.Clone()
-	id, _ := uuid.NewRandom()
-	stmtid := id.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	wrapStmt := &Stmt{
 		db:      db,
 		Builder: bld,
@@ -322,8 +331,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	// TODO if ctx.Cancel is called, the transaction is rolled back. We should
 	// submit an event indicating the rollback.
 	bld := c.Builder.Clone()
-	id, _ := uuid.NewRandom()
-	txid := id.String()
+	txid := getNewID(traceIDLengthBytes)
 	wrapTx := &Tx{
 		db:      c.db,
 		Builder: bld,
@@ -404,8 +412,7 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 	}()
 
 	bld := c.Builder.Clone()
-	id, _ := uuid.NewRandom()
-	stmtid := id.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	wrapStmt := &Stmt{
 		db:      c.db,
 		Builder: bld,
@@ -634,8 +641,7 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	}()
 
 	bld := tx.Builder.Clone()
-	id, _ := uuid.NewRandom()
-	stmtid := id.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	wrapStmt := &Stmt{
 		db:      tx.db,
 		Builder: bld,
@@ -658,8 +664,7 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	}()
 
 	bld := tx.Builder.Clone()
-	id, _ := uuid.NewRandom()
-	stmtid := id.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	wrapStmt := &Stmt{
 		db:      tx.db,
 		Builder: bld,

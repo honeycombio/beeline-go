@@ -2,17 +2,23 @@ package hnysqlx
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
 	"reflect"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
 
 	"github.com/honeycombio/beeline-go/wrappers/common"
 	libhoney "github.com/honeycombio/libhoney-go"
+)
+
+const (
+	traceIDLengthBytes = 16
+	spanIDLengthBytes  = 8
 )
 
 type DB struct {
@@ -30,6 +36,15 @@ type DB struct {
 	Builder *libhoney.Builder
 
 	Mapper *reflectx.Mapper
+}
+
+// getNewID generates a lowercase hex encoded string with the specified number
+// of bytes. It is used for ID generation for traces and spans.
+func getNewID(length uint16) string {
+	id := make([]byte, length)
+	// rand.Seed is called in libhoney's init, so this is sure to have well-seeded random content.
+	_, _ = rand.Read(id)
+	return hex.EncodeToString(id)
 }
 
 func WrapDB(s *sqlx.DB) *DB {
@@ -75,8 +90,7 @@ func (db *DB) Beginx() (*Tx, error) {
 	}
 
 	bld := db.Builder.Clone()
-	newid, _ := uuid.NewRandom()
-	txid := newid.String()
+	txid := getNewID(traceIDLengthBytes)
 	wrapTx := &Tx{
 		db:      db,
 		Builder: bld,
@@ -107,8 +121,7 @@ func (db *DB) BeginTxx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 		db:      db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	txid := newid.String()
+	txid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.tx_id", txid)
 	if span != nil {
 		span.AddField("db.tx_id", txid)
@@ -266,8 +279,7 @@ func (db *DB) MustBegin() *Tx {
 		db:      db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	txid := newid.String()
+	txid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.tx_id", txid)
 	ev.AddField("db.tx_id", txid)
 
@@ -300,8 +312,7 @@ func (db *DB) MustBeginTx(ctx context.Context, opts *sql.TxOptions) *Tx {
 		db:      db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	txid := newid.String()
+	txid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.tx_id", txid)
 	if span != nil {
 		span.AddField("db.tx_id", txid)
@@ -545,8 +556,7 @@ func (db *DB) PrepareNamed(query string) (*NamedStmt, error) {
 		db:      db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	stmtid := newid.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.stmt_id", stmtid)
 	ev.AddField("db.stmt_id", stmtid)
 
@@ -577,8 +587,7 @@ func (db *DB) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt
 		db:      db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	stmtid := newid.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.stmt_id", stmtid)
 	if span != nil {
 		span.AddField("db.stmt_id", stmtid)
@@ -607,8 +616,7 @@ func (db *DB) Preparex(query string) (*Stmt, error) {
 		db:      db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	stmtid := newid.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.stmt_id", stmtid)
 	ev.AddField("db.stmt_id", stmtid)
 
@@ -635,8 +643,7 @@ func (db *DB) PreparexContext(ctx context.Context, query string) (*Stmt, error) 
 		db:      db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	stmtid := newid.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.stmt_id", stmtid)
 	if span != nil {
 		span.AddField("db.stmt_id", stmtid)
@@ -1893,8 +1900,7 @@ func (tx *Tx) PrepareNamed(query string) (*NamedStmt, error) {
 		db:      tx.db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	stmtid := newid.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.stmt_id", stmtid)
 	ev.AddField("db.stmt_id", stmtid)
 	bld.AddField("db.query", query)
@@ -1922,8 +1928,7 @@ func (tx *Tx) PrepareNamedContext(ctx context.Context, query string) (*NamedStmt
 		db:      tx.db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	stmtid := newid.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.stmt_id", stmtid)
 	if span != nil {
 		span.AddField("db.stmt_id", stmtid)
@@ -1953,8 +1958,7 @@ func (tx *Tx) Preparex(query string) (*Stmt, error) {
 		db:      tx.db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	stmtid := newid.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.stmt_id", stmtid)
 	ev.AddField("db.stmt_id", stmtid)
 	bld.AddField("db.query", query)
@@ -1982,8 +1986,7 @@ func (tx *Tx) PreparexContext(ctx context.Context, query string) (*Stmt, error) 
 		db:      tx.db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	stmtid := newid.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.stmt_id", stmtid)
 	if span != nil {
 		span.AddField("db.stmt_id", stmtid)
@@ -2237,8 +2240,7 @@ func (tx *Tx) Stmtx(stmt *Stmt) *Stmt {
 		db:      tx.db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	stmtid := newid.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.stmt_id", stmtid)
 	ev.AddField("db.stmt_id", stmtid)
 
@@ -2267,8 +2269,7 @@ func (tx *Tx) StmtxContext(ctx context.Context, stmt *Stmt) *Stmt {
 		db:      tx.db,
 		Builder: bld,
 	}
-	newid, _ := uuid.NewRandom()
-	stmtid := newid.String()
+	stmtid := getNewID(traceIDLengthBytes)
 	bld.AddField("db.stmt_id", stmtid)
 	if span != nil {
 		span.AddField("db.stmt_id", stmtid)
