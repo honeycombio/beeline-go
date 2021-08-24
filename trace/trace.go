@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/sample"
@@ -157,7 +155,7 @@ func (t *Trace) propagationContext() *propagation.PropagationContext {
 		TraceID:      t.traceID,
 		Dataset:      t.builder.Dataset,
 		TraceContext: localTLF,
-		TraceFlags:   trace.FlagsSampled, // TODO: set the sampled flag based on sampler decision
+		TraceFlags:   propagation.FlagsSampled, // TODO: set the sampled flag based on sampler decision
 	}
 }
 
