@@ -31,58 +31,58 @@ func (e errorConst) Error() string {
 	return string(e)
 }
 
-// TraceID is a unique identity of a trace.
-type TraceID [16]byte
+// traceID is a unique identity of a trace.
+type traceID [16]byte
 
-var nilTraceID TraceID
+var nilTraceID traceID
 var _ json.Marshaler = nilTraceID
 
-// IsValid checks whether the trace TraceID is valid. A valid trace ID does
+// IsValid checks whether the trace traceID is valid. A valid trace ID does
 // not consist of zeros only.
-func (t TraceID) IsValid() bool {
+func (t traceID) IsValid() bool {
 	return !bytes.Equal(t[:], nilTraceID[:])
 }
 
-// MarshalJSON implements a custom marshal function to encode TraceID
+// MarshalJSON implements a custom marshal function to encode traceID
 // as a hex string.
-func (t TraceID) MarshalJSON() ([]byte, error) {
+func (t traceID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
 }
 
-// String returns the hex string representation form of a TraceID
-func (t TraceID) String() string {
+// String returns the hex string representation form of a traceID
+func (t traceID) String() string {
 	return hex.EncodeToString(t[:])
 }
 
-// SpanID is a unique identity of a span in a trace.
-type SpanID [8]byte
+// spanID is a unique identity of a span in a trace.
+type spanID [8]byte
 
-var nilSpanID SpanID
+var nilSpanID spanID
 var _ json.Marshaler = nilSpanID
 
-// IsValid checks whether the SpanID is valid. A valid SpanID does not consist
+// IsValid checks whether the spanID is valid. A valid spanID does not consist
 // of zeros only.
-func (s SpanID) IsValid() bool {
+func (s spanID) IsValid() bool {
 	return !bytes.Equal(s[:], nilSpanID[:])
 }
 
-// MarshalJSON implements a custom marshal function to encode SpanID
+// MarshalJSON implements a custom marshal function to encode spanID
 // as a hex string.
-func (s SpanID) MarshalJSON() ([]byte, error) {
+func (s spanID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
 
-// String returns the hex string representation form of a SpanID
-func (s SpanID) String() string {
+// String returns the hex string representation form of a SsanID
+func (s spanID) String() string {
 	return hex.EncodeToString(s[:])
 }
 
-// TraceIDFromHex returns a TraceID from a hex string if it is compliant with
+// TraceIDFromHex returns a traceID from a hex string if it is compliant with
 // the W3C trace-context specification.  See more at
 // https://www.w3.org/TR/trace-context/#trace-id
 // nolint:revive // revive complains about stutter of `trace.TraceIDFromHex`.
-func traceIDFromHex(h string) (TraceID, error) {
-	t := TraceID{}
+func traceIDFromHex(h string) (traceID, error) {
+	t := traceID{}
 	if len(h) != 32 {
 		return t, errInvalidTraceIDLength
 	}
@@ -97,11 +97,11 @@ func traceIDFromHex(h string) (TraceID, error) {
 	return t, nil
 }
 
-// SpanIDFromHex returns a SpanID from a hex string if it is compliant
+// SpanIDFromHex returns a spanID from a hex string if it is compliant
 // with the w3c trace-context specification.
 // See more at https://www.w3.org/TR/trace-context/#parent-id
-func spanIDFromHex(h string) (SpanID, error) {
-	s := SpanID{}
+func spanIDFromHex(h string) (spanID, error) {
+	s := spanID{}
 	if len(h) != 16 {
 		return s, errInvalidSpanIDLength
 	}
