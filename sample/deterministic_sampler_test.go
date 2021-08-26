@@ -80,8 +80,11 @@ func TestDeterministicSampler(t *testing.T) {
 		// the test.
 		unacceptableLowBound := int(expectedNSampled - (expectedNSampled * acceptableMarginOfError))
 		unacceptableHighBound := int(expectedNSampled + (expectedNSampled * acceptableMarginOfError))
-		if nSampled < unacceptableLowBound || nSampled > unacceptableHighBound {
-			t.Fatal("Sampled more or less than we should have: ", nSampled, "(sample rate ", sampleRate, ")")
+		if nSampled < unacceptableLowBound {
+			t.Fatalf("Sampled (%d) less than acceptable lower bound (%d). Sample rate: %d", nSampled, unacceptableLowBound, sampleRate)
+		}
+		if nSampled > unacceptableHighBound {
+			t.Fatalf("Sampled (%d) more than acceptable upper bound (%d). Sample rate: %d", nSampled, unacceptableHighBound, sampleRate)
 		}
 	}
 
