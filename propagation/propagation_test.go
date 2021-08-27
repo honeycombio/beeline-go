@@ -5,8 +5,6 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -250,7 +248,7 @@ func TestW3CTraceContext(t *testing.T) {
 	prop = &PropagationContext{
 		TraceID:    "0af7651916cd43dd8448eb211c80319c",
 		ParentID:   "b7ad6b7169203331",
-		TraceFlags: trace.FlagsSampled,
+		TraceFlags: FlagsSampled,
 	}
 	ctx, headers = MarshalW3CTraceContext(context.Background(), prop)
 	assert.Equal(t, "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", headers["traceparent"])
@@ -270,13 +268,13 @@ func TestW3CTraceContext(t *testing.T) {
 	}
 	ctx, prop, err := UnmarshalW3CTraceContext(ctx, headers)
 	assert.NoError(t, err, "unmarshal w3c headers")
-	ctx, marshaled := MarshalW3CTraceContext(ctx, prop)
+	_, marshaled := MarshalW3CTraceContext(ctx, prop)
 	assert.Equal(t, "foo=bar,bar=baz", marshaled["tracestate"])
 
 	// ensure that empty headers are handled the way we expect (silently)
 	headers = map[string]string{}
-	ctx, prop, err = UnmarshalW3CTraceContext(context.Background(), headers)
-	assert.Error(t, err, "Cannot unmarshal empty header")
+	_, _, err = UnmarshalW3CTraceContext(context.Background(), headers)
+	assert.Error(t, err, "cannot unmarshal empty header")
 }
 
 func TestB3TraceContext(t *testing.T) {
@@ -285,9 +283,10 @@ func TestB3TraceContext(t *testing.T) {
 		ParentID: "b7ad6b7169203331",
 	}
 	ctx, headers := MarshalB3TraceContext(context.Background(), prop)
-	assert.Equal(t, 4, len(headers), "B3 Trace Context should have three headers")
+	assert.Equal(t, 3, len(headers), "B3 Trace Context should have three headers")
 	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", headers["x-b3-traceid"])
 	assert.Equal(t, "b7ad6b7169203331", headers["x-b3-spanid"])
+
 	// should result in empty headers
 	prop = &PropagationContext{
 		TraceID:  "invalid-trace-id",
@@ -315,12 +314,12 @@ func TestB3TraceContext(t *testing.T) {
 	assert.NoError(t, err, "unmarshal B3 headers")
 	assert.Equal(t, "0af7651916cd43dd8448eb211c80319c", prop.TraceID)
 	assert.Equal(t, "b7ad6b7169203331", prop.ParentID)
-	ctx, marshaled = MarshalB3TraceContext(ctx, prop)
+	_, marshaled = MarshalB3TraceContext(ctx, prop)
 	assert.Equal(t, "1", marshaled["x-b3-sampled"])
 
 	// ensure that empty headers are handled the way we expect (silently)
 	headers = map[string]string{}
-	ctx, prop, err = UnmarshalB3TraceContext(context.Background(), headers)
+	_, _, err = UnmarshalB3TraceContext(context.Background(), headers)
 	assert.Error(t, err, "Cannot unmarshal empty header")
 }
 
