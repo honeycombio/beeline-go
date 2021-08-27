@@ -133,7 +133,6 @@ func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (c
 	// affect the parsing of traceparent according to the W3C tracecontext
 	// specification.
 	prop.TraceState, _ = ParseTraceState(getHeaderValue(headers, tracestateHeader))
-	//prop.Remote = true
 
 	return ctx, prop, nil
 }
