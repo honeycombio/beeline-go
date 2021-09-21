@@ -133,8 +133,9 @@ func WrapHandlerFunc(hf func(http.ResponseWriter, *http.Request)) func(http.Resp
 
 type hnyTripper struct {
 	// wrt is the wrapped round tripper
-	wrt             http.RoundTripper
-	propagationHook config.HTTPTracePropagationHook
+	wrt                http.RoundTripper
+	propagationHook    config.HTTPTracePropagationHook
+	disableClientSpans bool
 }
 
 func (ht *hnyTripper) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -174,16 +175,19 @@ func (ht *hnyTripper) eventRoundTrip(r *http.Request) (*http.Response, error) {
 func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *http.Request) (*http.Response, error) {
 	// we have a trace, let's use it and pass along trace context in addition to
 	// making a span around this HTTP call
-	ctx, span = span.CreateChild(ctx)
-	defer span.Send()
+	if !ht.disableClientSpans {
+		ctx, span = span.CreateChild(ctx)
+		defer span.Send()
 
-	r = r.WithContext(ctx)
-	// add in common request headers.
-	for k, v := range common.GetRequestProps(r) {
-		span.AddField(k, v)
+		r = r.WithContext(ctx)
+		// add in common request headers.
+		for k, v := range common.GetRequestProps(r) {
+			span.AddField(k, v)
+		}
+		span.AddField("meta.type", "http_client")
+		span.AddField("name", "http_client")
 	}
-	span.AddField("meta.type", "http_client")
-	span.AddField("name", "http_client")
+
 	// If no propagation hook is defined, default to using the Honeycomb header format.
 	if ht.propagationHook == nil {
 		r.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
@@ -202,16 +206,18 @@ func (ht *hnyTripper) spanRoundTrip(ctx context.Context, span *trace.Span, r *ht
 		// TODO should this error field be namespaced somehow
 		span.AddField("error", err.Error())
 	} else {
-		if cl := resp.Header.Get("Content-Length"); cl != "" {
-			span.AddField("response.content_length", cl)
+		if !ht.disableClientSpans {
+			if cl := resp.Header.Get("Content-Length"); cl != "" {
+				span.AddField("response.content_length", cl)
+			}
+			if ct := resp.Header.Get("Content-Type"); ct != "" {
+				span.AddField("response.content_type", ct)
+			}
+			if ce := resp.Header.Get("Content-Encoding"); ce != "" {
+				span.AddField("response.content_encoding", ce)
+			}
+			span.AddField("response.status_code", resp.StatusCode)
 		}
-		if ct := resp.Header.Get("Content-Type"); ct != "" {
-			span.AddField("response.content_type", ct)
-		}
-		if ce := resp.Header.Get("Content-Encoding"); ce != "" {
-			span.AddField("response.content_encoding", ce)
-		}
-		span.AddField("response.status_code", resp.StatusCode)
 	}
 	return resp, err
 }
@@ -231,7 +237,7 @@ func WrapRoundTripper(r http.RoundTripper) http.RoundTripper {
 // HTTP call. The return value, a map of header names to header strings, will be added
 // to the headers of the outgoing request.
 func WrapRoundTripperWithConfig(r http.RoundTripper, cfg config.HTTPOutgoingConfig) http.RoundTripper {
-	tripper := &hnyTripper{wrt: r}
+	tripper := &hnyTripper{wrt: r, disableClientSpans: cfg.DisableClientSpans}
 	if cfg.HTTPPropagationHook != nil {
 		tripper.propagationHook = cfg.HTTPPropagationHook
 	}

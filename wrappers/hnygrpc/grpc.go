@@ -158,12 +158,14 @@ func UnaryClientInterceptorWithConfig(cfg config.GRPCOutgoingConfig) grpc.UnaryC
 			return err
 		}
 
-		ctx, span = span.CreateChild(ctx)
-		defer span.Send()
+		if !cfg.DisableClientSpans {
+			ctx, span = span.CreateChild(ctx)
+			defer span.Send()
 
-		span.AddField("name", method)
-		span.AddField("meta.type", "grpc_client")
-		span.AddField("request.target", cc.Target())
+			span.AddField("name", method)
+			span.AddField("meta.type", "grpc_client")
+			span.AddField("request.target", cc.Target())
+		}
 
 		md, ok := metadata.FromOutgoingContext(ctx)
 		if !ok {

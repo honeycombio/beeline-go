@@ -39,6 +39,9 @@ type HTTPIncomingConfig struct {
 // instrumented application.
 type HTTPOutgoingConfig struct {
 	HTTPPropagationHook HTTPTracePropagationHook
+	// If DisableClientSpans is true, the client wrapper will propagate existing span
+	// metadata instead of of creating and propagating a new span.
+	DisableClientSpans bool
 }
 
 // GRPCTraceParserHook is a function that will be invoked on all incoming gRPC requests
@@ -65,4 +68,7 @@ type GRPCIncomingConfig struct {
 // by an instrumented application.
 type GRPCOutgoingConfig struct {
 	GRPCPropagationHook GRPCTracePropagationHook
+	// If DisableClientSpans is true, the client wrapper will propagate existing span
+	// metadata instead of of creating and propagating a new span.
+	DisableClientSpans bool
 }
