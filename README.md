@@ -11,7 +11,7 @@ This package makes it easy to instrument your Go app to send useful events to [H
 
 ## Dependencies
 
-The beeline uses [go modules](https://golang.org/cmd/go/#hdr-Modules__module_versions__and_more) to track external dependencies: golang 1.11 or newer is therefore required to build
+Golang 1.14+
 
 ## Contributions
 
