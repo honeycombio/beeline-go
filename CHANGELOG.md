@@ -1,3 +1,22 @@
+# Release v1.3.0 (2021-10-15)
+
+### Maintenance
+
+- Remove dependency on opentelemetry-go (#267) | [@paulosman](https://github.com/paulosman)
+- Provide more context for sampler test failures (#270) | [@vreynolds](https://github.com/vreynolds)
+- Spruce up CI (#266) | [@vreynolds](https://github.com/vreynolds)
+- add min go verison to readme (#279) | [@vreynolds](https://github.com/vreynolds)
+- Change maintenance badge to maintained (#274) | [@JamieDanielson](https://github.com/JamieDanielson)
+- Adds Stalebot (#275) | [@JamieDanielson](https://github.com/JamieDanielson)
+- Add NOTICE (#271) | [@cartermp](https://github.com/cartermp)
+- Add issue and PR templates (#261) | [@vreynolds](https://github.com/vreynolds)
+- Add OSS lifecycle badge (#260) | [@vreynolds](https://github.com/vreynolds)
+- Add community health files (#259) | [@vreynolds](https://github.com/vreynolds)
+- Bump google.golang.org/grpc from 1.38.0 to 1.40.0 (#263)
+- Bump github.com/labstack/echo/v4 from 4.4.0 to 4.5.0 (#264)
+- Bump github.com/gin-gonic/gin from 1.7.2 to 1.7.4 (#265)
+- Bump go.opentelemetry.io/otel from 1.0.0-RC1 to 1.0.0-RC2 (#256)
+
 # Release v1.2.0 (2021-07-21)
 
 ### Dependencies
