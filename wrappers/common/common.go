@@ -228,7 +228,7 @@ func sharedDBEvent(bld *libhoney.Builder, query string, args ...interface{}) *li
 	dbcall, dbcaller := getCallersNames()
 	ev.AddField("db.call", dbcall)
 	ev.AddField("db.caller", dbcaller)
-	ev.AddField("name", dbcaller)
+	ev.AddField("name", dbcall)
 
 	// in case we got nothin, use a default for name. the db.* will be empty it's fine
 	if dbcaller == "" {
