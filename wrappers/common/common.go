@@ -231,7 +231,7 @@ func sharedDBEvent(bld *libhoney.Builder, query string, args ...interface{}) *li
 	ev.AddField("name", dbcall)
 
 	// in case we got nothin, use a default for name. the db.* will be empty it's fine
-	if dbcaller == "" {
+	if dbcall == "" {
 		ev.AddField("name", "db")
 	}
 
