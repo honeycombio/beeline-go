@@ -77,14 +77,38 @@ func TestXForwardedProtoHeader(t *testing.T) {
 	assert.Equal(t, xForwardedProto, props["request.header.x_forwarded_proto"])
 }
 
+// objForDBCalls gives us an object off which to hang the fake database call
+// since the database naming thing looks for actual database calls by name
+// it needs a function named as one of the functions in the `dbNames` list
+// somewhere in the call stack in order to work. This is essentially a mock
+// db call for it to find.
+type objForDBCalls struct{}
+
+func (objForDBCalls) ExecContext(bld *libhoney.Builder, query string) *libhoney.Event {
+	return sharedDBEvent(bld, query)
+}
+
 // TestSharedDBEvent verifies that the name field is set to something
 func TestSharedDBEvent(t *testing.T) {
 	bld := libhoney.NewBuilder()
 	query := "this is sql really promise"
-	// wrap it in another function to get the expected nesting right
 	var ev *libhoney.Event
+
+	// first test uses sharedDBEvent from outside a blessed db path, and it
+	// shouldn't really work well but it shouldn't crash
 	func() { ev = sharedDBEvent(bld, query) }()
-	assert.Equal(t, "TestSharedDBEvent", ev.Fields()["name"], "should get a reasonable name")
+	assert.Equal(t, "db", ev.Fields()["name"], "being called with a non-database call returns default 'db'")
+	assert.Equal(t, "", ev.Fields()["db.call"], "being called with a non-database call does not set db.call")
+	assert.Equal(t, "TestSharedDBEvent", ev.Fields()["db.caller"], "caller should still be TestSharedDBEvent even if no DB call was found")
+
+	// now we test it as though it really is coming from a DB package with a
+	// real DB call like ExecContext. This best models how the instrumentation
+	// will be set in a real world use.
+	o := objForDBCalls{}
+	ev = o.ExecContext(bld, query)
+	assert.Equal(t, "ExecContext", ev.Fields()["name"], "being called with a db-specific call returns that string")
+	assert.Equal(t, "ExecContext", ev.Fields()["db.call"], "being called with a db-specific call returns that string")
+	assert.Equal(t, "TestSharedDBEvent", ev.Fields()["db.caller"], "caller should be this test function")
 }
 func TestResponseWriter(t *testing.T) {
 	rr := httptest.NewRecorder()
