@@ -1,3 +1,16 @@
+# Release v1.3.1 (2021-11-03)
+
+### Fixed
+
+- [sql instrumentation] set name field to db call, not caller (#282) | [@maplebed](https://github.com/maplebed)
+
+### Maintenance
+
+- update libhoney-go to v1.15.6 (#284)
+- empower apply-labels action to apply labels (#283)
+- Bump github.com/labstack/echo/v4 from 4.5.0 to 4.6.1 (#276)
+- Bump github.com/honeycombio/libhoney-go from 1.15.4 to 1.15.5 (#278)
+
 # Release v1.3.0 (2021-10-15)
 
 ### Maintenance
