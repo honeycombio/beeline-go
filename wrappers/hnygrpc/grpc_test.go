@@ -118,4 +118,8 @@ func TestUnaryInterceptor(t *testing.T) {
 	status, ok := successfulFields["response.grpc_status_code"]
 	assert.True(t, ok, "Status code must exist on middleware generated event")
 	assert.Equal(t, codes.OK, status, "status must exist")
+
+	statusMsg, ok := successfulFields["response.grpc_status_message"]
+	assert.True(t, ok, "Status message must exist on middleware generated event")
+	assert.Equal(t, codes.OK.String(), statusMsg, "human-readable status must exist")
 }
