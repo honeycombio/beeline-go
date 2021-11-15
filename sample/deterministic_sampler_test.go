@@ -55,7 +55,7 @@ func TestDeterministicSampler(t *testing.T) {
 		acceptableMarginOfError = 0.05
 	)
 
-	testSampleRates := []uint{1, 2, 10, 50, 100}
+	testSampleRates := []uint{1, 2, 10, 50}
 
 	// distribution for sampling should be good
 	for _, sampleRate := range testSampleRates {
