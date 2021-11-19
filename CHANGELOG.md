@@ -1,3 +1,15 @@
+# beeline-go changelog
+
+## v1.3.2 2021-11-19
+
+### Features
+
+- [hnygrpc] add a human readable version of the grpc status code to auto instrumentation (#287) | [@maplebed](https://github.com/maplebed)
+
+### Maintenance
+
+- test: remove flake-prone test case (#289) | [@vreynolds](https://github.com/vreynolds)
+
 # Release v1.3.1 (2021-11-03)
 
 ### Fixed
