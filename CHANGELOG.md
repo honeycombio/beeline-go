@@ -1,5 +1,16 @@
 # beeline-go changelog
 
+## v1.4.0 2021-12-22
+
+### Improvements
+
+- accept both w3c and honeycomb propagation headers by default (#293) | [@vreynolds](https://github.com/vreynolds)
+
+### Maintenance
+
+- Bump google.golang.org/grpc from 1.40.0 to 1.42.0 (#288) | [@dependabot](https://github.com/dependabot)
+- Bump github.com/gin-gonic/gin from 1.7.4 to 1.7.7 (#292) | [@dependabot](https://github.com/dependabot)
+
 ## v1.3.2 2021-11-19
 
 ### Features
