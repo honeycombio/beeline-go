@@ -61,15 +61,24 @@ func StartSpanOrTraceFromHTTPWithTraceParserHook(r *http.Request, parserHook con
 		// there is no trace yet. We should make one! and use the root span.
 		var tr *trace.Trace
 		if parserHook == nil {
-			beelineHeader := r.Header.Get(propagation.TracePropagationHTTPHeader)
-			prop, _ := propagation.UnmarshalHoneycombTraceContext(beelineHeader)
+			beelineHeaderValue := r.Header.Get(propagation.TracePropagationHTTPHeader)
+			w3cHeaderValue := r.Header.Get(propagation.TraceparentHeader)
+			var prop *propagation.PropagationContext
+			if beelineHeaderValue != "" {
+				prop, _ = propagation.UnmarshalHoneycombTraceContext(beelineHeaderValue)
+			} else if w3cHeaderValue != "" {
+				headers := map[string]string{
+					propagation.TraceparentHeader: w3cHeaderValue,
+				}
+				_, prop, _ = propagation.UnmarshalW3CTraceContext(ctx, headers)
+			}
 			ctx, tr = trace.NewTrace(ctx, prop)
 		} else {
 			// Call the provided TraceParserHook to get the propagation context
 			// from the incoming request. This information will then be used when
 			// create the new trace.
 			prop := parserHook(r)
-			ctx, tr = trace.NewTraceFromPropagationContext(ctx, prop)
+			ctx, tr = trace.NewTrace(ctx, prop)
 		}
 		span = tr.GetRootSpan()
 	} else {

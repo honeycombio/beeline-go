@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/honeycombio/beeline-go/propagation"
+	"github.com/honeycombio/beeline-go/trace"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/stretchr/testify/assert"
 )
@@ -164,4 +166,61 @@ func TestBuildDBSpan(t *testing.T) {
 	ctx := context.Background()
 	ctx, _, sender := BuildDBSpan(ctx, b, sql.DBStats{}, "")
 	sender(nil)
+}
+
+func TestStartSpanOrTraceFromHTTP(t *testing.T) {
+	t.Run("when no propagation headers present, starts a new trace", func(t *testing.T) {
+		u, _ := url.Parse("https://test.com")
+		req := &http.Request{
+			Method: "GET",
+			URL:    u,
+			Header: make(http.Header),
+		}
+		ctx, _ := StartSpanOrTraceFromHTTP(req)
+		traceFromContext := trace.GetTraceFromContext(ctx)
+		assert.Equal(t, "", traceFromContext.GetParentID())
+	})
+	t.Run("when honeycomb propagation header present, uses honeycomb", func(t *testing.T) {
+		u, _ := url.Parse("https://test.com")
+		header := make(http.Header)
+		header.Set(propagation.TracePropagationHTTPHeader, "1;trace_id=abcdef,parent_id=12345")
+		req := &http.Request{
+			Method: "GET",
+			URL:    u,
+			Header: header,
+		}
+		ctx, _ := StartSpanOrTraceFromHTTP(req)
+		traceFromContext := trace.GetTraceFromContext(ctx)
+		assert.Equal(t, "12345", traceFromContext.GetParentID())
+		assert.Equal(t, "abcdef", traceFromContext.GetTraceID())
+	})
+	t.Run("when w3c propagation header present, uses w3c", func(t *testing.T) {
+		u, _ := url.Parse("https://test.com")
+		header := make(http.Header)
+		header.Set(propagation.TraceparentHeader, "00-7f042f75651d9782dcff93a45fa99be0-c998e73e5420f609-01")
+		req := &http.Request{
+			Method: "GET",
+			URL:    u,
+			Header: header,
+		}
+		ctx, _ := StartSpanOrTraceFromHTTP(req)
+		traceFromContext := trace.GetTraceFromContext(ctx)
+		assert.Equal(t, "c998e73e5420f609", traceFromContext.GetParentID())
+		assert.Equal(t, "7f042f75651d9782dcff93a45fa99be0", traceFromContext.GetTraceID())
+	})
+	t.Run("when both honeycomb and w3c propagation headers present, uses honeycomb", func(t *testing.T) {
+		u, _ := url.Parse("https://test.com")
+		header := make(http.Header)
+		header.Set(propagation.TracePropagationHTTPHeader, "1;trace_id=abcdef,parent_id=12345")
+		header.Set(propagation.TraceparentHeader, "00-7f042f75651d9782dcff93a45fa99be0-c998e73e5420f609-01")
+		req := &http.Request{
+			Method: "GET",
+			URL:    u,
+			Header: header,
+		}
+		ctx, _ := StartSpanOrTraceFromHTTP(req)
+		traceFromContext := trace.GetTraceFromContext(ctx)
+		assert.Equal(t, "12345", traceFromContext.GetParentID())
+		assert.Equal(t, "abcdef", traceFromContext.GetTraceID())
+	})
 }

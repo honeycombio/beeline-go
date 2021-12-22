@@ -11,7 +11,7 @@ import (
 const (
 	supportedVersion  = 0
 	maxVersion        = 254
-	traceparentHeader = "traceparent"
+	TraceparentHeader = "traceparent"
 	tracestateHeader  = "tracestate"
 )
 
@@ -50,7 +50,7 @@ func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (cont
 		spanID,
 		flags)
 
-	headerMap[traceparentHeader] = h
+	headerMap[TraceparentHeader] = h
 	return ctx, headerMap
 }
 
@@ -66,7 +66,7 @@ func MarshalW3CTraceContext(ctx context.Context, prop *PropagationContext) (cont
 func UnmarshalW3CTraceContext(ctx context.Context, headers map[string]string) (context.Context, *PropagationContext, error) {
 	prop := &PropagationContext{}
 
-	h := getHeaderValue(headers, traceparentHeader)
+	h := getHeaderValue(headers, TraceparentHeader)
 	if h == "" {
 		return ctx, prop, errors.New("cannot unmarshal empty header")
 	}
