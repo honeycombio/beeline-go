@@ -1,5 +1,12 @@
 # beeline-go changelog
 
+## v1.4.1 2022-01-05
+
+### Maintenance
+
+- Bump libhoney-go to v1.15.8 (#297) | [@mikegoldsmith](https://github.com/mikegoldsmith)
+- Add re-triage workflow (#295) | [@vreynolds](https://github.com/vreynolds)
+
 ## v1.4.0 2021-12-22
 
 ### Improvements
