@@ -2166,6 +2166,22 @@ func (tx *Tx) Rebind(query string) string {
 	return str
 }
 
+func (tx *Tx) RebindContext(ctx context.Context, query string) string {
+	var err error
+	ctx, _, sender := common.BuildDBSpan(ctx, tx.Builder, tx.db.Stats(), query)
+	defer func() {
+		sender(err)
+	}()
+
+	// ensure any changes to the Mapper get passed along
+	if tx.Mapper != nil {
+		tx.wtx.Mapper = tx.Mapper
+	}
+
+	str := tx.wtx.Rebind(query)
+	return str
+}
+
 func (tx *Tx) Rollback() error {
 	var err error
 	_, sender := common.BuildDBEvent(tx.Builder, tx.db.Stats(), "")
