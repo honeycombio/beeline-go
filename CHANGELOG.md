@@ -1,6 +1,12 @@
 # beeline-go changelog
 
-## 1.5.0 20220-02-02
+## 1.5.1 2022-02-02
+
+### Enhancements
+
+- Add RebindContext method to Tx struct (#303) | [@paulosman](https://github.com/paulosman)
+
+## 1.5.0 2022-02-02
 
 ### Enhancements
 
