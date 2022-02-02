@@ -1,5 +1,15 @@
 # beeline-go changelog
 
+## 1.5.0 20220-02-02
+
+### Enhancements
+
+- Add a RebindContext method to hnysqlx.DB wrapper (#301) | [@paulosman](https://github.com/paulosman)
+
+### Maintenance
+
+- Bump google.golang.org/grpc from 1.42.0 to 1.43.0 (#296)
+
 ## v1.4.1 2022-01-05
 
 ### Maintenance
