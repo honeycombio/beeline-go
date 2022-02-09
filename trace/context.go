@@ -34,7 +34,7 @@ func GetTraceFromContext(ctx context.Context) *Trace {
 // context. Traces put in context are retrieved using GetTraceFromContext.
 func PutTraceInContext(ctx context.Context, trace *Trace) context.Context {
 	ctx = context.WithValue(ctx, honeyTraceContextKey, trace)
-	if trace != nil && trace.GetRootSpan() != nil {
+	if GlobalConfig.PprofTagging && trace != nil && trace.GetRootSpan() != nil {
 		ctx = pprof.WithLabels(ctx, pprof.Labels(profileIDLabelName, trace.GetRootSpan().GetSpanID()))
 		pprof.SetGoroutineLabels(ctx)
 	}
