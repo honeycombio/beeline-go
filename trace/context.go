@@ -3,11 +3,13 @@ package trace
 import (
 	"context"
 	"errors"
+	"runtime/pprof"
 )
 
 const (
 	honeySpanContextKey  = "honeycombSpanContextKey"
 	honeyTraceContextKey = "honeycombTraceContextKey"
+	profileIDLabelName   = "profile_id"
 )
 
 var (
@@ -31,7 +33,12 @@ func GetTraceFromContext(ctx context.Context) *Trace {
 // into the context.  It will replace any traces that already exist in the
 // context. Traces put in context are retrieved using GetTraceFromContext.
 func PutTraceInContext(ctx context.Context, trace *Trace) context.Context {
-	return context.WithValue(ctx, honeyTraceContextKey, trace)
+	ctx = context.WithValue(ctx, honeyTraceContextKey, trace)
+	if GlobalConfig.PprofTagging && trace != nil && trace.GetRootSpan() != nil {
+		ctx = pprof.WithLabels(ctx, pprof.Labels(profileIDLabelName, trace.GetRootSpan().GetSpanID()))
+		pprof.SetGoroutineLabels(ctx)
+	}
+	return ctx
 }
 
 // GetSpanFromContext identifies the currently active span via the span context

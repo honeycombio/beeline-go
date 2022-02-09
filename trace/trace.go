@@ -27,6 +27,9 @@ type Config struct {
 	// PresendHook is a function to mutate spans just before they are sent to
 	// Honeycomb. See the docs for `beeline.Config` for a full description.
 	PresendHook func(map[string]interface{})
+
+	// PprofTagging controls whether span IDs should be propagated to pprof.
+	PprofTagging bool
 }
 
 // Trace holds some trace level state and the root of the span tree that will be

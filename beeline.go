@@ -91,6 +91,9 @@ type Config struct {
 	// Client, if specified, allows overriding the default client used to send events to Honeycomb
 	// If set, overrides many fields in this config - see descriptions
 	Client *libhoney.Client
+
+	// PprofTagging controls whether span IDs should be propagated to pprof.
+	PprofTagging bool
 }
 
 // Init intializes the honeycomb instrumentation library.
@@ -184,6 +187,8 @@ func Init(config Config) {
 	if config.PresendHook != nil {
 		trace.GlobalConfig.PresendHook = config.PresendHook
 	}
+
+	trace.GlobalConfig.PprofTagging = config.PprofTagging
 	return
 }
 
