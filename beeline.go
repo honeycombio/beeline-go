@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	defaultWriteKey   = "apikey-placeholder"
-	defaultDataset    = "beeline-go"
-	defaultSampleRate = 1
-	warningColor      = "\033[1;33m%s\033[0m"
+	defaultWriteKey    = "apikey-placeholder"
+	defaultDataset     = "beeline-go"
+	defaultServiceName = "unknown_service:go"
+	defaultSampleRate  = 1
+	warningColor       = "\033[1;33m%s\033[0m"
 )
 
 // Config is the place where you configure your Honeycomb write key and dataset
@@ -96,16 +97,43 @@ type Config struct {
 	PprofTagging bool
 }
 
+func IsLegacyKey(config Config) bool {
+	// legacy key has 32 characters
+	return len(config.WriteKey) == 32
+}
+
 // Init intializes the honeycomb instrumentation library.
 func Init(config Config) {
 	userAgentAddition := fmt.Sprintf("beeline/%s", version)
 
 	if config.WriteKey == "" {
 		config.WriteKey = defaultWriteKey
+		fmt.Println("WARN: Missing API Key.")
 	}
-	if config.Dataset == "" {
-		config.Dataset = defaultDataset
+
+	if config.ServiceName == "" {
+		fmt.Println("WARN: Missing service name.")
 	}
+
+	if IsLegacyKey(config) {
+		// if legacy and missing dataset, warn on that
+		if config.Dataset == "" {
+			config.Dataset = defaultDataset
+			fmt.Println("WARN: Missing dataset. Data will be sent to:", defaultDataset)
+		}
+	} else {
+		// set default service name if not there
+		if config.ServiceName == "" {
+			config.ServiceName = defaultServiceName
+		}
+		// non legacy key will ignore dataset, warn if configured
+		if config.Dataset != "" {
+			fmt.Println("WARN: Dataset is ignored in favor of service name. Data will be sent to service name:", config.ServiceName)
+		}
+		// but set dataset based on service name
+		config.Dataset = config.ServiceName
+	}
+
 	if config.SampleRate == 0 {
 		config.SampleRate = defaultSampleRate
 	}
@@ -162,6 +190,9 @@ func Init(config Config) {
 	// add a bunch of fields
 	if config.ServiceName != "" {
 		client.AddField("service_name", config.ServiceName)
+	} else {
+		// should be added by now, but just in case
+		client.AddField("service_name", defaultServiceName)
 	}
 	if hostname, err := os.Hostname(); err == nil {
 		client.AddField("meta.local_hostname", hostname)
