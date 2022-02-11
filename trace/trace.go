@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"runtime/pprof"
 	"sync"
 	"time"
 
@@ -241,6 +242,7 @@ type Span struct {
 	trace        *Trace
 	eventLock    sync.Mutex
 	sendLock     sync.RWMutex
+	oldCtx       *context.Context
 }
 
 // newSpan takes care of *some* of the initialization necessary to create a new
@@ -380,6 +382,10 @@ func (s *Span) sendLocked() {
 		s.parent.removeChildSpan(s)
 	}
 
+	// Restore pprof labels from before this span was created, if any were saved.
+	if s.oldCtx != nil {
+		pprof.SetGoroutineLabels(*s.oldCtx)
+	}
 }
 
 // IsAsync reveals whether the span is asynchronous (true) or synchronous (false).

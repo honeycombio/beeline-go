@@ -1,5 +1,15 @@
 # beeline-go changelog
 
+## 1.6.0 2022-02-10
+
+### Enhancements
+
+- feat: pass process root span id as pprof profile id tag (#305) | [@lizthegrey](https://github.com/lizthegrey)
+
+## Fixes
+
+- fix: preserve previous pprof labels after span end (#306) | [@lizthegrey](https://github.com/lizthegrey)
+
 ## 1.5.1 2022-02-02
 
 ### Enhancements
