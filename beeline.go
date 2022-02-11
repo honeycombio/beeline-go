@@ -10,6 +10,7 @@ import (
 	"github.com/honeycombio/libhoney-go/transmission"
 
 	"github.com/honeycombio/beeline-go/client"
+	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/sample"
 	"github.com/honeycombio/beeline-go/trace"
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -218,7 +219,13 @@ func Init(config Config) {
 	if config.PresendHook != nil {
 		trace.GlobalConfig.PresendHook = config.PresendHook
 	}
-
+	// if legacy, propagate by default
+	if IsLegacyKey(config) {
+		propagation.GlobalConfig.PropagateDataset = true
+	} else {
+		// if non-legacy, don't propagate by default
+		propagation.GlobalConfig.PropagateDataset = false
+	}
 	trace.GlobalConfig.PprofTagging = config.PprofTagging
 	return
 }
