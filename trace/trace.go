@@ -471,12 +471,15 @@ func (s *Span) send() {
 	s.childrenLock.Lock()
 	// classify span type
 	var spanType string
+	var spanKind string
 	switch {
 	case s.isRoot:
 		if s.parentID == "" {
 			spanType = "root"
+			spanKind = "SERVER"
 		} else {
 			spanType = "subroot"
+			spanKind = "CLIENT"
 		}
 	case s.isAsync:
 		spanType = "async"
@@ -484,9 +487,11 @@ func (s *Span) send() {
 		spanType = "leaf"
 	default:
 		spanType = "mid"
+		spanKind = "INTERNAL"
 	}
 	s.childrenLock.Unlock()
 	s.AddField("meta.span_type", spanType)
+	s.AddField("meta.SpanKind", spanKind)
 
 	if s.isRoot {
 		// add the trace's rollup fields to the root span
