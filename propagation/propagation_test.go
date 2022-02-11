@@ -50,7 +50,8 @@ func TestPropagationContextIsValid(t *testing.T) {
 	assert.Equal(t, false, prop.IsValid())
 }
 
-func TestMarshalHoneycombTraceContext(t *testing.T) {
+func TestMarshalHoneycombTraceContextWithDatasetPropagation(t *testing.T) {
+	*&GlobalConfig.PropagateDataset = true
 	testCases := []struct {
 		name          string
 		prop          *PropagationContext
@@ -157,12 +158,111 @@ func TestMarshalHoneycombTraceContext(t *testing.T) {
 		marshaled := MarshalHoneycombTraceContext(tt.prop)
 		assert.Equal(t, tt.marshaledProp, marshaled, tt.name)
 	}
+}
 
+func TestMarshalHoneycombTraceContextForEnvironments(t *testing.T) {
+	testCases := []struct {
+		name          string
+		prop          *PropagationContext
+		marshaledProp string
+	}{
+		{
+			"nil propagation - we expect an error because marshaling needs a valid pointer to a propagation context object",
+			nil,
+			"",
+		},
+		{
+			"broken propagation context: it's empty",
+			&PropagationContext{},
+			"1;trace_id=,parent_id=,context=bnVsbA==",
+		},
+		{
+			"minimal propagation context, only trace and parent IDs",
+			&PropagationContext{
+				TraceID:      "abc123",
+				ParentID:     "def456",
+				TraceContext: nil,
+			},
+			"1;trace_id=abc123,parent_id=def456,context=bnVsbA==",
+		},
+		{
+			"minimal propagation context: trace and parent IDs and empty map for context",
+			&PropagationContext{
+				TraceID:      "abc123",
+				ParentID:     "def456",
+				TraceContext: map[string]interface{}{},
+			},
+			"1;trace_id=abc123,parent_id=def456,context=e30=",
+		},
+		{
+			"broken propagation context: missing parent ID",
+			&PropagationContext{
+				TraceID:      "abc123",
+				TraceContext: map[string]interface{}{},
+			},
+			"1;trace_id=abc123,parent_id=,context=e30=",
+		},
+		{
+			"broken propagation context: missing trace ID",
+			&PropagationContext{
+				ParentID:     "def456",
+				TraceContext: map[string]interface{}{},
+			},
+			"1;trace_id=,parent_id=def456,context=e30=",
+		},
+		{
+			"broken propagation context: missing both trace ID and parent ID",
+			&PropagationContext{
+				TraceContext: map[string]interface{}{},
+			},
+			"1;trace_id=,parent_id=,context=e30=",
+		},
+		{
+			"propagation context: include dataset",
+			&PropagationContext{
+				TraceID:  "abc123",
+				ParentID: "def456",
+			},
+			"1;trace_id=abc123,parent_id=def456,context=bnVsbA==",
+		},
+		{
+			"propagation context: include extra context",
+			&PropagationContext{
+				TraceID:  "abc123",
+				ParentID: "def456",
+				TraceContext: map[string]interface{}{
+					"userID":   float64(1),
+					"errorMsg": "failed to sign on",
+					"toRetry":  true,
+				},
+			},
+			"1;trace_id=abc123,parent_id=def456,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==",
+		},
+		{
+			"propagation context: include dataset and extra context",
+			&PropagationContext{
+				TraceID:  "abc123",
+				ParentID: "def456",
+				TraceContext: map[string]interface{}{
+					"userID":   float64(1),
+					"errorMsg": "failed to sign on",
+					"toRetry":  true,
+				},
+			},
+			"1;trace_id=abc123,parent_id=def456,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==",
+		},
+	}
+
+	for _, tt := range testCases {
+		marshaled := MarshalHoneycombTraceContext(tt.prop)
+		assert.Equal(t, tt.marshaledProp, marshaled, tt.name)
+	}
 }
 
 // TestRoundTripHoneycombTraceContext ensures that marshaling a struct then
 // unmarshaling it gets you back the original contents
-func TestRoundTripHoneycombTraceContext(t *testing.T) {
+func TestRoundTripHoneycombTraceContextWithDatasetPropagation(t *testing.T) {
+	*&GlobalConfig.PropagateDataset = true
 	prop := &PropagationContext{
 		TraceID:  "abcdef123456",
 		ParentID: "0102030405",
@@ -205,6 +305,49 @@ func TestRoundTripHoneycombTraceContext(t *testing.T) {
 	marshaled = MarshalHoneycombTraceContext(prop)
 	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
 	assert.Equal(t, "1;trace_id=,parent_id=,dataset=imadataset,context=bnVsbA==", marshaled)
+}
+
+// TestRoundTripHoneycombTraceContext ensures that marshaling a struct then
+// unmarshaling it gets you back the original contents
+func TestRoundTripHoneycombTraceContextForEnvironments(t *testing.T) {
+	prop := &PropagationContext{
+		TraceID:  "abcdef123456",
+		ParentID: "0102030405",
+		TraceContext: map[string]interface{}{
+			"userID":   float64(1),
+			"errorMsg": "failed to sign on",
+			"toRetry":  true,
+		},
+	}
+
+	marshaled := MarshalHoneycombTraceContext(prop)
+	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
+	assert.Equal(t, "1;trace_id=abcdef123456,parent_id=0102030405,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==", marshaled)
+
+	returned, err := UnmarshalHoneycombTraceContext(marshaled)
+	assert.Equal(t, prop, returned, "roundtrip object")
+	assert.NoError(t, err, "roundtrip error")
+
+	marshaled = MarshalHoneycombTraceContext(prop)
+	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
+	assert.Equal(t, "1;trace_id=abcdef123456,parent_id=0102030405,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==", marshaled)
+
+	returned, err = UnmarshalHoneycombTraceContext(marshaled)
+	assert.Equal(t, prop, returned, "roundtrip object")
+	assert.NoError(t, err, "roundtrip error")
+
+	marshaled = MarshalHoneycombTraceContext(prop)
+	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
+	assert.Equal(t, "1;trace_id=abcdef123456,parent_id=0102030405,context=eyJlcnJvck1zZyI6ImZhaWxlZCB0byBzaWduIG9uIiwidG9SZXRyeSI6dHJ1ZSwidXNlcklEIjoxfQ==", marshaled)
+
+	returned, err = UnmarshalHoneycombTraceContext(marshaled)
+	assert.Equal(t, prop, returned, "roundtrip object")
+	assert.NoError(t, err, "roundtrip error")
+
+	prop = &PropagationContext{}
+	marshaled = MarshalHoneycombTraceContext(prop)
+	assert.Equal(t, "1;", marshaled[0:2], "version of marshaled context should be 1")
+	assert.Equal(t, "1;trace_id=,parent_id=,context=bnVsbA==", marshaled)
 }
 
 func TestMarshalAmazonTraceContext(t *testing.T) {
