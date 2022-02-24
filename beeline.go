@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/honeycombio/libhoney-go/transmission"
@@ -19,7 +20,7 @@ import (
 const (
 	defaultWriteKey    = "apikey-placeholder"
 	defaultDataset     = "beeline-go"
-	defaultServiceName = "unknown_service:go"
+	defaultServiceName = "unknown_service"
 	defaultSampleRate  = 1
 	warningColor       = "\033[1;33m%s\033[0m"
 )
@@ -127,6 +128,12 @@ func Init(config Config) {
 		if config.ServiceName == "" {
 			config.ServiceName = defaultServiceName
 		}
+		if executable, err := os.Executable(); err == nil {
+			config.ServiceName = defaultServiceName + ":" + filepath.Base(executable)
+		} else {
+			config.ServiceName = defaultServiceName + ":go"
+		}
+
 		// non legacy key will ignore dataset, warn if configured
 		if config.Dataset != "" {
 			fmt.Println("WARN: Dataset is ignored in favor of service name. Data will be sent to service name:", config.ServiceName)
