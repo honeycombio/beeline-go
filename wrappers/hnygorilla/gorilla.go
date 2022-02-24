@@ -68,6 +68,7 @@ func Middleware(handler http.Handler) http.Handler {
 			span.AddField("response.content_encoding", ce)
 		}
 		span.AddField("response.status_code", wrappedWriter.Status)
+		span.AddField("meta.SpanKind", "SERVER")
 	}
 	return http.HandlerFunc(wrappedHandler)
 }
