@@ -324,7 +324,7 @@ func TestSpanWithDatasetPropagation(t *testing.T) {
 		"all four spans should be sent")
 }
 
-func TestSpanForEnvironments(t *testing.T) {
+func TestSpan(t *testing.T) {
 	*&propagation.GlobalConfig.PropagateDataset = false
 	mo := setupLibhoney()
 
@@ -399,7 +399,7 @@ func TestSpanForEnvironments(t *testing.T) {
 	headers := span.SerializeHeaders()
 	// magical string here is base64 encoded "tr1" field for the trace propagation
 	expectedHeader := fmt.Sprintf("1;trace_id=%s,parent_id=%s,context=eyJ0cjEiOiJ2cjEifQ==", tr.traceID, span.spanID)
-	assert.Equal(t, expectedHeader, headers, "serialized span should match expectations")
+	assert.Equal(t, expectedHeader, headers, "serialized span should match expectations, no dataset propagation")
 
 	childSpan.Send()
 
