@@ -127,11 +127,11 @@ func Init(config Config) {
 		// set default service name if not there
 		if config.ServiceName == "" {
 			config.ServiceName = defaultServiceName
-		}
-		if executable, err := os.Executable(); err == nil {
-			config.ServiceName = defaultServiceName + ":" + filepath.Base(executable)
-		} else {
-			config.ServiceName = defaultServiceName + ":go"
+			if executable, err := os.Executable(); err == nil {
+				config.ServiceName = defaultServiceName + ":" + filepath.Base(executable)
+			} else {
+				config.ServiceName = defaultServiceName + ":go"
+			}
 		}
 
 		// non legacy key will ignore dataset, warn if configured
@@ -198,9 +198,11 @@ func Init(config Config) {
 	// add a bunch of fields
 	if config.ServiceName != "" {
 		client.AddField("service_name", config.ServiceName)
+		client.AddField("service.name", config.ServiceName)
 	} else {
 		// should be added by now, but just in case
 		client.AddField("service_name", defaultServiceName)
+		client.AddField("service.name", config.ServiceName)
 	}
 	if hostname, err := os.Hostname(); err == nil {
 		client.AddField("meta.local_hostname", hostname)
