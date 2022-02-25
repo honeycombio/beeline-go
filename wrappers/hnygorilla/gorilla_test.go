@@ -52,9 +52,6 @@ func TestGorillaMiddleware(t *testing.T) {
 		name, ok := fields["gorilla.vars.name"]
 		assert.True(t, ok, "gorilla.vars.name field must exist on middleware generated event")
 		assert.Equal(t, "pooh", name, "successfully served request should have name var populated")
-		spanKind, ok := fields["meta.SpanKind"]
-		assert.True(t, ok, "spankind value should be server")
-		assert.Equal(t, "SERVER", spanKind, "successfully served request should have span kind server")
 	})
 
 	t.Run("struct handler should not panic", func(t *testing.T) {
