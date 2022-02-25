@@ -99,8 +99,8 @@ type Config struct {
 	PprofTagging bool
 }
 
-func IsLegacyKey(config Config) bool {
-	// legacy key has 32 characters
+func IsClassicKey(config Config) bool {
+	// classic key has 32 characters
 	return len(config.WriteKey) == 32
 }
 
@@ -117,8 +117,8 @@ func Init(config Config) {
 		fmt.Println("WARN: Missing service name.")
 	}
 
-	if IsLegacyKey(config) {
-		// if legacy and missing dataset, warn on that
+	if IsClassicKey(config) {
+		// if classic and missing dataset, warn on that
 		if config.Dataset == "" {
 			config.Dataset = defaultDataset
 			fmt.Println("WARN: Missing dataset. Data will be sent to:", defaultDataset)
@@ -134,7 +134,7 @@ func Init(config Config) {
 			}
 		}
 
-		// non legacy key will ignore dataset, warn if configured
+		// non classic key will ignore dataset, warn if configured
 		if config.Dataset != "" {
 			fmt.Println("WARN: Dataset is ignored in favor of service name. Data will be sent to service name:", config.ServiceName)
 		}
@@ -228,11 +228,11 @@ func Init(config Config) {
 	if config.PresendHook != nil {
 		trace.GlobalConfig.PresendHook = config.PresendHook
 	}
-	// if legacy, propagate by default
-	if IsLegacyKey(config) {
+	// if classic, propagate by default
+	if IsClassicKey(config) {
 		propagation.GlobalConfig.PropagateDataset = true
 	} else {
-		// if non-legacy, don't propagate by default
+		// if non-classic, don't propagate by default
 		propagation.GlobalConfig.PropagateDataset = false
 	}
 	trace.GlobalConfig.PprofTagging = config.PprofTagging
