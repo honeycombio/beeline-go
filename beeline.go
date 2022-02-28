@@ -124,12 +124,14 @@ func Init(config Config) {
 			fmt.Println("WARN: Missing dataset. Data will be sent to:", defaultDataset)
 		}
 	} else {
-		// set default service name if not there
+		// set default service name if not provided
 		if config.ServiceName == "" {
 			config.ServiceName = defaultServiceName
+			// try to append default with process name
 			if executable, err := os.Executable(); err == nil {
 				config.ServiceName = defaultServiceName + ":" + filepath.Base(executable)
 			} else {
+				// fall back to language if process name is unavailable
 				config.ServiceName = defaultServiceName + ":go"
 			}
 		}
@@ -194,15 +196,14 @@ func Init(config Config) {
 		client.Set(config.Client)
 	}
 
-	client.AddField("meta.beeline_version", version)
 	// add a bunch of fields
+	client.AddField("meta.beeline_version", version)
 	if config.ServiceName != "" {
 		client.AddField("service_name", config.ServiceName)
-		client.AddField("service.name", config.ServiceName)
-	} else {
-		// should be added by now, but just in case
-		client.AddField("service_name", defaultServiceName)
-		client.AddField("service.name", config.ServiceName)
+		// start adding service.name for new keys
+		if !IsClassicKey(config) {
+			client.AddField("service.name", config.ServiceName)
+		}
 	}
 	if hostname, err := os.Hostname(); err == nil {
 		client.AddField("meta.local_hostname", hostname)
