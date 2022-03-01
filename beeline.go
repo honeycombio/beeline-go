@@ -199,11 +199,9 @@ func Init(config Config) {
 	// add a bunch of fields
 	client.AddField("meta.beeline_version", version)
 	if config.ServiceName != "" {
+		// shouldn't be empty, but just in case
 		client.AddField("service_name", config.ServiceName)
-		// start adding service.name for new keys
-		if !IsClassicKey(config) {
-			client.AddField("service.name", config.ServiceName)
-		}
+		client.AddField("service.name", config.ServiceName)
 	}
 	if hostname, err := os.Hostname(); err == nil {
 		client.AddField("meta.local_hostname", hostname)
