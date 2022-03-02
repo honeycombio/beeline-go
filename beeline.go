@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/honeycombio/libhoney-go/transmission"
@@ -18,11 +19,12 @@ import (
 )
 
 const (
-	defaultWriteKey    = "apikey-placeholder"
-	defaultDataset     = "beeline-go"
-	defaultServiceName = "unknown_service"
-	defaultSampleRate  = 1
-	warningColor       = "\033[1;33m%s\033[0m"
+	defaultWriteKey       = "apikey-placeholder"
+	defaultDatasetClassic = "beeline-go"
+	defaultDataset        = "unknown_service"
+	defaultServiceName    = "unknown_service"
+	defaultSampleRate     = 1
+	warningColor          = "\033[1;33m%s\033[0m"
 )
 
 // Config is the place where you configure your Honeycomb write key and dataset
@@ -109,39 +111,42 @@ func Init(config Config) {
 	userAgentAddition := fmt.Sprintf("beeline/%s", version)
 
 	if config.WriteKey == "" {
-		config.WriteKey = defaultWriteKey
 		fmt.Println("WARN: Missing API Key.")
+		config.WriteKey = defaultWriteKey
 	}
+
+	// trim whitespace to avoid unexpected behavior
+	config.ServiceName = strings.TrimSpace(config.ServiceName)
 
 	if config.ServiceName == "" {
 		fmt.Println("WARN: Missing service name.")
+		// set default service name if not provided
+		config.ServiceName = defaultServiceName
+		if executable, err := os.Executable(); err == nil {
+			// try to append default with process name
+			config.ServiceName = defaultServiceName + ":" + filepath.Base(executable)
+		} else {
+			// fall back to language if process name is unavailable
+			config.ServiceName = defaultServiceName + ":go"
+		}
 	}
 
 	if IsClassicKey(config) {
 		// if classic and missing dataset, warn on that
 		if config.Dataset == "" {
-			config.Dataset = defaultDataset
-			fmt.Println("WARN: Missing dataset. Data will be sent to:", defaultDataset)
+			fmt.Println("WARN: Missing dataset. Data will be sent to:", defaultDatasetClassic)
+			config.Dataset = defaultDatasetClassic
 		}
 	} else {
-		// set default service name if not provided
-		if config.ServiceName == "" {
-			config.ServiceName = defaultServiceName
-			// try to append default with process name
-			if executable, err := os.Executable(); err == nil {
-				config.ServiceName = defaultServiceName + ":" + filepath.Base(executable)
-			} else {
-				// fall back to language if process name is unavailable
-				config.ServiceName = defaultServiceName + ":go"
-			}
-		}
-
 		// non classic key will ignore dataset, warn if configured
 		if config.Dataset != "" {
 			fmt.Println("WARN: Dataset is ignored in favor of service name. Data will be sent to service name:", config.ServiceName)
 		}
 		// but set dataset based on service name
 		config.Dataset = config.ServiceName
+		if strings.HasPrefix(config.Dataset, "unknown_service") {
+			config.Dataset = defaultDataset
+		}
 	}
 
 	if config.SampleRate == 0 {
@@ -200,8 +205,8 @@ func Init(config Config) {
 	client.AddField("meta.beeline_version", version)
 	if config.ServiceName != "" {
 		// shouldn't be empty, but just in case
-		client.AddField("service_name", config.ServiceName)
-		client.AddField("service.name", config.ServiceName)
+		client.AddField("service_name", strings.TrimSpace(config.ServiceName))
+		client.AddField("service.name", strings.TrimSpace(config.ServiceName))
 	}
 	if hostname, err := os.Hostname(); err == nil {
 		client.AddField("meta.local_hostname", hostname)
