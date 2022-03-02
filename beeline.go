@@ -115,9 +115,6 @@ func Init(config Config) {
 		config.WriteKey = defaultWriteKey
 	}
 
-	// trim whitespace to avoid unexpected behavior
-	config.ServiceName = strings.TrimSpace(config.ServiceName)
-
 	if config.ServiceName == "" {
 		fmt.Println("WARN: Missing service name.")
 		// set default service name if not provided
@@ -142,8 +139,18 @@ func Init(config Config) {
 		if config.Dataset != "" {
 			fmt.Println("WARN: Dataset is ignored in favor of service name. Data will be sent to service name:", config.ServiceName)
 		}
-		// but set dataset based on service name
+		// set dataset based on service name
 		config.Dataset = config.ServiceName
+
+		if strings.TrimSpace(config.Dataset) != config.Dataset {
+			// whitespace detected. trim whitespace, warn on diff
+			fmt.Println("WARN: Service name has unexpected spaces")
+			config.Dataset = strings.TrimSpace(config.Dataset)
+		}
+		if config.Dataset == "" {
+			config.Dataset = defaultDataset
+		}
+		// truncate to unknown_service for dataset
 		if strings.HasPrefix(config.Dataset, "unknown_service") {
 			config.Dataset = defaultDataset
 		}
