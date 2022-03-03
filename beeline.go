@@ -5,21 +5,26 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/honeycombio/libhoney-go/transmission"
 
 	"github.com/honeycombio/beeline-go/client"
+	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/sample"
 	"github.com/honeycombio/beeline-go/trace"
 	libhoney "github.com/honeycombio/libhoney-go"
 )
 
 const (
-	defaultWriteKey   = "apikey-placeholder"
-	defaultDataset    = "beeline-go"
-	defaultSampleRate = 1
-	warningColor      = "\033[1;33m%s\033[0m"
+	defaultWriteKey       = "apikey-placeholder"
+	defaultDatasetClassic = "beeline-go"
+	defaultDataset        = "unknown_service"
+	defaultServiceName    = "unknown_service"
+	defaultSampleRate     = 1
+	warningColor          = "\033[1;33m%s\033[0m"
 )
 
 // Config is the place where you configure your Honeycomb write key and dataset
@@ -96,16 +101,61 @@ type Config struct {
 	PprofTagging bool
 }
 
+func IsClassicKey(config Config) bool {
+	// classic key has 32 characters
+	return len(config.WriteKey) == 32
+}
+
 // Init intializes the honeycomb instrumentation library.
 func Init(config Config) {
 	userAgentAddition := fmt.Sprintf("beeline/%s", version)
 
 	if config.WriteKey == "" {
+		fmt.Println("WARN: Missing API Key.")
 		config.WriteKey = defaultWriteKey
 	}
-	if config.Dataset == "" {
-		config.Dataset = defaultDataset
+
+	if config.ServiceName == "" {
+		fmt.Println("WARN: Missing service name.")
+		// set default service name if not provided
+		config.ServiceName = defaultServiceName
+		if executable, err := os.Executable(); err == nil {
+			// try to append default with process name
+			config.ServiceName = defaultServiceName + ":" + filepath.Base(executable)
+		} else {
+			// fall back to language if process name is unavailable
+			config.ServiceName = defaultServiceName + ":go"
+		}
 	}
+
+	if IsClassicKey(config) {
+		// if classic and missing dataset, warn on that
+		if config.Dataset == "" {
+			fmt.Println("WARN: Missing dataset. Data will be sent to:", defaultDatasetClassic)
+			config.Dataset = defaultDatasetClassic
+		}
+	} else {
+		// non classic key will ignore dataset, warn if configured
+		if config.Dataset != "" {
+			fmt.Println("WARN: Dataset is ignored in favor of service name. Data will be sent to service name:", config.ServiceName)
+		}
+		// set dataset based on service name
+		config.Dataset = config.ServiceName
+
+		if strings.TrimSpace(config.Dataset) != config.Dataset {
+			// whitespace detected. trim whitespace, warn on diff
+			fmt.Println("WARN: Service name has unexpected spaces")
+			config.Dataset = strings.TrimSpace(config.Dataset)
+		}
+		if config.Dataset == "" {
+			config.Dataset = defaultDataset
+		}
+		// truncate to unknown_service for dataset
+		if strings.HasPrefix(config.Dataset, "unknown_service") {
+			config.Dataset = defaultDataset
+		}
+	}
+
 	if config.SampleRate == 0 {
 		config.SampleRate = defaultSampleRate
 	}
@@ -158,10 +208,12 @@ func Init(config Config) {
 		client.Set(config.Client)
 	}
 
-	client.AddField("meta.beeline_version", version)
 	// add a bunch of fields
+	client.AddField("meta.beeline_version", version)
 	if config.ServiceName != "" {
-		client.AddField("service_name", config.ServiceName)
+		// shouldn't be empty, but just in case
+		client.AddField("service_name", strings.TrimSpace(config.ServiceName))
+		client.AddField("service.name", strings.TrimSpace(config.ServiceName))
 	}
 	if hostname, err := os.Hostname(); err == nil {
 		client.AddField("meta.local_hostname", hostname)
@@ -187,7 +239,13 @@ func Init(config Config) {
 	if config.PresendHook != nil {
 		trace.GlobalConfig.PresendHook = config.PresendHook
 	}
-
+	// if classic, propagate by default
+	if IsClassicKey(config) {
+		propagation.GlobalConfig.PropagateDataset = true
+	} else {
+		// if non-classic, don't propagate by default
+		propagation.GlobalConfig.PropagateDataset = false
+	}
 	trace.GlobalConfig.PprofTagging = config.PprofTagging
 	return
 }

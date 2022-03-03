@@ -8,6 +8,12 @@ import (
 	"fmt"
 )
 
+var GlobalConfig Config
+
+type Config struct {
+	PropagateDataset bool
+}
+
 // getHeaderValue is a helper function that is guaranteed to return a string. Given a key, it
 // attempts to find the associated value in the provided header. If none is found, it returns
 // an empty string.

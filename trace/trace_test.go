@@ -201,7 +201,8 @@ func TestSendTrace(t *testing.T) {
 }
 
 // TestCreateSpan verifies spans created have the expected basic contents
-func TestSpan(t *testing.T) {
+func TestSpanWithDatasetPropagation(t *testing.T) {
+	*&propagation.GlobalConfig.PropagateDataset = true
 	mo := setupLibhoney()
 
 	ctx, tr := NewTrace(context.Background(), nil)
@@ -321,7 +322,129 @@ func TestSpan(t *testing.T) {
 		[]int{1, 1, 2},
 		[]int{foundRoot, foundAsync, foundSpan},
 		"all four spans should be sent")
+}
 
+func TestSpan(t *testing.T) {
+	*&propagation.GlobalConfig.PropagateDataset = false
+	mo := setupLibhoney()
+
+	ctx, tr := NewTrace(context.Background(), nil)
+	rs := tr.GetRootSpan()
+
+	ctx, span := rs.CreateChild(ctx)
+	assert.Equal(t, false, span.isAsync, "regular span should not be async")
+	assert.Equal(t, false, span.IsAsync(), "regular span should not be async")
+	assert.Equal(t, false, span.isSent, "regular span should not yet be sent")
+	assert.Equal(t, false, span.isRoot, "regular span should not be root")
+	assert.Equal(t, true, rs.isRoot, "root span should be root")
+	assert.Equal(t, span, rs.children[0], "root span's first child should be span")
+	assert.NotNil(t, span.ev, "span should have an embedded event")
+	assert.Equal(t, rs.spanID, span.parentID, "span's parent ID should be parent's span ID")
+	assert.Equal(t, rs, span.parent, "span should have a pointer to parent")
+	assert.Nil(t, span.rollupFields, "span should not have an initialized rollupFields map")
+	assert.False(t, span.started.IsZero(), "span should have an initialized started")
+	assert.Equal(t, tr, span.trace, "span should have a pointer to trace")
+
+	_, childSpan := span.CreateChild(ctx)
+	assert.Equal(t, span.spanID, childSpan.parentID, "child span's parent ID should be parent's span ID")
+	assert.Equal(t, span, childSpan.parent, "child span should have a pointer to parent")
+	assert.Len(t, span.children, 1, "parent span should have a child")
+	assert.Equal(t, childSpan, span.children[0], "parent span's child should be child span")
+
+	ctx, asyncSpan := rs.CreateAsyncChild(ctx)
+	assert.Equal(t, true, asyncSpan.isAsync, "async span should not be async")
+	assert.Equal(t, true, asyncSpan.IsAsync(), "async span should not be async")
+	assert.Equal(t, false, asyncSpan.isSent, "async span should not yet be sent")
+	assert.Equal(t, false, asyncSpan.isRoot, "async span should not be root")
+	assert.Equal(t, true, rs.isRoot, "root span should be root")
+	assert.Equal(t, asyncSpan, rs.children[1], "root span's second child should be asyncSpan")
+	assert.NotNil(t, asyncSpan.ev, "span should have an embedded event")
+	assert.Equal(t, rs.spanID, asyncSpan.parentID, "span's parent ID should be parent's span ID")
+	assert.Equal(t, rs, asyncSpan.parent, "span should have a pointer to parent")
+	assert.Nil(t, asyncSpan.rollupFields, "span should not have an initialized rollupFields map")
+	assert.False(t, asyncSpan.started.IsZero(), "span should have an initialized started")
+	assert.Equal(t, tr, asyncSpan.trace, "span should have a pointer to trace")
+
+	span.AddField("f1", "v1")
+	assert.Equal(t, "v1", span.ev.Fields()["f1"].(string), "after adding a field, field should exist on the span")
+	// add an error
+	expected := errors.New("test error")
+	span.AddField("error", expected)
+	assert.Contains(t, span.ev.Fields(), "error")
+	msg, ok := span.ev.Fields()["error"].(string)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, expected.Error(), msg)
+
+	// add some rollup fields
+	span.AddRollupField("r1", 2)
+	span.AddRollupField("r1", 3)
+	asyncSpan.AddRollupField("r1", 7)
+	assert.NotNil(t, asyncSpan.rollupFields, "span should have an initialized rollupFields map")
+	assert.NotNil(t, span.rollupFields, "span should have an initialized rollupFields map")
+	assert.Equal(t, float64(5), span.rollupFields["r1"], "repeated rollup fields should be summed on the span")
+	assert.Equal(t, float64(7), asyncSpan.rollupFields["r1"], "rollup fields should remain separate on separate spans")
+	assert.Equal(t, float64(12), tr.rollupFields["r1"], "rollup fields should have the grand total in the trace")
+
+	chillins := rs.GetChildren()
+	assert.Equal(t, rs.children, chillins, "get children should return the actual slice of children")
+	spanParent := span.GetParent()
+	asyncParent := asyncSpan.GetParent()
+	assert.Equal(t, spanParent, asyncParent, "span and asyncSpan should have the same parent")
+	assert.Equal(t, rs, asyncParent, "span and asyncSpan's parent should be the root span")
+
+	span.AddTraceField("tr1", "vr1")
+	assert.Equal(t, "vr1", tr.traceLevelFields["tr1"], "span's trace fields should be added to the trace")
+	assert.Nil(t, span.ev.Fields()["tr1"], "span should not have trace fields present")
+
+	headers := span.SerializeHeaders()
+	// magical string here is base64 encoded "tr1" field for the trace propagation
+	expectedHeader := fmt.Sprintf("1;trace_id=%s,parent_id=%s,context=eyJ0cjEiOiJ2cjEifQ==", tr.traceID, span.spanID)
+	assert.Equal(t, expectedHeader, headers, "serialized span should match expectations, no dataset propagation")
+
+	childSpan.Send()
+
+	assert.True(t, childSpan.isSent, "child span should now be sent")
+	assert.Len(t, span.children, 0, "child span should now be removed from the parent span's children since it's been sent")
+
+	// sending the root span should send span too
+	rs.Send()
+
+	assert.Equal(t, true, rs.isSent, "root span should now be sent")
+	assert.Equal(t, true, span.isSent, "regular span should now be sent")
+	assert.Equal(t, false, asyncSpan.isSent, "async span should not yet be sent")
+
+	asyncSpan.Send()
+
+	assert.Equal(t, true, span.isSent, "regular span should now be sent")
+	assert.Equal(t, true, asyncSpan.isSent, "async span should not yet be sent")
+
+	// ok go through the actually sent events and check some stuff
+	events := mo.Events()
+	assert.Equal(t, 4, len(events), "should have sent 4 events, rs, c1, and c2")
+	var foundRoot, foundSpan, foundAsync int
+	for _, ev := range events {
+		// some things should be true for all spans
+		assert.IsType(t, float64(0), ev.Data["duration_ms"], "span should have a numeric duration")
+		assert.Equal(t, "vr1", ev.Data["tr1"], "span should have trace level field")
+
+		// a few things are different on each of the three span types
+		switch ev.Data["meta.span_type"].(string) {
+		case "root":
+			foundRoot++
+			assert.Nil(t, ev.Data["trace.parent_id"], "root span should have no parent ID")
+			assert.Equal(t, float64(12), ev.Data["rollup.r1"], "root span should have rolled up fields")
+		case "async":
+			foundAsync++
+		case "leaf":
+			foundSpan++
+		default:
+			t.Error("unexpected event found")
+		}
+	}
+	assert.Equal(t,
+		[]int{1, 1, 2},
+		[]int{foundRoot, foundAsync, foundSpan},
+		"all four spans should be sent")
 }
 
 func TestCreateAsyncSpanDoesNotCauseRaceInSend(t *testing.T) {
