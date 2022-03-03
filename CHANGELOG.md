@@ -1,5 +1,11 @@
 # beeline-go changelog
 
+## v1.7.0 2022-03-03
+
+### Enhancements
+
+- Add Environment & Services support (#309) | [@JamieDanielson](https://github.com/JamieDanielson)
+
 ## 1.6.0 2022-02-10
 
 ### Enhancements
