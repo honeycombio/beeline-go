@@ -111,12 +111,12 @@ func Init(config Config) {
 	userAgentAddition := fmt.Sprintf("beeline/%s", version)
 
 	if config.WriteKey == "" {
-		fmt.Println("WARN: Missing API Key.")
+		fmt.Fprintln(os.Stderr,"WARN: Missing API Key.")
 		config.WriteKey = defaultWriteKey
 	}
 
 	if config.ServiceName == "" {
-		fmt.Println("WARN: Missing service name.")
+		fmt.Fprintln(os.Stderr,"WARN: Missing service name.")
 		// set default service name if not provided
 		config.ServiceName = defaultServiceName
 		if executable, err := os.Executable(); err == nil {
@@ -131,20 +131,20 @@ func Init(config Config) {
 	if IsClassicKey(config) {
 		// if classic and missing dataset, warn on that
 		if config.Dataset == "" {
-			fmt.Println("WARN: Missing dataset. Data will be sent to:", defaultDatasetClassic)
+			fmt.Fprintln(os.Stderr, "WARN: Missing dataset. Data will be sent to:", defaultDatasetClassic)
 			config.Dataset = defaultDatasetClassic
 		}
 	} else {
 		// non classic key will ignore dataset, warn if configured
 		if config.Dataset != "" {
-			fmt.Println("WARN: Dataset is ignored in favor of service name. Data will be sent to service name:", config.ServiceName)
+			fmt.Fprintln(os.Stderr,"WARN: Dataset is ignored in favor of service name. Data will be sent to service name:", config.ServiceName)
 		}
 		// set dataset based on service name
 		config.Dataset = config.ServiceName
 
 		if strings.TrimSpace(config.Dataset) != config.Dataset {
 			// whitespace detected. trim whitespace, warn on diff
-			fmt.Println("WARN: Service name has unexpected spaces")
+			fmt.Fprintln(os.Stderr,"WARN: Service name has unexpected spaces")
 			config.Dataset = strings.TrimSpace(config.Dataset)
 		}
 		if config.Dataset == "" {
