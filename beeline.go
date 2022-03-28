@@ -24,7 +24,6 @@ const (
 	defaultDataset        = "unknown_service"
 	defaultServiceName    = "unknown_service"
 	defaultSampleRate     = 1
-	warningColor          = "\033[1;33m%s\033[0m"
 )
 
 // Config is the place where you configure your Honeycomb write key and dataset
@@ -111,12 +110,12 @@ func Init(config Config) {
 	userAgentAddition := fmt.Sprintf("beeline/%s", version)
 
 	if config.WriteKey == "" {
-		fmt.Fprintln(os.Stderr,"WARN: Missing API Key.")
+		fmt.Fprintln(os.Stderr, "WARN: Missing API Key.")
 		config.WriteKey = defaultWriteKey
 	}
 
 	if config.ServiceName == "" {
-		fmt.Fprintln(os.Stderr,"WARN: Missing service name.")
+		fmt.Fprintln(os.Stderr, "WARN: Missing service name.")
 		// set default service name if not provided
 		config.ServiceName = defaultServiceName
 		if executable, err := os.Executable(); err == nil {
@@ -137,14 +136,14 @@ func Init(config Config) {
 	} else {
 		// non classic key will ignore dataset, warn if configured
 		if config.Dataset != "" {
-			fmt.Fprintln(os.Stderr,"WARN: Dataset is ignored in favor of service name. Data will be sent to service name:", config.ServiceName)
+			fmt.Fprintln(os.Stderr, "WARN: Dataset is ignored in favor of service name. Data will be sent to service name:", config.ServiceName)
 		}
 		// set dataset based on service name
 		config.Dataset = config.ServiceName
 
 		if strings.TrimSpace(config.Dataset) != config.Dataset {
 			// whitespace detected. trim whitespace, warn on diff
-			fmt.Fprintln(os.Stderr,"WARN: Service name has unexpected spaces")
+			fmt.Fprintln(os.Stderr, "WARN: Service name has unexpected spaces")
 			config.Dataset = strings.TrimSpace(config.Dataset)
 		}
 		if config.Dataset == "" {
@@ -174,9 +173,7 @@ func Init(config Config) {
 	if config.Client == nil {
 		var tx transmission.Sender
 		if config.STDOUT == true {
-			fmt.Println(
-				warningColor,
-				`WARNING: Writing to STDOUT in a production environment is dangerous and can cause issues.`)
+			fmt.Println(`WARNING: Writing to STDOUT in a production environment is dangerous and can cause issues.`)
 			tx = &transmission.WriterSender{}
 		}
 		if config.Mute == true {
