@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gobuffalo/pop/v5"
+	"github.com/gobuffalo/pop/v6"
 	beeline "github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/wrappers/hnypop"
 	"github.com/honeycombio/beeline-go/wrappers/hnysqlx"
