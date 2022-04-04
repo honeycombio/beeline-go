@@ -2,6 +2,9 @@
 
 ## 2.0.0 2022-04-04
 
+### !!! Breaking Changes !!!
+
+Minimum Go version required is now 1.16.
 ### Maintenance
 
 * Update gobuffalo/pop from v5 to v6, which uses features introduced in Go version 1.16.
