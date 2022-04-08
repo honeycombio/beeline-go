@@ -1,8 +1,8 @@
 # beeline-go changelog
 
-## 2.0.0 2022-04-04
+## 1.8.0 2022-04-04
 
-### !!! Breaking Changes !!!
+### !!! Note !!!
 
 Minimum Go version required is now 1.16.
 ### Maintenance
