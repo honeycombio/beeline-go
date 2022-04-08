@@ -5,6 +5,7 @@
 ### !!! Note !!!
 
 Minimum Go version required is now 1.16.
+
 ### Maintenance
 
 * Update gobuffalo/pop from v5 to v6, which uses features introduced in Go version 1.16.
