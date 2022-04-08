@@ -1,10 +1,11 @@
 # beeline-go changelog
 
-## 2.0.0 2022-04-04
+## 1.8.0 2022-04-04
 
-### !!! Breaking Changes !!!
+### !!! Note !!!
 
 Minimum Go version required is now 1.16.
+
 ### Maintenance
 
 * Update gobuffalo/pop from v5 to v6, which uses features introduced in Go version 1.16.
@@ -13,7 +14,6 @@ Minimum Go version required is now 1.16.
 * Update labstack/echo from 4.6.1 to 4.7.2.
 * Remove support for Go 1.14 and 1.15.
 * Add support for Go 1.18.
-* Major version bump since support for two versions of Go were removed.
 
 ## v1.7.0 2022-03-03
 
