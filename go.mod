@@ -18,6 +18,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/stretchr/testify v1.7.1
 	goji.io/v3 v3.0.0
-	google.golang.org/grpc v1.45.0
+	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.28.0
 )
