@@ -280,7 +280,7 @@ func AddField(ctx context.Context, key string, val interface{}) {
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
 		if val != nil {
-			namespacedKey := fmt.Sprintf("app.%s", key)
+			namespacedKey := "app." + key // Avoid excess parsing/allocation work
 			if valErr, ok := val.(error); ok {
 				// treat errors specially because it's a pain to have to
 				// remember to stringify them
@@ -300,7 +300,7 @@ func AddField(ctx context.Context, key string, val interface{}) {
 // eg user IDs, globally relevant feature flags, errors, etc. Fields added here
 // are prefixed with `app.`
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
-	namespacedKey := fmt.Sprintf("app.%s", key)
+	namespacedKey := "app." + key // Avoid excess parsing/allocation work
 	tr := trace.GetTraceFromContext(ctx)
 	if tr != nil {
 		tr.AddField(namespacedKey, val)
