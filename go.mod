@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/felixge/httpsnoop v1.0.2
-	github.com/gin-gonic/gin v1.7.7
+	github.com/gin-gonic/gin v1.8.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gobuffalo/pop/v6 v6.0.2
 	github.com/google/uuid v1.3.0
