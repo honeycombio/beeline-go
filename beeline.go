@@ -277,10 +277,10 @@ func Close() {
 // Errors are treated as a special case for convenience: if `val` is of type
 // `error` then the key is set to the error's message in the span.
 func AddField(ctx context.Context, key string, val interface{}) {
+	namespacedKey := "app." + key // Avoid excess parsing/allocation work
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
 		if val != nil {
-			namespacedKey := "app." + key // Avoid excess parsing/allocation work
 			if valErr, ok := val.(error); ok {
 				// treat errors specially because it's a pain to have to
 				// remember to stringify them
