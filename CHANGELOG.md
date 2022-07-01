@@ -1,5 +1,19 @@
 # beeline-go changelog
 
+## 1.9.0 2022-07-01
+
+### Enhancements
+
+- [optimization] simple concat for prepending "app." (#328) | [@lizthegrey](https://github.com/lizthegrey)
+
+### Maintenance
+
+- Bump github.com/gobuffalo/pop/v6 from 6.0.2 to 6.0.4 (#326)
+- Bump github.com/felixge/httpsnoop from 1.0.2 to 1.0.3 (#324)
+- Bump google.golang.org/grpc from 1.45.0 to 1.47.0 (#325)
+- Bump github.com/jmoiron/sqlx from 1.3.4 to 1.3.5 (#321)
+- Bump github.com/gobuffalo/pop/v6 from 6.0.1 to 6.0.2 (#323)
+
 ## 1.8.0 2022-04-04
 
 ### !!! Note !!!
