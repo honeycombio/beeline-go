@@ -7,7 +7,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.3
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-sql-driver/mysql v1.6.0
-	github.com/gobuffalo/pop/v6 v6.0.2
+	github.com/gobuffalo/pop/v6 v6.0.4
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/honeycombio/libhoney-go v1.15.8
