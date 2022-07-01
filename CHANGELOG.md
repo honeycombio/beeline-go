@@ -4,7 +4,7 @@
 
 ### Enhancements
 
-- [optimization] simple concat for prepending "app." (#328) | [@lizthegrey](https://github.com/lizthegrey)
+- Use simple concat for prepending "app." field prefix (#328) | [@lizthegrey](https://github.com/lizthegrey)
 
 ### Maintenance
 
