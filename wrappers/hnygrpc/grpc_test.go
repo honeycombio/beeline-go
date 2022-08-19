@@ -78,9 +78,11 @@ func TestUnaryInterceptor(t *testing.T) {
 	beeline.Init(beeline.Config{Client: client})
 
 	md := metadata.New(map[string]string{
-		"content-type": "application/grpc",
-		":authority":   "api.honeycomb.io:443",
-		"user-agent":   "testing-is-fun",
+		"content-type":      "application/grpc",
+		":authority":        "api.honeycomb.io:443",
+		"user-agent":        "testing-is-fun",
+		"X-Forwarded-For":   "10.11.12.13",
+		"X-Forwarded-Proto": "https",
 	})
 	ctx := metadata.NewIncomingContext(context.Background(), md)
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
@@ -110,6 +112,14 @@ func TestUnaryInterceptor(t *testing.T) {
 	userAgent, ok := successfulFields["request.header.user_agent"]
 	assert.True(t, ok, "user-agent expected to exist on middleware generated event")
 	assert.Equal(t, "testing-is-fun", userAgent, "user-agent should be set")
+
+	xForwardedFor, ok := successfulFields["request.header.x_forwarded_for"]
+	assert.True(t, ok, "x_forwarded_for expected to exist on middleware generated event")
+	assert.Equal(t, "10.11.12.13", xForwardedFor, "x_forwarded_for should be set")
+
+	xForwardedProto, ok := successfulFields["request.header.x_forwarded_proto"]
+	assert.True(t, ok, "x_forwarded_proto expected to exist on middleware generated event")
+	assert.Equal(t, "https", xForwardedProto, "x_forwarded_proto should be set")
 
 	method, ok := successfulFields["handler.method"]
 	assert.True(t, ok, "method name should be set")

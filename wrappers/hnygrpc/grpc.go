@@ -83,6 +83,12 @@ func addFields(ctx context.Context, info *grpc.UnaryServerInfo, handler grpc.Una
 		if val, ok := md["user-agent"]; ok {
 			span.AddField("request.header.user_agent", val[0])
 		}
+		if val, ok := md["x-forwarded-for"]; ok {
+			span.AddField("request.header.x_forwarded_for", val[0])
+		}
+		if val, ok := md["x-forwarded-proto"]; ok {
+			span.AddField("request.header.x_forwarded_proto", val[0])
+		}
 	}
 }
 
