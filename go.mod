@@ -5,19 +5,16 @@ go 1.16
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/felixge/httpsnoop v1.0.3
-	github.com/gin-gonic/gin v1.7.7
+	github.com/gin-gonic/gin v1.8.1
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gobuffalo/pop/v6 v6.0.6
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/honeycombio/libhoney-go v1.16.0
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/julienschmidt/httprouter v1.3.0
-	github.com/kr/pretty v0.2.0 // indirect
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/stretchr/testify v1.8.0
 	goji.io/v3 v3.0.0
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
