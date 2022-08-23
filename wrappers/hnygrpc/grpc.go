@@ -72,22 +72,19 @@ func addFields(ctx context.Context, info *grpc.UnaryServerInfo, handler grpc.Una
 	span.AddField("handler.name", handlerName)
 	span.AddField("handler.method", info.FullMethod)
 
+	headersToFields := map[string]string{
+		"content-type":      "request.content_type",
+		":authority":        "request.header.authority",
+		"user-agent":        "request.header.user_agent",
+		"x-forwarded-for":   "request.header.x_forwarded_for",
+		"x-forwarded-proto": "request.header.x_forwarded_proto",
+	}
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
-		if val, ok := md["content-type"]; ok {
-			span.AddField("request.content_type", val[0])
-		}
-		if val, ok := md[":authority"]; ok {
-			span.AddField("request.header.authority", val[0])
-		}
-		if val, ok := md["user-agent"]; ok {
-			span.AddField("request.header.user_agent", val[0])
-		}
-		if val, ok := md["x-forwarded-for"]; ok {
-			span.AddField("request.header.x_forwarded_for", val[0])
-		}
-		if val, ok := md["x-forwarded-proto"]; ok {
-			span.AddField("request.header.x_forwarded_proto", val[0])
+		for headerName, fieldName := range headersToFields {
+			if val, ok := md[headerName]; ok {
+				span.AddField(fieldName, val[0])
+			}
 		}
 	}
 }
