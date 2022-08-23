@@ -2,6 +2,7 @@ package hnygrpc
 
 import (
 	"context"
+	"net"
 	"reflect"
 	"runtime"
 
@@ -13,6 +14,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -71,6 +73,13 @@ func addFields(ctx context.Context, info *grpc.UnaryServerInfo, handler grpc.Una
 	span.AddField("meta.type", "grpc_request")
 	span.AddField("handler.name", handlerName)
 	span.AddField("handler.method", info.FullMethod)
+
+	pr, ok := peer.FromContext(ctx)
+	if ok {
+		if pr.Addr != net.Addr(nil) {
+			span.AddField("request.remote_addr", pr.Addr.String())
+		}
+	}
 
 	headersToFields := map[string]string{
 		"content-type":      "request.content_type",
