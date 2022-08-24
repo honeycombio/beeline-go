@@ -76,6 +76,7 @@ func addFields(ctx context.Context, info *grpc.UnaryServerInfo, handler grpc.Una
 
 	pr, ok := peer.FromContext(ctx)
 	if ok {
+		// if we have an address, put it on the span
 		if pr.Addr != net.Addr(nil) {
 			span.AddField("request.remote_addr", pr.Addr.String())
 		}
