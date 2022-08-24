@@ -1,5 +1,25 @@
 # beeline-go changelog
 
+## 1.10.0 2022-08-24
+
+### Enhancements
+
+- Add more request header information to GRPC handler spans (#341) | [@robbkidd](https://github.com/robbkidd)
+  - `request.header.x_forwarded_for`
+  - `request.header.x_forwarded_proto`
+  - `request.remote_addr`
+
+### Maintenance
+
+- maint: add go 1.19 to CI (#340) | [@vreynolds](https://github.com/vreynolds)
+- Downgrade go-sqlite3 to stable version (#338) | [@malt3](https://github.com/malt3)
+- Bump google.golang.org/grpc from 1.47.0 to 1.48.0 (#333) | [@dependabot](https://github.com/dependabot)
+- Bump github.com/gin-gonic/gin from 1.7.7 to 1.8.1 (#330) | [@dependabot](https://github.com/dependabot)
+- Bump github.com/gobuffalo/pop/v6 from 6.0.4 to 6.0.6 (#335) | [@dependabot](https://github.com/dependabot)
+- Bump github.com/honeycombio/libhoney-go from 1.15.8 to 1.16.0 (#334) | [@dependabot](https://github.com/dependabot)
+- Bump github.com/stretchr/testify from 1.7.1 to 1.8.0 (#332) | [@dependabot](https://github.com/dependabot)
+- [examples] Bump google.golang.org/protobuf from 1.28.0 to 1.28.1 (#336) | [@dependabot](https://github.com/dependabot)
+
 ## 1.9.0 2022-07-01
 
 ### Enhancements
