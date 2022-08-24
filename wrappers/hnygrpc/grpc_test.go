@@ -81,7 +81,7 @@ func TestUnaryInterceptor(t *testing.T) {
 		"content-type":      "application/grpc",
 		":authority":        "api.honeycomb.io:443",
 		"user-agent":        "testing-is-fun",
-		"X-Forwarded-For":   "10.11.12.13",
+		"X-Forwarded-For":   "10.11.12.13", // headers are Kabob-Title-Case from clients
 		"X-Forwarded-Proto": "https",
 	})
 	ctx := metadata.NewIncomingContext(context.Background(), md)

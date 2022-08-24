@@ -18,6 +18,23 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// This is a map of GRPC request header names whose values will be retrieved
+// and added to handler spans as fields with the corresponding name.
+//
+// Header names must be lowercase as the metadata.MD API will have normalized
+// incoming headers to lower.
+//
+// The field names should turn dashes (-) into underscores (_) to follow
+// precident in HTTP request headers and the patterns established and in
+// naming patterns in OTel attributes for requests.
+var headersToFields = map[string]string{
+	"content-type":      "request.content_type",
+	":authority":        "request.header.authority",
+	"user-agent":        "request.header.user_agent",
+	"x-forwarded-for":   "request.header.x_forwarded_for",
+	"x-forwarded-proto": "request.header.x_forwarded_proto",
+}
+
 // getMetadataStringValue is a simpler helper method that checks the provided
 // metadata for a value associated with the provided key. If the value exists,
 // it is returned. If the value does not exist, an empty string is returned.
@@ -82,13 +99,6 @@ func addFields(ctx context.Context, info *grpc.UnaryServerInfo, handler grpc.Una
 		}
 	}
 
-	headersToFields := map[string]string{
-		"content-type":      "request.content_type",
-		":authority":        "request.header.authority",
-		"user-agent":        "request.header.user_agent",
-		"x-forwarded-for":   "request.header.x_forwarded_for",
-		"x-forwarded-proto": "request.header.x_forwarded_proto",
-	}
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
 		for headerName, fieldName := range headersToFields {
