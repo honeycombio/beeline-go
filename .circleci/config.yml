@@ -42,7 +42,6 @@ workflows:
           matrix:
             parameters:
               go-version:
-                - "1.16"
                 - "1.17"
                 - "1.18"
                 - "1.19"
@@ -51,14 +50,14 @@ workflows:
       - test:
           <<: *test
           filters:
-              tags:
-                only: /.*/
+            tags:
+              only: /.*/
       - publish_github:
           context: Honeycomb Secrets for Public Repos
           filters:
-              tags:
-                only: /^v.*/
-              branches:
-                ignore: /.*/
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
           requires:
             - test
