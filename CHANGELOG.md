@@ -1,5 +1,19 @@
 # beeline-go changelog
 
+## 1.11.0 2022-10-11
+
+### Enhancements
+
+- Include Commit/Rollback in db.call names (#345) | [@glenjamin](https://github.com/glenjamin)
+
+### Maintenance
+
+- [maint] Drop support for go 1.16 (#350) | [@pkanal](https://github.com/pkanal)
+- Bump github.com/honeycombio/libhoney-go from 1.16.0 to 1.17.0 (#347) | [@dependabot](https://github.com/dependabot)
+- Bump github.com/labstack/echo/v4 from 4.8.0 to 4.9.0 (#346) | [@dependabot](https://github.com/dependabot)
+- Bump github.com/labstack/echo/v4 from 4.7.2 to 4.8.0 (#343) | [@dependabot](https://github.com/dependabot)
+- Bump google.golang.org/grpc from 1.48.0 to 1.49.0 (#344) | [@dependabot](https://github.com/dependabot)
+
 ## 1.10.0 2022-08-24
 
 ### Enhancements
