@@ -180,7 +180,7 @@ func (t *Trace) getTraceLevelFields() map[string]interface{} {
 	t.tlfLock.Lock()
 	defer t.tlfLock.Unlock()
 	// return a copy of trace level fields
-	retVals := make(map[string]interface{})
+	retVals := make(map[string]interface{}, len(t.traceLevelFields))
 	for k, v := range t.traceLevelFields {
 		retVals[k] = v
 	}
@@ -190,7 +190,7 @@ func (t *Trace) getTraceLevelFields() map[string]interface{} {
 func (t *Trace) getRollupFields() map[string]interface{} {
 	t.rollupLock.Lock()
 	defer t.rollupLock.Unlock()
-	rollupFields := make(map[string]interface{})
+	rollupFields := make(map[string]interface{}, len(t.rollupFields))
 	for k, v := range t.rollupFields {
 		rollupFields[k] = v
 	}
