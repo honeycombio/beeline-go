@@ -1,5 +1,16 @@
 # beeline-go changelog
 
+## 1.11.1 2022-10-19
+
+### Fixes
+
+- Pre-define capacities for rollups and TLFs (#353) | [@lizthegrey](https://github.com/lizthegrey)
+
+### Maintenance
+
+- Bump libhoney to 1.17.1 (#355) | [@mikegoldsmith](https://github.com/mikegoldsmith)
+- Add release file (#354) | [@vreynolds](https://github.com/vreynolds)
+
 ## 1.11.0 2022-10-11
 
 ### Enhancements
