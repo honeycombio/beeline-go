@@ -14,5 +14,5 @@ updates:
     reviewers:
       - "honeycombio/telemetry-team"
     commit-message:
-          prefix: "maint"
-          include: "scope"
+      prefix: "maint"
+      include: "scope"
