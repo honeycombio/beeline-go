@@ -1,5 +1,24 @@
 # beeline-go changelog
 
+## 1.12.0 2023-06-05
+
+### ⚠️ Breaking Changes ⚠️
+
+Minimum Go version required is 1.17
+
+### Maintenance
+
+- Bump libhoney-go to 1.19.0 (#) | @MikeGoldsmith
+- Bump google.golang.org/grpc from 1.49.0 to 1.55.0 (#380) | @Dependabot
+- Bump github.com/stretchr/testify from 1.8.2 to 1.8.4 (#381) | @Dependabot
+- Bump github.com/gin-gonic/gin from 1.8.1 to 1.9.0 (#373) | @Dependabot
+- Bump github.com/go-sql-driver/mysql from 1.7.0 to 1.7.1 (#379) | @Dependabot
+- Bump github.com/stretchr/testify from 1.8.1 to 1.8.2 (#372) | @Dependabot
+- Bump github.com/labstack/echo/v4 from 4.9.0 to 4.10.2 (#371) | @Dependabot
+- Bump github.com/gobuffalo/pop/v6 from 6.0.8 to 6.1.1 (#368) | @Dependabot
+- Bump github.com/stretchr/testify from 1.8.0 to 1.8.1 (#359) | @Dependabot
+- Bump github.com/honeycombio/libhoney-go from 1.17.1 to 1.18.0 (#358) | @Dependabot
+
 ## 1.11.1 2022-10-19
 
 ### Fixes
