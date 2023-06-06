@@ -8,7 +8,7 @@ Minimum Go version required is 1.17
 
 ### Maintenance
 
-- Bump libhoney-go to 1.19.0 (#) | @MikeGoldsmith
+- Bump libhoney-go to 1.19.0 (#385) | @MikeGoldsmith
 - Bump google.golang.org/grpc from 1.49.0 to 1.55.0 (#380) | @Dependabot
 - Bump github.com/stretchr/testify from 1.8.2 to 1.8.4 (#381) | @Dependabot
 - Bump github.com/gin-gonic/gin from 1.8.1 to 1.9.0 (#373) | @Dependabot
