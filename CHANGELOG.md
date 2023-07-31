@@ -1,5 +1,21 @@
 # beeline-go changelog
 
+## 1.13.0 2023-07-31
+
+### ⚠️ Breaking Changes ⚠️
+
+Minimum Go version required is 1.18
+
+### Maintenance
+
+- maint: drop go 1.17 (#390) | @vreynolds
+- ci: move nightly to weekly (#389) | @vreynolds
+- maint(deps): bump github.com/labstack/echo/v4 from 4.10.2 to 4.11.1 (#392) | @dependabot
+- maint(deps): [examples] bump google.golang.org/protobuf from 1.30.0 to 1.31.0 (#386) | @dependabot
+- maint(deps): bump google.golang.org/grpc from 1.55.0 to 1.57.0 (#391) | @dependabot
+- maint(deps): bump github.com/gin-gonic/gin from 1.9.0 to 1.9.1 (#382) | @dependabot
+- maint(deps): bump github.com/honeycombio/libhoney-go from 1.19.0 to 1.20.0 (#387) | @dependabot
+
 ## 1.12.0 2023-06-05
 
 ### ⚠️ Breaking Changes ⚠️
