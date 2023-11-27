@@ -251,7 +251,6 @@ func Init(config Config) {
 		propagation.GlobalConfig.PropagateDataset = false
 	}
 	trace.GlobalConfig.PprofTagging = config.PprofTagging
-	fieldNameCache, _ = lru.New[string, string](1000)
 	return
 }
 
@@ -365,7 +364,11 @@ func readResponses(responses chan transmission.Response) {
 
 // getNamespacedKey returns a namespaced key for the given key. It will return
 // the cached value if it exists, otherwise it will create a new one and cache
+// it for future use.
 func getNamespacedKey(key string) string {
+	if fieldNameCache == nil {
+		fieldNameCache, _ = lru.New[string, string](1000)
+	}
 	if val, ok := fieldNameCache.Get(key); ok {
 		return val
 	}
