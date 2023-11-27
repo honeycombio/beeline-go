@@ -10,6 +10,7 @@ require (
 	github.com/gobuffalo/pop/v6 v6.1.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/honeycombio/libhoney-go v1.20.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/julienschmidt/httprouter v1.3.0

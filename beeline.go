@@ -16,6 +16,8 @@ import (
 	"github.com/honeycombio/beeline-go/sample"
 	"github.com/honeycombio/beeline-go/trace"
 	libhoney "github.com/honeycombio/libhoney-go"
+
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 const (
@@ -99,6 +101,11 @@ type Config struct {
 	// PprofTagging controls whether span IDs should be propagated to pprof.
 	PprofTagging bool
 }
+
+var (
+	// fieldNameCache is a LRU cache of namespaced keys to avoid allocating new strings
+	fieldNameCache *lru.Cache[string, string]
+)
 
 func IsClassicKey(config Config) bool {
 	// classic key has 32 characters
@@ -244,6 +251,7 @@ func Init(config Config) {
 		propagation.GlobalConfig.PropagateDataset = false
 	}
 	trace.GlobalConfig.PprofTagging = config.PprofTagging
+	fieldNameCache, _ = lru.New[string, string](1000)
 	return
 }
 
@@ -280,7 +288,7 @@ func AddField(ctx context.Context, key string, val interface{}) {
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
 		if val != nil {
-			namespacedKey := "app." + key // Avoid excess parsing/allocation work
+			namespacedKey := getNamespacedKey(key)
 			if valErr, ok := val.(error); ok {
 				// treat errors specially because it's a pain to have to
 				// remember to stringify them
@@ -300,7 +308,7 @@ func AddField(ctx context.Context, key string, val interface{}) {
 // eg user IDs, globally relevant feature flags, errors, etc. Fields added here
 // are prefixed with `app.`
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
-	namespacedKey := "app." + key // Avoid excess parsing/allocation work
+	namespacedKey := getNamespacedKey(key)
 	tr := trace.GetTraceFromContext(ctx)
 	if tr != nil {
 		tr.AddField(namespacedKey, val)
@@ -353,4 +361,15 @@ func readResponses(responses chan transmission.Response) {
 				metadata, r.StatusCode, r.Err, r.Body)
 		}
 	}
+}
+
+// getNamespacedKey returns a namespaced key for the given key. It will return
+// the cached value if it exists, otherwise it will create a new one and cache
+func getNamespacedKey(key string) string {
+	if val, ok := fieldNameCache.Get(key); ok {
+		return val
+	}
+	val := "app." + key
+	fieldNameCache.Add(key, val)
+	return val
 }
