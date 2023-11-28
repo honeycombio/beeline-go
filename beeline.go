@@ -280,7 +280,7 @@ func AddField(ctx context.Context, key string, val interface{}) {
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
 		if val != nil {
-			namespacedKey := getNamespacedKey(key)
+			namespacedKey := maybeAddPrefix(key)
 			if valErr, ok := val.(error); ok {
 				// treat errors specially because it's a pain to have to
 				// remember to stringify them
@@ -300,7 +300,7 @@ func AddField(ctx context.Context, key string, val interface{}) {
 // eg user IDs, globally relevant feature flags, errors, etc. Fields added here
 // are prefixed with `app.`
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
-	namespacedKey := getNamespacedKey(key)
+	namespacedKey := maybeAddPrefix(key)
 	tr := trace.GetTraceFromContext(ctx)
 	if tr != nil {
 		tr.AddField(namespacedKey, val)
@@ -355,8 +355,8 @@ func readResponses(responses chan transmission.Response) {
 	}
 }
 
-// getNamespacedKey returns the key with the app. prefix if it doesn't already have one
-func getNamespacedKey(key string) string {
+// maybeAddPrefix returns the key with the app. prefix if it doesn't already have one
+func maybeAddPrefix(key string) string {
 	if !strings.HasPrefix(key, "app.") {
 		key = "app." + key
 	}
