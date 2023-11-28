@@ -16,8 +16,6 @@ import (
 	"github.com/honeycombio/beeline-go/sample"
 	"github.com/honeycombio/beeline-go/trace"
 	libhoney "github.com/honeycombio/libhoney-go"
-
-	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 const (
@@ -101,11 +99,6 @@ type Config struct {
 	// PprofTagging controls whether span IDs should be propagated to pprof.
 	PprofTagging bool
 }
-
-var (
-	// fieldNameCache is a LRU cache of namespaced keys to avoid allocating new strings
-	fieldNameCache *lru.Cache[string, string]
-)
 
 func IsClassicKey(config Config) bool {
 	// classic key has 32 characters
@@ -362,17 +355,10 @@ func readResponses(responses chan transmission.Response) {
 	}
 }
 
-// getNamespacedKey returns a namespaced key for the given key. It will return
-// the cached value if it exists, otherwise it will create a new one and cache
-// it for future use.
+// getNamespacedKey returns the key with the app. prefix if it doesn't already have one
 func getNamespacedKey(key string) string {
-	if fieldNameCache == nil {
-		fieldNameCache, _ = lru.New[string, string](1000)
+	if !strings.HasPrefix(key, "app.") {
+		key = "app." + key
 	}
-	if val, ok := fieldNameCache.Get(key); ok {
-		return val
-	}
-	val := "app." + key
-	fieldNameCache.Add(key, val)
-	return val
+	return key
 }
