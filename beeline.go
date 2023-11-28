@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/honeycombio/libhoney-go/transmission"
@@ -99,6 +100,11 @@ type Config struct {
 	// PprofTagging controls whether span IDs should be propagated to pprof.
 	PprofTagging bool
 }
+
+var (
+	cachedFieldNames     = map[string]string{}
+	cachedFieldNamesLock = &sync.RWMutex{}
+)
 
 func IsClassicKey(config Config) bool {
 	// classic key has 32 characters
@@ -357,8 +363,39 @@ func readResponses(responses chan transmission.Response) {
 
 // maybeAddPrefix returns the key with the app. prefix if it doesn't already have one
 func maybeAddPrefix(key string) string {
-	if !strings.HasPrefix(key, "app.") {
-		key = "app." + key
+	// return if the key already has the prefix
+	if strings.HasPrefix(key, "app.") {
+		return key
 	}
-	return key
+
+	// check the cache using a read lock first
+	cachedFieldNamesLock.RLock()
+	val, ok := cachedFieldNames[key]
+	cachedFieldNamesLock.RUnlock()
+	if ok {
+		return val
+	}
+
+	// not in the cache, so check again with a write lock in case it was added
+	// while we were waiting for the lock
+	cachedFieldNamesLock.Lock()
+	val, ok = cachedFieldNames[key]
+	if ok {
+		cachedFieldNamesLock.Unlock()
+		return val
+	}
+
+	// before we add the key to the cache, reset the cache if it's getting too big.
+	// this can happen if lots of unique keys are being used and we don't want to
+	// grow the cache indefinitely
+	if len(cachedFieldNames) > 1000 {
+		cachedFieldNames = map[string]string{}
+	}
+
+	// create the prefixed key and add it to the cache, release the lock, and
+	// return the prefixed key
+	prefixedKey := "app." + key
+	cachedFieldNames[key] = prefixedKey
+	cachedFieldNamesLock.Unlock()
+	return prefixedKey
 }
