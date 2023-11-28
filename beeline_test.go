@@ -3,10 +3,15 @@ package beeline
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/honeycombio/libhoney-go/transmission"
+
+	cmap "github.com/orcaman/concurrent-map/v2"
 
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/stretchr/testify/assert"
@@ -144,4 +149,169 @@ func setupLibhoney(t testing.TB) *transmission.MockSender {
 	Init(Config{Client: client})
 
 	return mo
+}
+
+func getRandomString() string {
+	chars := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	length := rand.Intn(20) + 5
+	result := make([]rune, length)
+	for i := range result {
+		result[i] = chars[rand.Intn(len(chars))]
+	}
+	return string(result)
+}
+
+func getPrefixedFieldNameOrig(name string) string {
+	return "app." + name
+}
+
+var syncCache sync.Map
+
+// sync.Map avoids a lot of locking overhead but has no size limit
+func getPrefixedFieldNameSync(key string) string {
+	const prefix = "app."
+
+	// return if the key already has the prefix
+	if strings.HasPrefix(key, prefix) {
+		return key
+	}
+
+	// check the cache first
+	val, ok := syncCache.Load(key)
+	if ok {
+		return val.(string)
+	}
+
+	// not in the cache, so add it
+	prefixedKey := prefix + key
+	syncCache.Store(key, prefixedKey)
+	return prefixedKey
+}
+
+var concurrentMap cmap.ConcurrentMap[string, string]
+
+func getPrefixedFieldNameConcurrent(key string) string {
+	const prefix = "app."
+
+	// return if the key already has the prefix
+	if strings.HasPrefix(key, prefix) {
+		return key
+	}
+
+	// check the cache first
+	val, ok := concurrentMap.Get(key)
+	if ok {
+		return val
+	}
+
+	val = prefix + key
+	concurrentMap.Set(key, val)
+
+	return val
+}
+
+func getPrefixedFieldNameEjectRandom(key string) string {
+	const prefix = "app."
+
+	// return if the key already has the prefix
+	if strings.HasPrefix(key, prefix) {
+		return key
+	}
+
+	// check the cache using a read lock first
+	cachedFieldNamesLock.RLock()
+	val, ok := cachedFieldNames[key]
+	cachedFieldNamesLock.RUnlock()
+	if ok {
+		return val
+	}
+
+	// not in the cache, so get a write lock
+	cachedFieldNamesLock.Lock()
+	defer cachedFieldNamesLock.Unlock()
+
+	// check again in case it was added while we were waiting for the lock
+	val, ok = cachedFieldNames[key]
+	if ok {
+		return val
+	}
+
+	// before we add the key to the cache, reset the cache if it's getting too big.
+	// this can happen if lots of unique keys are being used and we don't want to
+	// grow the cache indefinitely
+	if len(cachedFieldNames) > 1000 {
+		for k := range cachedFieldNames {
+			delete(cachedFieldNames, k)
+			break
+		}
+	}
+
+	// add the prefixed key to the cache and return it
+	prefixedKey := prefix + key
+	cachedFieldNames[key] = prefixedKey
+	return prefixedKey
+}
+
+func BenchmarkGetPrefixedFieldNameBasic(b *testing.B) {
+	funcs := map[string]func(string) string{
+		"orig":  getPrefixedFieldNameOrig,
+		"new":   getPrefixedFieldName,
+		"sync":  getPrefixedFieldNameSync,
+		"conc":  getPrefixedFieldNameConcurrent,
+		"eject": getPrefixedFieldNameEjectRandom,
+	}
+	for _, numFields := range []int{10, 100, 1000, 3000} {
+		for name, f := range funcs {
+			b.Run(fmt.Sprintf("%s-%d", name, numFields), func(b *testing.B) {
+				names := make([]string, numFields)
+				for i := 0; i < numFields; i++ {
+					names[i] = getRandomString()
+				}
+				concurrentMap = cmap.New[string]()
+				b.ResetTimer()
+				for n := 0; n < b.N; n++ {
+					f(names[rand.Intn(numFields)])
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkGetPrefixedFieldNameParallel(b *testing.B) {
+	funcs := map[string]func(string) string{
+		"orig": getPrefixedFieldNameOrig,
+		"new":  getPrefixedFieldName,
+		"sync": getPrefixedFieldNameSync,
+		"conc": getPrefixedFieldNameConcurrent,
+		// "eject": getPrefixedFieldNameEjectRandom,
+	}
+	for _, numGoroutines := range []int{1, 50, 300} {
+		for name, f := range funcs {
+			for _, numFields := range []int{50, 500, 2000} {
+				b.Run(fmt.Sprintf("%s-f%d-g%d", name, numFields, numGoroutines), func(b *testing.B) {
+					names := make([]string, numFields)
+					for i := 0; i < numFields; i++ {
+						names[i] = getRandomString()
+					}
+					concurrentMap = cmap.New[string]()
+					b.ResetTimer()
+					wg := sync.WaitGroup{}
+					count := b.N / numGoroutines
+					if count == 0 {
+						count = 1
+					}
+					for g := 0; g < numGoroutines; g++ {
+						wg.Add(1)
+						go func() {
+							for n := 0; n < count; n++ {
+								f(names[rand.Intn(numFields)])
+							}
+							wg.Done()
+						}()
+					}
+					wg.Wait()
+				})
+			}
+		}
+	}
 }
