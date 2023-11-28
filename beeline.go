@@ -365,8 +365,10 @@ func readResponses(responses chan transmission.Response) {
 // This uses a cache to avoid prefixing the same field name over and over again to save allocations.
 // The cache will be reset if it grows too large to avoid unbounded memory growth.
 func getPrefixedFieldName(key string) string {
+	const prefix = "app."
+
 	// return if the key already has the prefix
-	if strings.HasPrefix(key, "app.") {
+	if strings.HasPrefix(key, prefix) {
 		return key
 	}
 
@@ -396,7 +398,7 @@ func getPrefixedFieldName(key string) string {
 	}
 
 	// add the prefixed key to the cache and return it
-	prefixedKey := "app." + key
+	prefixedKey := prefix + key
 	cachedFieldNames[key] = prefixedKey
 	return prefixedKey
 }
