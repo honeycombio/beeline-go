@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/honeycombio/beeline-go/trace"
 	"github.com/honeycombio/libhoney-go/transmission"
 
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -105,8 +106,46 @@ func BenchmarkBeelineAddField(b *testing.B) {
 	setupLibhoney(b)
 
 	ctx, _ := StartSpan(context.Background(), "parent")
-	for n := 0; n < b.N; n++ {
-		AddField(ctx, "foo", 1)
+
+	b.Run("oldAddField/whatever", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			oldAddField(ctx, "foo", 1)
+		}
+	})
+	b.Run("AddField/no-prefix", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			AddField(ctx, "foo", 1)
+		}
+	})
+	b.Run("AddField/half-prefixed", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			if n%2 == 0 {
+				AddField(ctx, "app.foo", 1)
+			} else {
+				AddField(ctx, "foo", 1)
+			}
+		}
+	})
+	b.Run("AddField/all-prefixed", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			AddField(ctx, "app.foo", 1)
+		}
+	})
+}
+
+func oldAddField(ctx context.Context, key string, val interface{}) {
+	span := trace.GetSpanFromContext(ctx)
+	if span != nil {
+		if val != nil {
+			namespacedKey := "app." + key
+			if valErr, ok := val.(error); ok {
+				// treat errors specially because it's a pain to have to
+				// remember to stringify them
+				span.AddField(namespacedKey, valErr.Error())
+			} else {
+				span.AddField(namespacedKey, val)
+			}
+		}
 	}
 }
 

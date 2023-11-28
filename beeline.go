@@ -272,7 +272,10 @@ func Close() {
 // a Handler, feel free to call AddField freely within your code. Pass it the
 // context from the request (`r.Context()`) and the key and value you wish to
 // add.This function is good for span-level data, eg timers or the arguments to
-// a specific function call, etc. Fields added here are prefixed with `app.`
+// a specific function call, etc.
+//
+// Field keys added will be prefixed with `app.` if the key does not already have
+// that prefix.
 //
 // Errors are treated as a special case for convenience: if `val` is of type
 // `error` then the key is set to the error's message in the span.
@@ -280,13 +283,12 @@ func AddField(ctx context.Context, key string, val interface{}) {
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
 		if val != nil {
-			namespacedKey := "app." + key // Avoid excess parsing/allocation work
 			if valErr, ok := val.(error); ok {
 				// treat errors specially because it's a pain to have to
 				// remember to stringify them
-				span.AddField(namespacedKey, valErr.Error())
+				span.AddField(getNamespacedKey(key), valErr.Error())
 			} else {
-				span.AddField(namespacedKey, val)
+				span.AddField(getNamespacedKey(key), val)
 			}
 		}
 	}
@@ -297,14 +299,26 @@ func AddField(ctx context.Context, key string, val interface{}) {
 // Additionally, these fields are packaged up and passed along to downstream
 // processes if they are also using a beeline. This function is good for adding
 // context that is better scoped to the request than this specific unit of work,
-// eg user IDs, globally relevant feature flags, errors, etc. Fields added here
-// are prefixed with `app.`
+// eg user IDs, globally relevant feature flags, errors, etc.
+//
+// Field keys added will be prefixed with `app.` if the key does not already have
+// that prefix.
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
-	namespacedKey := "app." + key // Avoid excess parsing/allocation work
 	tr := trace.GetTraceFromContext(ctx)
 	if tr != nil {
-		tr.AddField(namespacedKey, val)
+		tr.AddField(getNamespacedKey(key), val)
 	}
+}
+
+// getNamespacedKey ensures a key name is prefixed with "app." if the prefix
+// isn't already present. If the key is already namespaced, this reduces the
+// number of memory allocations needed to add a field to a span.
+func getNamespacedKey(key string) string {
+	const prefix = "app."
+	if strings.HasPrefix(key, prefix) {
+		return key
+	}
+	return prefix + key
 }
 
 // StartSpan lets you start a new span as a child of an already instrumented
