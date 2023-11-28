@@ -102,21 +102,21 @@ func BenchmarkCreateSpan(b *testing.B) {
 	}
 }
 
-func BenchmarkBeelineAddField(b *testing.B) {
-	setupLibhoney(b)
-
-	ctx, _ := StartSpan(context.Background(), "parent")
-	for n := 0; n < b.N; n++ {
-		AddField(ctx, "foo", 1)
-	}
-}
-
-func BenchmarkBeelineAddField_WithPrefix(b *testing.B) {
+func BenchmarkBeelineAddField_PrefixedKey(b *testing.B) {
 	setupLibhoney(b)
 
 	ctx, _ := StartSpan(context.Background(), "parent")
 	for n := 0; n < b.N; n++ {
 		AddField(ctx, "app.foo", 1)
+	}
+}
+
+func BenchmarkBeelineAddField_ConsistentKey(b *testing.B) {
+	setupLibhoney(b)
+
+	ctx, _ := StartSpan(context.Background(), "parent")
+	for n := 0; n < b.N; n++ {
+		AddField(ctx, "foo", 1)
 	}
 }
 
