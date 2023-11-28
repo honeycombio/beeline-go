@@ -3,6 +3,7 @@ package beeline
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/honeycombio/libhoney-go/transmission"
@@ -107,6 +108,24 @@ func BenchmarkBeelineAddField(b *testing.B) {
 	ctx, _ := StartSpan(context.Background(), "parent")
 	for n := 0; n < b.N; n++ {
 		AddField(ctx, "foo", 1)
+	}
+}
+
+func BenchmarkBeelineAddField_WithPrefix(b *testing.B) {
+	setupLibhoney(b)
+
+	ctx, _ := StartSpan(context.Background(), "parent")
+	for n := 0; n < b.N; n++ {
+		AddField(ctx, "app.foo", 1)
+	}
+}
+
+func BenchmarkBeelineAddField_InconsistentKey(b *testing.B) {
+	setupLibhoney(b)
+
+	ctx, _ := StartSpan(context.Background(), "parent")
+	for n := 0; n < b.N; n++ {
+		AddField(ctx, strconv.Itoa(n), 1)
 	}
 }
 
