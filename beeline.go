@@ -361,7 +361,9 @@ func readResponses(responses chan transmission.Response) {
 	}
 }
 
-// getPrefixedFieldName returns the key with the app. prefix if it doesn't already have one
+// getPrefixedFieldName returns the field name with the "app." if it's not already there.
+// This uses a cache to avoid prefixing the same field name over and over again to save allocations.
+// The cache will be reset if it grows too large to avoid unbounded memory growth.
 func getPrefixedFieldName(key string) string {
 	// return if the key already has the prefix
 	if strings.HasPrefix(key, "app.") {
@@ -376,12 +378,13 @@ func getPrefixedFieldName(key string) string {
 		return val
 	}
 
-	// not in the cache, so check again with a write lock in case it was added
-	// while we were waiting for the lock
+	// not in the cache, so get a write lock
 	cachedFieldNamesLock.Lock()
+	defer cachedFieldNamesLock.Unlock()
+
+	// check again in case it was added while we were waiting for the lock
 	val, ok = cachedFieldNames[key]
 	if ok {
-		cachedFieldNamesLock.Unlock()
 		return val
 	}
 
@@ -392,10 +395,8 @@ func getPrefixedFieldName(key string) string {
 		cachedFieldNames = map[string]string{}
 	}
 
-	// create the prefixed key and add it to the cache, release the lock, and
-	// return the prefixed key
+	// add the prefixed key to the cache and return it
 	prefixedKey := "app." + key
 	cachedFieldNames[key] = prefixedKey
-	cachedFieldNamesLock.Unlock()
 	return prefixedKey
 }
