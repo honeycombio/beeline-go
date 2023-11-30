@@ -260,7 +260,7 @@ func newSpan() *Span {
 // AddField adds a key/value pair to this span
 //
 // Errors are treated as a special case for convenience: if `val` is of type
-// `error` then the key is set to the error's message in the span.
+// `error` then the field's value is set to the error's message.
 func (s *Span) AddField(key string, val interface{}) {
 	// The call to event's AddField is protected by a lock, but this is not always sufficient
 	// See send for why this lock exists
