@@ -280,11 +280,11 @@ func Close() {
 // paths of your application.
 //
 // Errors are treated as a special case for convenience: if `val` is of type
-// `error` then the key is set to the error's message in the span.
+// `error` then the field's value is set to the error's message.
 func AddField(ctx context.Context, key string, val interface{}) {
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
-		if val != nil {
+		if val != nil { // TODO: move this to first check to save looking up the current span when there is no value?
 			namespacedKey := getNamespacedKey(key)
 			if valErr, ok := val.(error); ok {
 				// treat errors specially because it's a pain to have to
