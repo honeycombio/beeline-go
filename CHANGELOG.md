@@ -4,7 +4,7 @@
 
 ### Enhancements
 
-- feat: Add LRU cache for field names (#402) | @MikeGoldsmith
+- perf: speed up adding fields, reduce memalloc if field name is already prefixed with "app." (#406) | @robbkidd
 
 ### Maintenance
 
