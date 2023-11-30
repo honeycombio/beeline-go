@@ -283,12 +283,13 @@ func AddField(ctx context.Context, key string, val interface{}) {
 	span := trace.GetSpanFromContext(ctx)
 	if span != nil {
 		if val != nil {
+			namespacedKey := getNamespacedKey(key)
 			if valErr, ok := val.(error); ok {
 				// treat errors specially because it's a pain to have to
 				// remember to stringify them
-				span.AddField(getNamespacedKey(key), valErr.Error())
+				span.AddField(namespacedKey, valErr.Error())
 			} else {
-				span.AddField(getNamespacedKey(key), val)
+				span.AddField(namespacedKey, val)
 			}
 		}
 	}
@@ -306,7 +307,8 @@ func AddField(ctx context.Context, key string, val interface{}) {
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	tr := trace.GetTraceFromContext(ctx)
 	if tr != nil {
-		tr.AddField(getNamespacedKey(key), val)
+		namespacedKey := getNamespacedKey(key)
+		tr.AddField(namespacedKey, val)
 	}
 }
 
