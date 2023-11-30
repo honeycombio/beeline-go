@@ -274,8 +274,10 @@ func Close() {
 // add.This function is good for span-level data, eg timers or the arguments to
 // a specific function call, etc.
 //
-// Field keys added will be prefixed with `app.` if the key does not already have
-// that prefix.
+// Field keys added will be prefixed with 'app.' if the prefix is not already
+// present on the key name. If you provide a key that starts with 'app.', both
+// speed and memory allocations are improved, especially within hot paths of
+// your application.
 //
 // Errors are treated as a special case for convenience: if `val` is of type
 // `error` then the key is set to the error's message in the span.
@@ -302,8 +304,10 @@ func AddField(ctx context.Context, key string, val interface{}) {
 // context that is better scoped to the request than this specific unit of work,
 // eg user IDs, globally relevant feature flags, errors, etc.
 //
-// Field keys added will be prefixed with `app.` if the key does not already have
-// that prefix.
+// Field keys added will be prefixed with 'app.' if the prefix is not already
+// present on the key name. If you provide a key that starts with 'app.', both
+// speed and memory allocations are improved, especially within hot paths of
+// your application.
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	tr := trace.GetTraceFromContext(ctx)
 	if tr != nil {
