@@ -105,9 +105,26 @@ func BenchmarkBeelineAddField(b *testing.B) {
 	setupLibhoney(b)
 
 	ctx, _ := StartSpan(context.Background(), "parent")
-	for n := 0; n < b.N; n++ {
-		AddField(ctx, "foo", 1)
-	}
+
+	b.Run("AddField/no-prefix", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			AddField(ctx, "foo", 1)
+		}
+	})
+	b.Run("AddField/half-prefixed", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			if n%2 == 0 {
+				AddField(ctx, "app.foo", 1)
+			} else {
+				AddField(ctx, "foo", 1)
+			}
+		}
+	})
+	b.Run("AddField/all-prefixed", func(b *testing.B) {
+		for n := 0; n < b.N; n++ {
+			AddField(ctx, "app.foo", 1)
+		}
+	})
 }
 
 func setupLibhoney(t testing.TB) *transmission.MockSender {
