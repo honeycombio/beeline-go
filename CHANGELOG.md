@@ -11,6 +11,8 @@
 - maint(deps): bump github.com/labstack/echo/v4 from 4.11.1 to 4.11.3 (#403) | @dependabot
 - maint(deps): bump golang.org/x/net from 0.12.0 to 0.17.0 (#396) | @dependabot
 - maint(deps): bump github.com/google/uuid from 1.3.0 to 1.4.0 (#398) | @dependabot
+- maint(deps): bump github.com/felixge/httpsnoop from 1.0.3 to 1.0.4 (#408) | @dependabot
+- maint(deps): bump github.com/gorilla/mux from 1.8.0 to 1.8.1 (#407) | @dependabot
 
 ## 1.13.0 2023-07-31
 
