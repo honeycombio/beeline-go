@@ -39,14 +39,15 @@ type Config struct {
 // synchronous  spans in the trace to be sent and sent. Asynchronous spans
 // must still be sent on their own
 type Trace struct {
-	builder          *libhoney.Builder
-	traceID          string
-	parentID         string
-	rollupFields     map[string]float64
-	rollupLock       sync.Mutex
-	rootSpan         *Span
-	tlfLock          sync.RWMutex
-	traceLevelFields map[string]interface{}
+	builder                     *libhoney.Builder
+	traceID                     string
+	parentID                    string
+	rollupFields                map[string]float64
+	rollupLock                  sync.Mutex
+	rootSpan                    *Span
+	tlfLock                     sync.RWMutex
+	traceLevelFields            map[string]interface{}
+	overridableTraceLevelFields map[string]interface{}
 }
 
 // getNewID generates a lowercase hex encoded string with the specified number
@@ -64,9 +65,10 @@ func getNewID(length uint16) string {
 // Deprecated: use NewTrace instead.
 func NewTraceFromPropagationContext(ctx context.Context, prop *propagation.PropagationContext) (context.Context, *Trace) {
 	trace := &Trace{
-		builder:          client.NewBuilder(),
-		rollupFields:     make(map[string]float64),
-		traceLevelFields: make(map[string]interface{}),
+		builder:                     client.NewBuilder(),
+		rollupFields:                make(map[string]float64),
+		traceLevelFields:            make(map[string]interface{}),
+		overridableTraceLevelFields: make(map[string]interface{}),
 	}
 
 	if prop != nil {
@@ -130,6 +132,32 @@ func (t *Trace) AddField(key string, val interface{}) {
 	}
 }
 
+// AddOverridableField adds a default field to the trace.
+// It is similar to AddField, with two key differences:
+// 1. Individual spans can override the value at a per-span level, using AddField on the Span.
+//
+// Overriding a field on a span does not override the entire subtree - in the following hypothetical
+// trace, overriding a field on the parent span will not override that field in the child span.
+//
+//		root
+//		  parent
+//		    child
+//
+//	 2. Overridable fields are sent to downstream services, but we cannot encode the "overrideability"
+//	    of the field in the propagation context, so the field will cease to be overrideable in the downstream
+//	    service.
+//
+// AddOverridableField is best suited to niche cases where you are not propagating the span context,
+//
+//	or cases where you only wish to overwrite the field in a small number of cases, usually in leaf spans.
+func (t *Trace) AddOverridableField(key string, val interface{}) {
+	t.tlfLock.Lock()
+	defer t.tlfLock.Unlock()
+	if t.overridableTraceLevelFields != nil {
+		t.overridableTraceLevelFields[key] = val
+	}
+}
+
 // serializeHeaders returns the trace ID, given span ID as parent ID, and an
 // encoded form of all trace level fields. This serialized header is intended
 // to be put in an HTTP (or other protocol) header to transmit to downstream
@@ -153,6 +181,9 @@ func (t *Trace) propagationContext() *propagation.PropagationContext {
 	defer t.tlfLock.Unlock()
 	localTLF := map[string]interface{}{}
 	for k, v := range t.traceLevelFields {
+		localTLF[k] = v
+	}
+	for k, v := range t.overridableTraceLevelFields {
 		localTLF[k] = v
 	}
 	return &propagation.PropagationContext{
@@ -182,6 +213,17 @@ func (t *Trace) getTraceLevelFields() map[string]interface{} {
 	// return a copy of trace level fields
 	retVals := make(map[string]interface{}, len(t.traceLevelFields))
 	for k, v := range t.traceLevelFields {
+		retVals[k] = v
+	}
+	return retVals
+}
+
+func (t *Trace) getOverridableTraceLevelFields() map[string]interface{} {
+	t.tlfLock.Lock()
+	defer t.tlfLock.Unlock()
+	// return a copy of trace level fields
+	retVals := make(map[string]interface{}, len(t.overridableTraceLevelFields))
+	for k, v := range t.overridableTraceLevelFields {
 		retVals[k] = v
 	}
 	return retVals
@@ -271,6 +313,18 @@ func (s *Span) AddField(key string, val interface{}) {
 			s.ev.AddField(key, err.Error())
 		} else {
 			s.ev.AddField(key, val)
+		}
+	}
+}
+
+func (s *Span) AddFieldIfUnset(key string, val any) {
+	s.eventLock.Lock()
+	defer s.eventLock.Unlock()
+	if s.ev != nil {
+		if err, ok := val.(error); ok {
+			s.ev.AddFieldIfUnset(key, err.Error())
+		} else {
+			s.ev.AddFieldIfUnset(key, val)
 		}
 	}
 }
@@ -466,6 +520,10 @@ func (s *Span) send() {
 	// the trace is all getting sent
 	for k, v := range s.trace.getTraceLevelFields() {
 		s.AddField(k, v)
+	}
+
+	for k, v := range s.trace.getOverridableTraceLevelFields() {
+		s.AddFieldIfUnset(k, v)
 	}
 
 	s.childrenLock.Lock()

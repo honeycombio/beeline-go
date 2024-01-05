@@ -447,6 +447,39 @@ func TestSpan(t *testing.T) {
 		"all four spans should be sent")
 }
 
+func TestTraceLevelFields(t *testing.T) {
+	mo := setupLibhoney()
+	_, tr := NewTrace(context.Background(), nil)
+
+	// span will attempt to override, but will fail to do so
+	tr.AddField("overridden", 1)
+	// span will attempt to override, and will succeed
+	tr.AddOverridableField("overridden_overridable", 1)
+	// span will leave these alone
+	tr.AddOverridableField("left_alone", 1)
+	tr.AddOverridableField("left_alone_overridable", 1)
+
+	rs := tr.GetRootSpan()
+	rs.AddField("overridden", 2)
+	rs.AddField("overridden_overridable", 2)
+	rs.AddField("extra_span_field", 2)
+
+	tr.Send()
+
+	assert.True(t, rs.isSent)
+
+	events := mo.Events()
+	// should just have one event
+	assert.Len(t, events, 1)
+
+	event := events[0]
+	assert.Equal(t, event.Data["overridden"], 1)
+	assert.Equal(t, event.Data["overridden_overridable"], 2)
+	assert.Equal(t, event.Data["left_alone"], 1)
+	assert.Equal(t, event.Data["left_alone_overridable"], 1)
+	assert.Equal(t, event.Data["extra_span_field"], 2)
+}
+
 func TestCreateAsyncSpanDoesNotCauseRaceInSend(t *testing.T) {
 	setupLibhoney()
 	ctx, tr := NewTrace(context.Background(), nil)
