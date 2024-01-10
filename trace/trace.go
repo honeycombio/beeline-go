@@ -124,6 +124,23 @@ type addFieldOptions struct {
 	isOverridable *bool
 }
 
+// Overridable will allow spans created within the same process to override this field with a different value.
+//
+// Overriding a field on a span does not override the entire subtree - in the following hypothetical
+// trace, overriding a field on the parent span will not override that field in the child span.
+//
+//	root
+//	  parent
+//	    child
+//
+// Overridable fields are sent to downstream services, but we cannot encode the "overrideability"
+//
+//	of the field in the propagation context, so the field will cease to be overrideable in the downstream
+//	service.
+//
+// Overridable is best suited to niche cases where you are not propagating the span context,
+//
+//	or cases where you only wish to overwrite the field in a small number of cases, usually in leaf spans.
 func Overridable(overridable bool) addFieldOptions {
 	return addFieldOptions{isOverridable: &overridable}
 }
