@@ -120,41 +120,37 @@ func NewTrace(ctx context.Context, prop *propagation.PropagationContext) (contex
 	return NewTraceFromPropagationContext(ctx, prop)
 }
 
+type addFieldOptions struct {
+	isOverridable *bool
+}
+
+func Overridable(overridable bool) addFieldOptions {
+	return addFieldOptions{isOverridable: &overridable}
+}
+
 // AddField adds a field to the trace. Every span in the trace will have this
 // field added to it. These fields are also passed along to downstream services.
 // It is useful to add fields here that pertain to the entire trace, to aid in
 // filtering spans at many different areas of the trace together.
-func (t *Trace) AddField(key string, val interface{}) {
+func (t *Trace) AddField(key string, val interface{}, opts ...addFieldOptions) {
 	t.tlfLock.Lock()
 	defer t.tlfLock.Unlock()
-	if t.traceLevelFields != nil {
-		t.traceLevelFields[key] = val
-	}
-}
+	isOverridable := false
 
-// AddOverridableField adds a default field to the trace.
-// It is similar to AddField, with two key differences:
-// 1. Individual spans can override the value at a per-span level, using AddField on the Span.
-//
-// Overriding a field on a span does not override the entire subtree - in the following hypothetical
-// trace, overriding a field on the parent span will not override that field in the child span.
-//
-//		root
-//		  parent
-//		    child
-//
-//	 2. Overridable fields are sent to downstream services, but we cannot encode the "overrideability"
-//	    of the field in the propagation context, so the field will cease to be overrideable in the downstream
-//	    service.
-//
-// AddOverridableField is best suited to niche cases where you are not propagating the span context,
-//
-//	or cases where you only wish to overwrite the field in a small number of cases, usually in leaf spans.
-func (t *Trace) AddOverridableField(key string, val interface{}) {
-	t.tlfLock.Lock()
-	defer t.tlfLock.Unlock()
-	if t.overridableTraceLevelFields != nil {
-		t.overridableTraceLevelFields[key] = val
+	for _, opt := range opts {
+		if opt.isOverridable != nil {
+			isOverridable = *opt.isOverridable
+		}
+	}
+
+	if isOverridable {
+		if t.overridableTraceLevelFields != nil {
+			t.overridableTraceLevelFields[key] = val
+		}
+	} else {
+		if t.traceLevelFields != nil {
+			t.traceLevelFields[key] = val
+		}
 	}
 }
 

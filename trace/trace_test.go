@@ -454,10 +454,10 @@ func TestTraceLevelFields(t *testing.T) {
 	// span will attempt to override, but will fail to do so
 	tr.AddField("overridden", 1)
 	// span will attempt to override, and will succeed
-	tr.AddOverridableField("overridden_overridable", 1)
+	tr.AddField("overridden_overridable", 1, Overridable(true))
 	// span will leave these alone
-	tr.AddOverridableField("left_alone", 1)
-	tr.AddOverridableField("left_alone_overridable", 1)
+	tr.AddField("left_alone", 1)
+	tr.AddField("left_alone_overridable", 1, Overridable(true))
 
 	rs := tr.GetRootSpan()
 	rs.AddField("overridden", 2)
