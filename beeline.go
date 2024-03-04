@@ -101,8 +101,7 @@ type Config struct {
 }
 
 func IsClassicKey(config Config) bool {
-	// classic key has 32 characters
-	return len(config.WriteKey) == 32
+	return libhoney.IsClassicKey(config.WriteKey)
 }
 
 // Init intializes the honeycomb instrumentation library.
