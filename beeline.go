@@ -101,7 +101,7 @@ type Config struct {
 }
 
 func IsClassicKey(config Config) bool {
-	return (&libhoney.Config{APIKey: config.WriteKey}).IsClassic()
+	return libhoney.IsClassicKey(config.WriteKey)
 }
 
 // Init intializes the honeycomb instrumentation library.
@@ -112,7 +112,6 @@ func Init(config Config) {
 		fmt.Fprintln(os.Stderr, "WARN: Missing API Key.")
 		config.WriteKey = defaultWriteKey
 	}
-	isClassicKey := IsClassicKey(config)
 
 	if config.ServiceName == "" {
 		fmt.Fprintln(os.Stderr, "WARN: Missing service name.")
@@ -127,7 +126,7 @@ func Init(config Config) {
 		}
 	}
 
-	if isClassicKey {
+	if IsClassicKey(config) {
 		// if classic and missing dataset, warn on that
 		if config.Dataset == "" {
 			fmt.Fprintln(os.Stderr, "WARN: Missing dataset. Data will be sent to:", defaultDatasetClassic)
@@ -237,7 +236,7 @@ func Init(config Config) {
 		trace.GlobalConfig.PresendHook = config.PresendHook
 	}
 	// if classic, propagate by default
-	if isClassicKey {
+	if IsClassicKey(config) {
 		propagation.GlobalConfig.PropagateDataset = true
 	} else {
 		// if non-classic, don't propagate by default
