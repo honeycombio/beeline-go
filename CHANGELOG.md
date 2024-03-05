@@ -1,5 +1,21 @@
 # beeline-go changelog
 
+## 1.15.9 2024-03-04
+
+### Enhacements
+
+- feat: support classic Ingest Keys (#421) | @jharley
+
+### Maintenance
+
+- maint: update codeowners to pipeline-team (#410) | @JamieDanielson
+- maint: update codeowners to pipeline (#409) | @JamieDanielson
+- maint(deps): bump google.golang.org/protobuf from 1.31.0 to 1.32.0 (#419) | @dependabot
+- maint(deps): bump github.com/google/uuid from 1.5.0 to 1.6.0 (#420) | @dependabot
+- maint(deps): bump github.com/DATA-DOG/go-sqlmock from 1.5.0 to 1.5.2 (#417) | @dependabot
+- maint(deps): bump github.com/labstack/echo/v4 from 4.11.3 to 4.11.4 (#414) | @dependabot
+- maint(deps): bump github.com/google/uuid from 1.4.0 to 1.5.0 (#413) | @dependabot
+
 ## 1.14.0 2023-12-04
 
 ### Enhancements
