@@ -13,7 +13,7 @@ This package makes it easy to instrument your Go app to send useful events to [H
 
 ## Dependencies
 
-Golang 1.18+
+Golang 1.19+
 
 ## Contributions
 
