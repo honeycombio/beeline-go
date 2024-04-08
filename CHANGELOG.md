@@ -1,6 +1,20 @@
 # beeline-go changelog
 
-## 1.15.9 2024-03-04
+## 1.16.0 2024-04-05
+
+### ⚠️ Breaking Changes ⚠️
+
+Minimum Go version required is 1.19
+
+### Maintenance
+
+- maint: drop go 1.18 (#432) | @codeboten
+- maint: group patch updates for go deps (#430) | @codeboten
+- maint: add labels to release.yml for auto-generated grouping (#426) | @JamieDanielson
+- maint(deps): bump the minor-patch group with 4 updates (#431) | @dependabot
+- maint(deps): bump the minor-patch group with 1 update (#433) | @dependabot
+
+## 1.15.0 2024-03-04
 
 ### Enhacements
 
