@@ -45,6 +45,7 @@ workflows:
                 - "1.19"
                 - "1.20"
                 - "1.21"
+                - "1.22"
   build:
     jobs:
       - test:
