@@ -1,5 +1,12 @@
 # beeline-go changelog
 
+## 1.17.0 2024-06-13
+
+### Maintenance
+
+- maint: bump libhoney-go to v1.23.0 (#439) | @MikeGoldsmith
+- maint: Add golang 1.22 to test matrix (#435) | @MikeGoldsmith
+
 ## 1.16.0 2024-04-05
 
 ### ⚠️ Breaking Changes ⚠️
