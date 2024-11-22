@@ -6,7 +6,7 @@
 
 - docs: update vulnerability reporting process (#442) | @robbkidd
 - maint: Update libhoney-go to 1.24.0 (#446) | @MikeGoldsmith
-- maint: Update README.md (#441) | @codeboten | @robbkidd
+- maint: Update README.md (#441) | @codeboten
 - maint(build): add 1.23 to supported versions (#445) | @lizthegrey
 - maint(deps): bump golang.org/x/net from 0.20.0 to 0.23.0 (#436) | @dependabot
 
