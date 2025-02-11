@@ -1,8 +1,10 @@
 # Honeycomb Beeline for Go
 
-[![OSS Lifecycle](https://img.shields.io/osslifecycle/honeycombio/beeline-go?color=success)](https://github.com/honeycombio/home/blob/main/honeycomb-oss-lifecycle-and-practices.md)
+[![OSS Lifecycle](https://img.shields.io/osslifecycle/honeycombio/beeline-go?color=pink)](https://github.com/honeycombio/home/blob/main/honeycomb-oss-lifecycle-and-practices.md)
 [![CircleCI](https://circleci.com/gh/honeycombio/beeline-go.svg?style=shield)](https://circleci.com/gh/honeycombio/beeline-go)
 [![GoDoc](https://godoc.org/github.com/honeycombio/beeline-go?status.svg)](https://godoc.org/github.com/honeycombio/beeline-go)
+
+⚠️**STATUS**: This project is being Sunset. See [this issue](https://github.com/honeycombio/beeline-go/issues/449) for more details.
 
 ⚠️**Note**: Beelines are Honeycomb's legacy instrumentation libraries. We embrace OpenTelemetry as the effective way to instrument applications. For any new observability efforts, we recommend [instrumenting with OpenTelemetry](https://docs.honeycomb.io/send-data/go/opentelemetry-sdk/).
 
