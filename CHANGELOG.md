@@ -1,5 +1,18 @@
 # beeline-go changelog
 
+## 1.19.0 2025-03-21
+
+This release is mainly to take dependency updates and to support a revised field name for Pyroscope. Please note that beelines are being sunset and are not intending to add new features in the future.
+
+### Maintenance
+
+- feat(trace): update profileIDLabelName to match Pyroscope (#455) | [Liz Fong-Jones](https://github.com/lizthegrey)
+- maint: bump github.com/jackc/pgx/v4 from 4.17.2 to 4.18.2 (#427) | [dependabot[bot]](https://github.com/dependabot)
+- maint: bump the minor-patch group across 1 directory with 8 updates (#456) | [dependabot[bot]](https://github.com/dependabot)
+- maint: remove old example, update go versions (#458) | [Kent Quirk](https://github.com/kentquirk)
+- maint: update team name (#457) | [Liz Fong-Jones](https://github.com/lizthegrey)
+- maint: Add link to sunset issue in README (#450) | [Mike Goldsmith](https://github.com/MikeGoldsmith)
+
 ## 1.18.0 2024-11-22
 
 ### Maintenance
