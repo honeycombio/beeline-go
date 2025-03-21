@@ -12,7 +12,12 @@ updates:
     labels:
       - "type: dependencies"
     reviewers:
-      - "honeycombio/telemetry-team"
+      - "honeycombio/pipeline-team"
+    groups:
+      minor-patch:
+        update-types:
+        - "minor"
+        - "patch"
     commit-message:
       prefix: "maint"
       include: "scope"

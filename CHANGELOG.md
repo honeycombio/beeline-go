@@ -1,6 +1,37 @@
 # beeline-go changelog
 
-## 1.15.9 2024-03-04
+## 1.18.0 2024-11-22
+
+### Maintenance
+
+- docs: update vulnerability reporting process (#442) | @robbkidd
+- maint: Update libhoney-go to 1.24.0 (#446) | @MikeGoldsmith
+- maint: Update README.md (#441) | @codeboten
+- maint(build): add 1.23 to supported versions (#445) | @lizthegrey
+- maint(deps): bump golang.org/x/net from 0.20.0 to 0.23.0 (#436) | @dependabot
+
+## 1.17.0 2024-06-13
+
+### Maintenance
+
+- maint: bump libhoney-go to v1.23.0 (#439) | @MikeGoldsmith
+- maint: Add golang 1.22 to test matrix (#435) | @MikeGoldsmith
+
+## 1.16.0 2024-04-05
+
+### ⚠️ Breaking Changes ⚠️
+
+Minimum Go version required is 1.19
+
+### Maintenance
+
+- maint: drop go 1.18 (#432) | @codeboten
+- maint: group patch updates for go deps (#430) | @codeboten
+- maint: add labels to release.yml for auto-generated grouping (#426) | @JamieDanielson
+- maint(deps): bump the minor-patch group with 4 updates (#431) | @dependabot
+- maint(deps): bump the minor-patch group with 1 update (#433) | @dependabot
+
+## 1.15.0 2024-03-04
 
 ### Enhacements
 
