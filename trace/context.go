@@ -9,7 +9,7 @@ import (
 const (
 	honeySpanContextKey  = "honeycombSpanContextKey"
 	honeyTraceContextKey = "honeycombTraceContextKey"
-	profileIDLabelName   = "profile_id"
+	profileIDLabelName   = "span_id"
 )
 
 var (
