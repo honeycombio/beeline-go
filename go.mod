@@ -18,8 +18,8 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/stretchr/testify v1.10.0
 	goji.io/v3 v3.0.0
-	google.golang.org/grpc v1.71.0
-	google.golang.org/protobuf v1.36.4
+	google.golang.org/grpc v1.71.1
+	google.golang.org/protobuf v1.36.6
 )
 
 require (
