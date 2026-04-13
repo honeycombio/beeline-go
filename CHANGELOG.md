@@ -1,5 +1,27 @@
 # beeline-go changelog
 
+## 1.20.0 2026-04-13
+
+This is a one-off release for Honeycomb internal use. The beeline-go project is archived and no further updates should be expected.
+
+### Breaking Changes
+
+- Bump minimum Go version from 1.23 to 1.24 (#472) | [Liz Fong-Jones](https://github.com/lizthegrey)
+
+### Enhancements
+
+- Add bulk AddFields method to Span for setting multiple fields at once (#471) | [Liz Fong-Jones](https://github.com/lizthegrey)
+
+### Maintenance
+
+- maint(deps): update libhoney-go to v1.27.0 (#471) | [Liz Fong-Jones](https://github.com/lizthegrey)
+- maint(deps): bump minor/patch dependencies (#470) | [dependabot[bot]](https://github.com/dependabot)
+- maint(deps): bump golang.org/x/crypto from 0.36.0 to 0.45.0 (#466) | [dependabot[bot]](https://github.com/dependabot)
+- maint(deps): bump golang.org/x/net from 0.36.0 to 0.38.0 (#461) | [dependabot[bot]](https://github.com/dependabot)
+- maint(deps): bump filippo.io/edwards25519 from 1.1.0 to 1.1.1 (#467) | [dependabot[bot]](https://github.com/dependabot)
+- ci(OTEL-125): remove pipeline-team dependabot reviewer (#468) | [Mike Goldsmith](https://github.com/MikeGoldsmith)
+- maint: prepare repo for archival (#464) | [Alex Boten](https://github.com/codeboten)
+
 ## 1.19.0 2025-03-21
 
 This release is mainly to take dependency updates and to support a revised field name for Pyroscope. Please note that beelines are being sunset and are not intending to add new features in the future.
