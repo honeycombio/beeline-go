@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"testing"
@@ -112,17 +113,17 @@ func TestAddFields(t *testing.T) {
 	ctx, tr := NewTrace(context.Background(), nil)
 	rs := tr.GetRootSpan()
 	rs.AddField("existing", "before")
-	rs.AddFields(map[string]interface{}{
+	rs.AddFields(maps.All(map[string]interface{}{
 		"strVal":  "bar",
 		"intVal":  5,
 		"boolVal": true,
-	})
+	}))
 
 	// Create a child span and use AddFields on it too
 	_, child := rs.CreateChild(ctx)
-	child.AddFields(map[string]interface{}{
+	child.AddFields(maps.All(map[string]interface{}{
 		"child.key": "value",
-	})
+	}))
 	child.Send()
 	tr.Send()
 

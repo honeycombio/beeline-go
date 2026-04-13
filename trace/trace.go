@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"iter"
 	"runtime/pprof"
 	"sync"
 	"time"
@@ -275,19 +276,23 @@ func (s *Span) AddField(key string, val interface{}) {
 	}
 }
 
-// AddFields adds all key/value pairs from the map to this span in a single
-// lock acquisition. More efficient than calling AddField in a loop.
-// Errors in the map are converted to their message string, matching AddField.
-func (s *Span) AddFields(fields map[string]interface{}) {
+// AddFields adds all key/value pairs from the iterator to this span in a
+// single lock acquisition. More efficient than calling AddField in a loop.
+// Like AddField, errors are converted to their message string.
+func (s *Span) AddFields(fields iter.Seq2[string, any]) {
 	s.eventLock.Lock()
 	defer s.eventLock.Unlock()
 	if s.ev != nil {
-		for k, v := range fields {
-			if err, ok := v.(error); ok {
-				fields[k] = err.Error()
+		s.ev.AddFields(func(yield func(string, any) bool) {
+			for k, v := range fields {
+				if err, ok := v.(error); ok {
+					v = err.Error()
+				}
+				if !yield(k, v) {
+					return
+				}
 			}
-		}
-		s.ev.AddFields(fields)
+		})
 	}
 }
 
