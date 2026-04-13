@@ -282,6 +282,11 @@ func (s *Span) AddFields(fields map[string]interface{}) {
 	s.eventLock.Lock()
 	defer s.eventLock.Unlock()
 	if s.ev != nil {
+		for k, v := range fields {
+			if err, ok := v.(error); ok {
+				fields[k] = err.Error()
+			}
+		}
 		s.ev.AddFields(fields)
 	}
 }
