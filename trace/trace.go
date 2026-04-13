@@ -275,6 +275,22 @@ func (s *Span) AddField(key string, val interface{}) {
 	}
 }
 
+// AddFields adds all key/value pairs from the map to this span in a single
+// lock acquisition. More efficient than calling AddField in a loop.
+// Errors in the map are converted to their message string, matching AddField.
+func (s *Span) AddFields(fields map[string]interface{}) {
+	s.eventLock.Lock()
+	defer s.eventLock.Unlock()
+	if s.ev != nil {
+		for k, v := range fields {
+			if err, ok := v.(error); ok {
+				fields[k] = err.Error()
+			}
+		}
+		s.ev.AddFields(fields)
+	}
+}
+
 // AddRollupField adds a key/value pair to this span. If it is called repeatedly
 // on the same span, the values will be summed together.  Additionally, this
 // field will be summed across all spans and added to the trace as a total. It

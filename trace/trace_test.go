@@ -106,6 +106,43 @@ func TestAddField(t *testing.T) {
 	assert.Equal(t, "lust", tr.traceLevelFields["wander"], "AddField on a trace should add the field to the trace level fields map")
 }
 
+func TestAddFields(t *testing.T) {
+	mo := setupLibhoney()
+
+	ctx, tr := NewTrace(context.Background(), nil)
+	rs := tr.GetRootSpan()
+	rs.AddField("existing", "before")
+	rs.AddFields(map[string]interface{}{
+		"strVal":  "bar",
+		"intVal":  5,
+		"boolVal": true,
+	})
+
+	// Create a child span and use AddFields on it too
+	_, child := rs.CreateChild(ctx)
+	child.AddFields(map[string]interface{}{
+		"child.key": "value",
+	})
+	child.Send()
+	tr.Send()
+
+	events := mo.Events()
+	assert.Equal(t, 2, len(events), "should have sent 2 events (child + root)")
+
+	// Find root span event (has "existing" field)
+	var rootData map[string]interface{}
+	for _, ev := range events {
+		if ev.Data["existing"] == "before" {
+			rootData = ev.Data
+		}
+	}
+	assert.NotNil(t, rootData, "root span should be in events")
+	assert.Equal(t, "before", rootData["existing"])
+	assert.Equal(t, "bar", rootData["strVal"])
+	assert.Equal(t, 5, rootData["intVal"])
+	assert.Equal(t, true, rootData["boolVal"])
+}
+
 // TestRollupField tests adding a field to a trace
 func TestRollupField(t *testing.T) {
 	_, tr := NewTrace(context.Background(), nil)
