@@ -90,9 +90,7 @@ func unmarshalHoneycombTraceContextV1(header string) (*PropagationContext, error
 	for _, clause := range clauses {
 		keyval := strings.SplitN(clause, "=", 2)
 		if len(keyval) < 2 {
-			// A clause with no "=" carries no value. Skip it, the same way a
-			// clause with an unrecognised key is skipped, rather than
-			// rejecting a header whose other clauses are usable.
+			// a clause with no "=" has no value, so skip it like an unknown key
 			continue
 		}
 		switch keyval[0] {

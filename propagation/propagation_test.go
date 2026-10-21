@@ -635,10 +635,9 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 }
 
 func TestUnmarshalHoneycombTraceContextMalformed(t *testing.T) {
-	// Each of these previously panicked with an index out of range, because
-	// strings.SplitN returns a single element when the separator is absent.
-	// The contract is that a malformed header yields no usable parent, either
-	// by returning an error or by returning an empty context, never a panic.
+	// these all panicked before, because SplitN returns one element when the
+	// separator is absent. a malformed header should give no usable parent,
+	// either by erroring or by returning an empty context, but never a panic
 	headers := []string{
 		"1",
 		"1;",
@@ -667,8 +666,7 @@ func TestUnmarshalHoneycombTraceContextVersionWithoutContext(t *testing.T) {
 }
 
 func TestUnmarshalHoneycombTraceContextSkipsValuelessClauses(t *testing.T) {
-	// A valueless clause alongside usable ones should not discard the header,
-	// matching how a clause with an unrecognised key is already ignored.
+	// a valueless clause shouldn't discard the usable ones, same as an unknown key
 	prop, err := UnmarshalHoneycombTraceContext("1;trace_id=abc123,parent_id,unknown=ignored")
 	assert.NoError(t, err)
 	assert.Equal(t, "abc123", prop.TraceID)
