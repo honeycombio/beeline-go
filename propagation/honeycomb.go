@@ -71,6 +71,9 @@ func UnmarshalHoneycombTraceContext(header string) (*PropagationContext, error) 
 	// pull the version out of the header
 	getVer := strings.SplitN(header, ";", 2)
 	if getVer[0] == "1" {
+		if len(getVer) < 2 {
+			return nil, &PropagationError{"no trace context after version in trace header", nil}
+		}
 		return unmarshalHoneycombTraceContextV1(getVer[1])
 	}
 	return nil, &PropagationError{fmt.Sprintf("unrecognized version for trace header %s", getVer[0]), nil}
@@ -86,6 +89,12 @@ func unmarshalHoneycombTraceContextV1(header string) (*PropagationContext, error
 	var tcB64 string
 	for _, clause := range clauses {
 		keyval := strings.SplitN(clause, "=", 2)
+		if len(keyval) < 2 {
+			// A clause with no "=" carries no value. Skip it, the same way a
+			// clause with an unrecognised key is skipped, rather than
+			// rejecting a header whose other clauses are usable.
+			continue
+		}
 		switch keyval[0] {
 		case "trace_id":
 			prop.TraceID = keyval[1]
