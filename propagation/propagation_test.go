@@ -633,3 +633,42 @@ func TestUnmarshalAmazonTraceContext(t *testing.T) {
 		}
 	}
 }
+
+func TestUnmarshalHoneycombTraceContextMalformed(t *testing.T) {
+	// these all panicked before, because SplitN returns one element when the
+	// separator is absent. a malformed header should give no usable parent,
+	// either by erroring or by returning an empty context, but never a panic
+	headers := []string{
+		"1",
+		"1;",
+		"1;trace_id",
+		"1;parent_id",
+		"1;context",
+		"1;dataset",
+		"1;trace_id,parent_id,context",
+	}
+
+	for _, header := range headers {
+		t.Run(header, func(t *testing.T) {
+			prop, err := UnmarshalHoneycombTraceContext(header)
+			if err == nil {
+				assert.NotNil(t, prop, "a nil error must come with a context")
+				assert.False(t, prop.IsValid(), "a malformed header must not produce a usable parent")
+			}
+		})
+	}
+}
+
+func TestUnmarshalHoneycombTraceContextVersionWithoutContext(t *testing.T) {
+	prop, err := UnmarshalHoneycombTraceContext("1")
+	assert.Error(t, err)
+	assert.Nil(t, prop)
+}
+
+func TestUnmarshalHoneycombTraceContextSkipsValuelessClauses(t *testing.T) {
+	// a valueless clause shouldn't discard the usable ones, same as an unknown key
+	prop, err := UnmarshalHoneycombTraceContext("1;trace_id=abc123,parent_id,unknown=ignored")
+	assert.NoError(t, err)
+	assert.Equal(t, "abc123", prop.TraceID)
+	assert.Equal(t, "", prop.ParentID)
+}
